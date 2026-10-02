@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'app/app_state.dart';
 import 'app/repository.dart';
 import 'app/theme.dart';
+import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 
 Future<void> main() async {
@@ -44,7 +45,9 @@ class RunwayApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         scrollBehavior: const _BouncyScroll(),
-        home: const Shell(),
+        // Decided once at startup; after that, navigation is explicit so the
+        // login → home reveal transition can run.
+        home: state.user == null ? const LoginScreen() : const Shell(),
       ),
     );
   }

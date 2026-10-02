@@ -3,12 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../app/app_state.dart';
+import '../app/auth.dart';
 import '../app/budget_math.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
 import '../widgets/glass.dart';
 import '../widgets/motion.dart';
+import '../widgets/pressable.dart';
+import 'account_sheet.dart';
 import 'shell.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -19,7 +22,12 @@ class HomeScreen extends StatelessWidget {
     final state = AppScope.of(context);
     final s = state.snapshot;
     final sections = <Widget>[
-      _Header(streak: state.streak, termName: state.term.name, s: s),
+      _Header(
+        streak: state.streak,
+        termName: state.term.name,
+        s: s,
+        user: state.user,
+      ),
       _HeroRing(s: s),
       _RunwayCard(s: s, costs: state.comingUp),
       _ComingUp(costs: state.comingUp, today: s.today),
@@ -50,10 +58,12 @@ class _Header extends StatelessWidget {
     required this.streak,
     required this.termName,
     required this.s,
+    required this.user,
   });
   final int streak;
   final String termName;
   final RunwaySnapshot s;
+  final UserProfile? user;
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -70,18 +80,67 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
+          if (user != null) ...[
+            _Avatar(user: user!),
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_greeting, style: AppText.title),
+                Text(
+                  user == null ? _greeting : 'Hey, ${user!.name}',
+                  style: AppText.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 2),
-                Text('$termName · Week $week', style: AppText.label),
+                Text(
+                  [
+                    if (user != null) _greeting,
+                    termName,
+                    'Week $week',
+                  ].join(' · '),
+                  style: AppText.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           _StreakChip(streak: streak),
         ],
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.user});
+  final UserProfile user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: () => showAccountSheet(context),
+      semanticLabel: 'Account',
+      child: Container(
+        width: 46,
+        height: 46,
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppGradients.brand,
+        ),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.surface,
+          ),
+          child: Text(user.initial, style: AppText.heading),
+        ),
       ),
     );
   }

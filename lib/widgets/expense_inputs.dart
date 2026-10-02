@@ -83,6 +83,12 @@ class GlassTextField extends StatelessWidget {
     this.style,
     this.onChanged,
     this.textAlign = TextAlign.start,
+    this.obscureText = false,
+    this.suffix,
+    this.textInputAction,
+    this.onSubmitted,
+    this.autofillHints,
+    this.textCapitalization = TextCapitalization.sentences,
   });
 
   final TextEditingController controller;
@@ -95,6 +101,12 @@ class GlassTextField extends StatelessWidget {
   final TextStyle? style;
   final ValueChanged<String>? onChanged;
   final TextAlign textAlign;
+  final bool obscureText;
+  final Widget? suffix;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+  final Iterable<String>? autofillHints;
+  final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +135,13 @@ class GlassTextField extends StatelessWidget {
                 LengthLimitingTextInputFormatter(maxLength),
                 ...?inputFormatters,
               ],
-              textCapitalization: TextCapitalization.sentences,
+              textCapitalization: textCapitalization,
+              obscureText: obscureText,
+              textInputAction: textInputAction,
+              onSubmitted: onSubmitted,
+              autofillHints: autofillHints,
+              autocorrect: !obscureText,
+              enableSuggestions: !obscureText,
               decoration: InputDecoration(
                 hintText: hint,
                 hintStyle: textStyle.copyWith(color: AppColors.muted),
@@ -135,6 +153,7 @@ class GlassTextField extends StatelessWidget {
               ),
             ),
           ),
+          ?suffix,
         ],
       ),
     );

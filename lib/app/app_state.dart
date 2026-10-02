@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import 'auth.dart';
 import 'budget_math.dart';
 import 'coach.dart';
 import 'format.dart';
@@ -15,6 +16,8 @@ class AppState extends ChangeNotifier {
     required BudgetRepository repository,
     required BudgetData data,
     this.coach = const LocalCoach(),
+    this.auth = const LocalAuthService(),
+    UserProfile? user,
     DateTime Function()? clock,
   }) : _repo = repository,
        _clock = clock ?? DateTime.now,
@@ -24,12 +27,14 @@ class AppState extends ChangeNotifier {
        _friends = data.friends,
        _splits = [...data.splits],
        challengeStart = data.challengeStart {
+    _user = user;
     _recompute();
   }
 
   final BudgetRepository _repo;
   final DateTime Function() _clock;
   final AffordabilityCoach coach;
+  final AuthService auth;
   final DateTime challengeStart;
 
   Term _term;
@@ -38,10 +43,12 @@ class AppState extends ChangeNotifier {
   final List<Friend> _friends;
   final List<BillSplit> _splits;
 
+  UserProfile? _user;
   late RunwaySnapshot _snapshot;
   late int _streak;
 
   DateTime get today => dateOnly(_clock());
+  UserProfile? get user => _user;
   Term get term => _term;
   RunwaySnapshot get snapshot => _snapshot;
   int get streak => _streak;
@@ -134,6 +141,17 @@ class AppState extends ChangeNotifier {
     _splits.removeWhere((s) => s.id == id);
     notifyListeners();
     unawaited(_repo.settleSplit(id));
+  }
+
+  void signedIn(UserProfile user) {
+    _user = user;
+    notifyListeners();
+  }
+
+  Future<void> signOut() async {
+    await auth.signOut();
+    _user = null;
+    notifyListeners();
   }
 
   void updateTerm(Term term) {

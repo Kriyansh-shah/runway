@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/app_state.dart';
+import 'package:runway/app/auth.dart';
 import 'package:runway/app/models.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
@@ -25,6 +26,7 @@ void main() {
   AppState buildState() => AppState(
     repository: MockBudgetRepository(now: now),
     data: MockBudgetRepository.seed(now),
+    user: const UserProfile(name: 'Alex', email: 'alex@uni.edu'),
     clock: () => now,
   );
 
@@ -126,6 +128,7 @@ void main() {
         splits: data.splits,
         challengeStart: data.challengeStart,
       ),
+      user: const UserProfile(name: 'Alex', email: 'alex@uni.edu'),
       clock: () => now,
     );
     final streak = state.streak;
@@ -266,5 +269,96 @@ void main() {
       unorderedEquals(['Maya', 'Jules']),
     );
     expect(find.text('Split a bill'), findsOneWidget); // sheet closed
+  });
+
+  group('login', () {
+    AppState signedOut() => AppState(
+      repository: MockBudgetRepository(now: now),
+      data: MockBudgetRepository.seed(now),
+      clock: () => now,
+    );
+
+    Future<void> boot(WidgetTester tester, AppState state) async {
+      tester.view.physicalSize = const Size(750, 1334); // small phone
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: state));
+      await settle(tester);
+    }
+
+    testWidgets('signing in reveals home with your name', (tester) async {
+      final state = signedOut();
+      await boot(tester, state);
+      expect(find.text('runway'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).at(0), 'maya.k@uni.edu');
+      await tester.enterText(find.byType(TextField).at(1), 'hunter22');
+      await tester.tap(find.text('Sign in').last);
+      await settle(tester, const Duration(seconds: 3));
+
+      expect(tester.takeException(), isNull);
+      expect(state.user?.name, 'Maya');
+      expect(find.text('Hey, Maya'), findsOneWidget);
+      expect(find.text('runway'), findsNothing); // login route is gone
+    });
+
+    testWidgets('bad credentials show an error and stay put', (tester) async {
+      final state = signedOut();
+      await boot(tester, state);
+
+      await tester.enterText(find.byType(TextField).at(0), 'not-an-email');
+      await tester.enterText(find.byType(TextField).at(1), 'hunter22');
+      await tester.tap(find.text('Sign in').last);
+      await settle(tester);
+
+      expect(find.text('That email doesn\'t look right.'), findsOneWidget);
+      expect(state.user, isNull);
+    });
+
+    testWidgets('create account uses the name you type', (tester) async {
+      final state = signedOut();
+      await boot(tester, state);
+
+      await tester.tap(find.text('Create account').first);
+      await settle(tester);
+      await tester.enterText(find.byType(TextField).at(0), 'Sam');
+      await tester.enterText(find.byType(TextField).at(1), 'sam@uni.edu');
+      await tester.enterText(find.byType(TextField).at(2), 'secret1');
+      await tester.tap(find.text('Create account').last);
+      await settle(tester, const Duration(seconds: 3));
+
+      expect(find.text('Hey, Sam'), findsOneWidget);
+    });
+
+    testWidgets('signing out returns to login', (tester) async {
+      final state = buildState();
+      await boot(tester, state);
+
+      await tester.tap(find.text('A')); // avatar initial
+      await settle(tester);
+      await tester.tap(find.text('Sign out'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(state.user, isNull);
+      expect(find.text('runway'), findsOneWidget);
+    });
+  });
+
+  group('validateCredentials', () {
+    test('accepts good input', () {
+      expect(validateCredentials(email: 'a@b.co', password: '123456'), isNull);
+    });
+    test('rejects bad email, short password, empty name', () {
+      expect(validateCredentials(email: 'a@b', password: '123456'), isNotNull);
+      expect(validateCredentials(email: 'a@b.co', password: '123'), isNotNull);
+      expect(
+        validateCredentials(email: 'a@b.co', password: '123456', name: ' '),
+        isNotNull,
+      );
+    });
+    test('derives a display name from the email', () {
+      expect(nameFromEmail('alex.kim99@uni.edu'), 'Alex');
+      expect(nameFromEmail('42@uni.edu'), 'Friend');
+    });
   });
 }
