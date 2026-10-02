@@ -185,3 +185,12 @@ NeedWantSplit weekSplit(List<Expense> expenses, DateTime today) {
   }
   return NeedWantSplit(need, want);
 }
+
+/// Splits [total] evenly between you and [others] people. Everyone else's
+/// share is rounded to cents; you absorb the leftover cent(s).
+({double mine, double each}) splitEvenly(double total, int others) {
+  if (others <= 0) return (mine: total, each: 0);
+  final each = (total / (others + 1) * 100).round() / 100;
+  final mine = ((total - each * others) * 100).round() / 100;
+  return (mine: mine, each: each);
+}

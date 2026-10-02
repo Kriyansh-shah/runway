@@ -9,6 +9,7 @@ import 'models.dart';
 abstract interface class BudgetRepository {
   Future<BudgetData> load();
   Future<void> addExpense(Expense expense);
+  Future<void> addSplit(BillSplit split);
   Future<void> settleSplit(String splitId);
 }
 
@@ -22,6 +23,9 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> addExpense(Expense expense) async {}
+
+  @override
+  Future<void> addSplit(BillSplit split) async {}
 
   @override
   Future<void> settleSplit(String splitId) async {}

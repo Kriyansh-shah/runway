@@ -11,6 +11,7 @@ import '../widgets/mochi.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import 'shell.dart';
+import 'split_bill_sheet.dart';
 
 class SquadScreen extends StatelessWidget {
   const SquadScreen({super.key});
@@ -351,7 +352,40 @@ class _Splits extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader('Roommate splits'),
+        SectionHeader(
+          'Roommate splits',
+          trailing: Pressable(
+            onTap: () => showSplitBillSheet(context),
+            semanticLabel: 'Split a bill',
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                gradient: AppGradients.brand,
+                borderRadius: BorderRadius.circular(99),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.violet.withValues(alpha: 0.45),
+                    blurRadius: 14,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Split a bill',
+                    style: AppText.label.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         AnimatedSwitcher(
           duration: Motion.med,
           child: splits.isEmpty
@@ -359,7 +393,8 @@ class _Splits extends StatelessWidget {
                   key: const ValueKey('empty'),
                   child: Center(
                     child: Text(
-                      'All square ✨',
+                      'All square ✨  Paid for something shared? Split it.',
+                      textAlign: TextAlign.center,
                       style: AppText.body.copyWith(color: AppColors.mint),
                     ),
                   ),
@@ -367,8 +402,13 @@ class _Splits extends StatelessWidget {
               : Column(
                   key: const ValueKey('list'),
                   children: [
+                    // Keyed so a freshly split bill animates in.
                     for (final s in splits)
-                      _SplitRow(key: ValueKey(s.id), split: s),
+                      Entrance(
+                        key: ValueKey(s.id),
+                        index: 0,
+                        child: _SplitRow(split: s),
+                      ),
                   ],
                 ),
         ),
@@ -378,7 +418,7 @@ class _Splits extends StatelessWidget {
 }
 
 class _SplitRow extends StatefulWidget {
-  const _SplitRow({super.key, required this.split});
+  const _SplitRow({required this.split});
   final BillSplit split;
 
   @override

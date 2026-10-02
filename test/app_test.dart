@@ -5,6 +5,7 @@ import 'package:runway/app/app_state.dart';
 import 'package:runway/app/models.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
+import 'package:runway/widgets/expense_inputs.dart';
 
 /// Pumps frame-by-frame for [d]. The app has endless ambient animations
 /// (aurora, pet), so pumpAndSettle would never return.
@@ -42,6 +43,29 @@ void main() {
     // daily allowance holds and safe-to-spend drops by exactly the amount.
     expect(state.snapshot.safeToSpendToday, closeTo(before - 10, 1e-9));
     expect(state.recentExpenses(1).single.amount, 10);
+  });
+
+  test('splitting a bill adds IOUs and only your share as spending', () {
+    final state = buildState();
+    final spentBefore = state.snapshot.totalSpent;
+    final splitsBefore = state.splits.length;
+    final roommates = state.friends.take(2).toList();
+
+    state.splitBill(
+      description: 'Costco run',
+      total: 90,
+      roommates: roommates,
+      category: ExpenseCategory.groceries,
+      isNeed: true,
+    );
+
+    expect(state.splits.length, splitsBefore + 2);
+    final added = state.splits.take(2);
+    expect(added.map((s) => s.person), roommates.map((f) => f.name));
+    expect(added.every((s) => s.theyOweYou && s.amount == 30), isTrue);
+    expect(added.every((s) => s.note == 'Costco run'), isTrue);
+    expect(state.snapshot.totalSpent, closeTo(spentBefore + 30, 1e-9));
+    expect(state.recentExpenses(1).single.title, 'Costco run');
   });
 
   testWidgets('app boots and shows the home screen', (tester) async {
@@ -111,7 +135,9 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Add expense'));
     await settle(tester, const Duration(seconds: 1));
 
-    await tester.tap(find.textContaining('Groceries', findRichText: true));
+    await tester.tap(
+      find.textContaining('Groceries', findRichText: true).first,
+    );
     await settle(tester, const Duration(milliseconds: 400));
     await tester.tap(find.text('Log \$38.00'));
     await settle(tester, const Duration(seconds: 1));
@@ -169,5 +195,76 @@ void main() {
         reason: 'Home still visible behind $tab',
       );
     }
+  });
+
+  testWidgets('quick add saves a note and any category', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final state = buildState();
+    await tester.pumpWidget(RunwayApp(state: state));
+    await settle(tester);
+    await tester.tap(find.bySemanticsLabel('Add expense'));
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Uber to airport');
+    await tester.tap(find.text('2'));
+    await tester.tap(find.text('7'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.scrollUntilVisible(
+      find.text('🚕 Uber / ride'),
+      120,
+      scrollable: find.descendant(
+        of: find.byType(CategoryPicker),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('🚕 Uber / ride'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Log \$27.00'));
+    await settle(tester);
+
+    final e = state.recentExpenses(1).single;
+    expect(e.title, 'Uber to airport');
+    expect(e.category, ExpenseCategory.rideshare);
+    expect(e.amount, 27);
+  });
+
+  testWidgets('squad split-a-bill sheet creates IOUs', (tester) async {
+    tester.view.physicalSize = const Size(750, 1334); // small phone
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    final state = buildState();
+    await tester.pumpWidget(RunwayApp(state: state));
+    await settle(tester);
+    await tester.tap(find.text('Squad').last);
+    await settle(tester);
+    await tester.ensureVisible(find.text('Split a bill'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Split a bill'));
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField).at(0), 'Takeout feast');
+    await tester.enterText(find.byType(TextField).at(1), '36');
+    await tester.tap(find.text('🦊 Maya'));
+    await tester.tap(find.text('🐸 Jules'));
+    await settle(tester, const Duration(milliseconds: 400));
+    expect(find.text('Maya owes you'), findsOneWidget);
+    expect(find.text('\$12.00'), findsNWidgets(3));
+
+    await tester.ensureVisible(find.text('Split \$36.00'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Split \$36.00'));
+    await settle(tester, const Duration(seconds: 2));
+
+    expect(tester.takeException(), isNull);
+    expect(
+      state.splits.where((s) => s.note == 'Takeout feast').map((s) => s.person),
+      unorderedEquals(['Maya', 'Jules']),
+    );
+    expect(find.text('Split a bill'), findsOneWidget); // sheet closed
   });
 }

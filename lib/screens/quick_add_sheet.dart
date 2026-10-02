@@ -5,7 +5,7 @@ import '../app/app_state.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
-import '../widgets/glass.dart';
+import '../widgets/expense_inputs.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/pressable.dart';
 
@@ -36,6 +36,13 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   String _input = '';
   ExpenseCategory _category = ExpenseCategory.other;
   bool _isNeed = false;
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
 
   double get _amount => double.tryParse(_input) ?? 0;
 
@@ -75,75 +82,54 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
 
   void _save() {
     if (_amount <= 0) return;
-    AppScope.read(context)
-        .addExpense(amount: _amount, category: _category, isNeed: _isNeed);
+    final note = _note.text.trim();
+    AppScope.read(context).addExpense(
+      amount: _amount,
+      category: _category,
+      isNeed: _isNeed,
+      note: note.isEmpty ? null : note,
+    );
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.paddingOf(context).bottom;
-    return FrostedGlass(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-      sigma: 30,
-      tint: AppColors.surface.withValues(alpha: 0.78),
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 10, 20, bottom + 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Quick add',
-              style: AppText.label,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            _AmountDisplay(input: _input),
-            const SizedBox(height: 6),
-            AnimatedSwitcher(
-              duration: Motion.fast,
-              child: Text(
-                '${_category.emoji} ${_category.label}',
-                key: ValueKey(_category),
-                textAlign: TextAlign.center,
-                style: AppText.label,
-              ),
-            ),
-            const SizedBox(height: 18),
-            _Presets(selected: _category, onTap: _preset),
-            const SizedBox(height: 16),
-            _NeedWantToggle(
-              isNeed: _isNeed,
-              onChanged: (v) {
-                HapticFeedback.selectionClick();
-                setState(() => _isNeed = v);
-              },
-            ),
-            const SizedBox(height: 14),
-            _Keypad(onKey: _key),
-            const SizedBox(height: 16),
-            GradientButton(
-              label: _amount > 0 ? 'Log ${money(_amount)}' : 'Enter an amount',
-              gradient: _isNeed ? AppGradients.good : AppGradients.hot,
-              glow: _isNeed ? AppColors.cyan : AppColors.pink,
-              onTap: _amount > 0 ? _save : null,
-            ),
-          ],
+    return SheetFrame(
+      children: [
+        Text('Quick add', style: AppText.label, textAlign: TextAlign.center),
+        const SizedBox(height: 6),
+        _AmountDisplay(input: _input),
+        const SizedBox(height: 10),
+        GlassTextField(
+          controller: _note,
+          hint: 'What was it? e.g. Uber to airport',
+          icon: Icons.edit_note_rounded,
         ),
-      ),
+        const SizedBox(height: 16),
+        const FieldLabel('Quick picks'),
+        _Presets(selected: _category, onTap: _preset),
+        const SizedBox(height: 14),
+        const FieldLabel('Category'),
+        CategoryPicker(
+          selected: _category,
+          onChanged: (c) => setState(() => _category = c),
+        ),
+        const SizedBox(height: 16),
+        NeedWantToggle(
+          isNeed: _isNeed,
+          onChanged: (v) => setState(() => _isNeed = v),
+        ),
+        const SizedBox(height: 14),
+        _Keypad(onKey: _key),
+        const SizedBox(height: 16),
+        GradientButton(
+          label: _amount > 0 ? 'Log ${money(_amount)}' : 'Enter an amount',
+          gradient: _isNeed ? AppGradients.good : AppGradients.hot,
+          glow: _isNeed ? AppColors.cyan : AppColors.pink,
+          onTap: _amount > 0 ? _save : null,
+        ),
+      ],
     );
   }
 }
@@ -202,122 +188,28 @@ class _Presets extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
+    return ChipRow(
       children: [
         for (final p in ExpensePreset.all)
-          Pressable(
+          ChoiceChipPill(
+            selected: selected == p.category,
             onTap: () => onTap(p),
-            haptic: false,
-            child: AnimatedContainer(
-              duration: Motion.fast,
-              curve: Motion.out,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: selected == p.category
-                    ? AppColors.violet.withValues(alpha: 0.25)
-                    : Colors.white.withValues(alpha: 0.06),
-                border: Border.all(
-                  color: selected == p.category
-                      ? AppColors.violet.withValues(alpha: 0.8)
-                      : AppColors.hairline,
-                ),
-              ),
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(text: '${p.category.emoji} '),
-                    TextSpan(
-                      text: p.category.label,
-                      style: AppText.body.copyWith(fontSize: 14),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: '${p.category.emoji} ${p.category.label}'),
+                  TextSpan(
+                    text:
+                        '  ${money(p.amount, cents: p.amount != p.amount.roundToDouble())}',
+                    style: AppText.label.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
-                    TextSpan(
-                      text:
-                          '  ${money(p.amount, cents: p.amount != p.amount.roundToDouble())}',
-                      style: AppText.label.copyWith(
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Segmented need/want toggle with a sliding pill.
-class _NeedWantToggle extends StatelessWidget {
-  const _NeedWantToggle({required this.isNeed, required this.onChanged});
-  final bool isNeed;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isNeed ? AppColors.need : AppColors.want;
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.hairline),
-      ),
-      child: Stack(
-        children: [
-          AnimatedAlign(
-            alignment: isNeed ? Alignment.centerLeft : Alignment.centerRight,
-            duration: Motion.med,
-            curve: Motion.spring,
-            child: FractionallySizedBox(
-              widthFactor: 0.5,
-              heightFactor: 1,
-              child: AnimatedContainer(
-                duration: Motion.med,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: color.withValues(alpha: 0.22),
-                  border: Border.all(color: color.withValues(alpha: 0.7)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              for (final need in [true, false])
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onChanged(need),
-                    child: Center(
-                      child: AnimatedDefaultTextStyle(
-                        duration: Motion.fast,
-                        style: AppText.body.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: need == isNeed
-                              ? (need ? AppColors.need : AppColors.want)
-                              : AppColors.muted,
-                        ),
-                        child: Text(need ? 'Need' : 'Want'),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

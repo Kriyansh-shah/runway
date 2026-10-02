@@ -95,6 +95,41 @@ class AppState extends ChangeNotifier {
     unawaited(_repo.addExpense(expense));
   }
 
+  /// You paid [total] for something shared with [roommates]. Each roommate
+  /// now owes you an even share, and only your own share counts as spending.
+  void splitBill({
+    required String description,
+    required double total,
+    required List<Friend> roommates,
+    required ExpenseCategory category,
+    required bool isNeed,
+  }) {
+    if (roommates.isEmpty || total <= 0) return;
+    final shares = splitEvenly(total, roommates.length);
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final added = [
+      for (final r in roommates)
+        BillSplit(
+          id: 's$stamp-${r.id}',
+          person: r.name,
+          amount: shares.each,
+          note: description,
+          theyOweYou: true,
+        ),
+    ];
+    _splits.insertAll(0, added);
+    for (final split in added) {
+      unawaited(_repo.addSplit(split));
+    }
+    // addExpense recomputes and notifies for both changes.
+    addExpense(
+      amount: shares.mine,
+      category: category,
+      isNeed: isNeed,
+      note: description,
+    );
+  }
+
   void settleSplit(String id) {
     _splits.removeWhere((s) => s.id == id);
     notifyListeners();

@@ -175,4 +175,21 @@ void main() {
     expect(s.daysShort, 14);
     expect(computeStreak(data.expenses, today), 13);
   });
+
+  group('splitEvenly', () {
+    test('divides evenly between you and roommates', () {
+      expect(splitEvenly(42, 2), (mine: 14.0, each: 14.0));
+    });
+
+    test('you absorb the leftover cent', () {
+      final s = splitEvenly(10, 2); // 3.33 each for them
+      expect(s.each, 3.33);
+      expect(s.mine, 3.34);
+      expect(s.mine + s.each * 2, closeTo(10, 1e-9));
+    });
+
+    test('nobody to split with means you pay it all', () {
+      expect(splitEvenly(25, 0), (mine: 25.0, each: 0.0));
+    });
+  });
 }
