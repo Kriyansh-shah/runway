@@ -1,0 +1,172 @@
+/// Persistence boundary. [AppState] only depends on [BudgetRepository], so the
+/// in-memory mock can be replaced by a SQLite implementation later.
+library;
+
+import 'dart:math' as math;
+
+import 'models.dart';
+
+abstract interface class BudgetRepository {
+  Future<BudgetData> load();
+  Future<void> addExpense(Expense expense);
+  Future<void> settleSplit(String splitId);
+}
+
+class MockBudgetRepository implements BudgetRepository {
+  MockBudgetRepository({DateTime? now}) : _now = now ?? DateTime.now();
+
+  final DateTime _now;
+
+  @override
+  Future<BudgetData> load() async => seed(_now);
+
+  @override
+  Future<void> addExpense(Expense expense) async {}
+
+  @override
+  Future<void> settleSplit(String splitId) async {}
+
+  /// Total of the seeded past expenses. Tuned so the demo lands at
+  /// "14 days short" with today's coffee included.
+  static const seededTotal = 1170.0;
+
+  /// Deterministic demo data relative to [now].
+  static BudgetData seed(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    DateTime day(int offset) =>
+        DateTime(today.year, today.month, today.day + offset);
+
+    final rng = math.Random(42);
+    final raw = <Expense>[];
+    var n = 0;
+    for (var d = -40; d <= -1; d++) {
+      // A gap 13 days ago so the streak is a believable 13 (with today), plus a few
+      // random gaps earlier in the term.
+      if (d == -13 || (d < -13 && rng.nextDouble() < 0.15)) continue;
+      final count = 1 + rng.nextInt(3);
+      for (var i = 0; i < count; i++) {
+        var p = ExpensePreset.all[rng.nextInt(ExpensePreset.all.length)];
+        // You've been good during the no-delivery challenge so far.
+        if (d >= -3 && p.category == ExpenseCategory.delivery) {
+          p = ExpensePreset.all.first;
+        }
+        final jitter = 0.7 + rng.nextDouble() * 0.6;
+        raw.add(
+          Expense(
+            id: 'seed-${n++}',
+            amount: p.amount * jitter,
+            category: p.category,
+            isNeed: p.isNeed,
+            date: day(d).add(Duration(hours: 8 + rng.nextInt(14))),
+          ),
+        );
+      }
+    }
+
+    // Scale to the target total, rounding to cents, and absorb the rounding
+    // error into the last item so the total is exact.
+    final rawTotal = raw.fold<double>(0, (s, e) => s + e.amount);
+    final scale = seededTotal / rawTotal;
+    final expenses = <Expense>[];
+    var running = 0.0;
+    for (var i = 0; i < raw.length; i++) {
+      final e = raw[i];
+      final amount = i == raw.length - 1
+          ? ((seededTotal - running) * 100).round() / 100
+          : (e.amount * scale * 100).round() / 100;
+      running += amount;
+      expenses.add(
+        Expense(
+          id: e.id,
+          amount: amount,
+          category: e.category,
+          isNeed: e.isNeed,
+          date: e.date,
+        ),
+      );
+    }
+    expenses.add(
+      Expense(
+        id: 'seed-today',
+        amount: 4.50,
+        category: ExpenseCategory.coffee,
+        isNeed: false,
+        date: today.add(const Duration(hours: 9)),
+      ),
+    );
+
+    final challengeStart = day(-3);
+    return BudgetData(
+      term: Term(
+        name: 'Fall term',
+        start: day(-40),
+        end: day(70),
+        startingBalance: 3200,
+      ),
+      expenses: expenses,
+      upcoming: [
+        UpcomingCost(
+          id: 'phone',
+          emoji: '📱',
+          name: 'Phone bill',
+          amount: 55,
+          dueDate: day(9),
+        ),
+        UpcomingCost(
+          id: 'formal',
+          emoji: '🎟️',
+          name: 'Formal ticket',
+          amount: 85,
+          dueDate: day(23),
+        ),
+        UpcomingCost(
+          id: 'flight',
+          emoji: '✈️',
+          name: 'Flight home',
+          amount: 280,
+          dueDate: day(54),
+        ),
+      ],
+      friends: const [
+        Friend(
+          id: 'maya',
+          name: 'Maya',
+          emoji: '🦊',
+          streak: 21,
+          noDeliveryDays: [true, true, true, true],
+        ),
+        Friend(
+          id: 'aarav',
+          name: 'Aarav',
+          emoji: '🐼',
+          streak: 9,
+          noDeliveryDays: [true, false, true, true],
+        ),
+        Friend(
+          id: 'jules',
+          name: 'Jules',
+          emoji: '🐸',
+          streak: 4,
+          noDeliveryDays: [true, true, false, false],
+        ),
+      ],
+      splits: const [
+        BillSplit(
+          id: 'pizza',
+          person: 'Aarav',
+          amount: 12.40,
+          note: 'Pizza night',
+          theyOweYou: true,
+        ),
+        BillSplit(
+          id: 'wifi',
+          person: 'Maya',
+          amount: 30,
+          note: 'Wi-Fi + power',
+          theyOweYou: false,
+        ),
+      ],
+      challengeStart: challengeStart,
+    );
+  }
+}
