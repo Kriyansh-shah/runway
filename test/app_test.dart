@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/app_state.dart';
@@ -135,5 +136,38 @@ void main() {
     await settle(tester);
     expect(find.text('Quick add'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switching tabs fully hides the previous tab', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(RunwayApp(state: buildState()));
+    await settle(tester);
+
+    double opacityOf(Finder f) => tester
+        .widget<AnimatedOpacity>(
+          find.ancestor(of: f, matching: find.byType(AnimatedOpacity)).first,
+        )
+        .opacity;
+    double renderedOpacityOf(Finder f) => tester
+        .renderObject<RenderAnimatedOpacity>(
+          find.ancestor(of: f, matching: find.byType(AnimatedOpacity)).first,
+        )
+        .opacity
+        .value;
+
+    final home = find.text('Safe to spend today');
+    for (final tab in ['Coach', 'Squad']) {
+      await tester.tap(find.text(tab).last);
+      await settle(tester);
+      expect(opacityOf(home), 0);
+      expect(
+        renderedOpacityOf(home),
+        0,
+        reason: 'Home still visible behind $tab',
+      );
+    }
   });
 }

@@ -91,18 +91,18 @@ class _TabLayer extends StatelessWidget {
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: !active,
-        child: TickerMode(
-          enabled: active,
-          child: AnimatedSlide(
-            offset: active ? Offset.zero : Offset(0.04 * direction, 0),
+        // The fade/slide must live *outside* TickerMode: a disabled ticker
+        // would freeze the fade-out and leave the old tab visible.
+        child: AnimatedSlide(
+          offset: active ? Offset.zero : Offset(0.04 * direction, 0),
+          duration: Motion.med,
+          curve: Motion.out,
+          child: AnimatedOpacity(
+            opacity: active ? 1 : 0,
             duration: Motion.med,
             curve: Motion.out,
-            child: AnimatedOpacity(
-              opacity: active ? 1 : 0,
-              duration: Motion.med,
-              curve: Motion.out,
-              child: child,
-            ),
+            // Inactive tabs stop their own ambient animations (pet, etc.).
+            child: TickerMode(enabled: active, child: child),
           ),
         ),
       ),
