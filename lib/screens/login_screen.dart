@@ -1,16 +1,16 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
 import '../app/auth.dart';
-import '../app/budget_math.dart';
 import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/glass.dart';
-import '../widgets/mochi.dart';
+import '../widgets/mochi_takeoff.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
@@ -20,7 +20,11 @@ import '../widgets/ph_icons.dart';
 enum _Phase { idle, loading, success }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.playIntro = false});
+
+  /// Play "Mochi's Takeoff" first (app launch). Skipped when signing out
+  /// or when the phone asks for reduced motion.
+  final bool playIntro;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -32,17 +36,19 @@ class _LoginScreenState extends State<LoginScreen>
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _buttonKey = GlobalKey();
+  final _logoKey = GlobalKey();
+  final _stackKey = GlobalKey();
+
+  /// Intro clock in seconds; drives the login card rising in.
+  late final _introTime = ValueNotifier<double>(
+    widget.playIntro ? 0 : kTakeoffEnd,
+  );
+  late bool _introRunning = widget.playIntro;
 
   bool _signUp = false;
   bool _showPassword = false;
   _Phase _phase = _Phase.idle;
   String? _error;
-
-  /// Mochi floats gently above the form.
-  late final _bob = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  )..repeat(reverse: true);
 
   /// Horizontal shake when credentials are rejected.
   late final _shake = AnimationController(
@@ -58,10 +64,29 @@ class _LoginScreenState extends State<LoginScreen>
     _name.dispose();
     _email.dispose();
     _password.dispose();
-    _bob.dispose();
+    _introTime.dispose();
     _shake.dispose();
     _exit.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_introRunning && MediaQuery.disableAnimationsOf(context)) {
+      _introRunning = false;
+      _introTime.value = kTakeoffEnd;
+    }
+  }
+
+  /// Where the intro's logo must land: exactly on the header's [LogoMark].
+  Offset _logoBaseline(Size size) {
+    final header = _logoKey.currentContext?.findRenderObject() as RenderBox?;
+    final stack = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (header == null || stack == null || !header.hasSize) {
+      return Offset(size.width / 2, size.height * 0.22);
+    }
+    return stack.globalToLocal(header.localToGlobal(LogoMark.baseline));
   }
 
   void _setMode(bool signUp) {
@@ -126,8 +151,21 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final busy = _phase != _Phase.idle;
     final sections = <Widget>[
-      _Hero(bob: _bob),
-      const SizedBox(height: 28),
+      // The intro hands its logo over to this exact spot when it ends.
+      Center(
+        child: SizedBox.fromSize(
+          key: _logoKey,
+          size: LogoMark.size,
+          child: _introRunning ? null : const LogoMark(),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        'Make your money last the whole semester.',
+        style: AppText.body.copyWith(color: AppColors.muted),
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 24),
       AnimatedBuilder(
         animation: _shake,
         builder: (context, child) {
@@ -264,32 +302,38 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     ];
 
-    return Scaffold(
-      body: AuroraBackground(
-        child: AnimatedBuilder(
-          animation: _exit,
-          builder: (context, child) {
-            final t = Curves.easeInCubic.transform(_exit.value);
-            return Opacity(
-              opacity: 1 - 0.6 * t,
-              child: Transform.scale(scale: 1 - 0.08 * t, child: child),
-            );
-          },
-          child: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < sections.length; i++)
-                        sections[i] is SizedBox
-                            ? sections[i]
-                            : Entrance(index: i, child: sections[i]),
-                    ],
-                  ),
+    var rise = 0;
+    final content = AuroraBackground(
+      child: AnimatedBuilder(
+        animation: _exit,
+        builder: (context, child) {
+          final t = Curves.easeInCubic.transform(_exit.value);
+          return Opacity(
+            opacity: 1 - 0.6 * t,
+            child: Transform.scale(scale: 1 - 0.08 * t, child: child),
+          );
+        },
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < sections.length; i++)
+                      if (sections[i] is SizedBox || i == 0)
+                        sections[i]
+                      else if (widget.playIntro)
+                        _IntroRise(
+                          time: _introTime,
+                          index: rise++,
+                          child: sections[i],
+                        )
+                      else
+                        Entrance(index: i, child: sections[i]),
+                  ],
                 ),
               ),
             ),
@@ -297,42 +341,56 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ),
     );
+
+    return Scaffold(
+      body: Stack(
+        key: _stackKey,
+        children: [
+          Positioned.fill(child: content),
+          if (_introRunning)
+            Positioned.fill(
+              child: MochiTakeoff(
+                logoBaseline: _logoBaseline,
+                onTime: (t) => _introTime.value = t,
+                onFinished: () => setState(() => _introRunning = false),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero({required this.bob});
-  final Animation<double> bob;
+/// Rises a login section in with the intro's clock, staggered by [index].
+class _IntroRise extends StatelessWidget {
+  const _IntroRise({
+    required this.time,
+    required this.index,
+    required this.child,
+  });
+
+  final ValueListenable<double> time;
+  final int index;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        AnimatedBuilder(
-          animation: bob,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(0, -8 * Curves.easeInOut.transform(bob.value)),
+    return ValueListenableBuilder<double>(
+      valueListenable: time,
+      child: child,
+      builder: (context, t, child) {
+        final start = 3.6 + index * 0.07;
+        final p = Curves.easeOutCubic.transform(
+          ((t - start) / 0.5).clamp(0.0, 1.0),
+        );
+        return Opacity(
+          opacity: p,
+          child: Transform.translate(
+            offset: Offset(0, 22 * (1 - p)),
             child: child,
           ),
-          child: const Mochi(mood: PetMood.thriving, size: 116),
-        ),
-        const SizedBox(height: 8),
-        const GradientText(
-          'runway',
-          style: TextStyle(
-            fontSize: 52,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -2.5,
-            height: 1.0,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Make your money last the whole semester.',
-          style: AppText.body.copyWith(color: AppColors.muted),
-          textAlign: TextAlign.center,
-        ),
-      ],
+        );
+      },
     );
   }
 }

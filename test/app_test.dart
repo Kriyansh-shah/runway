@@ -7,6 +7,7 @@ import 'package:runway/app/models.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
 import 'package:runway/widgets/expense_inputs.dart';
+import 'package:runway/widgets/mochi_takeoff.dart';
 
 /// Pumps frame-by-frame for [d]. The app has endless ambient animations
 /// (aurora, pet), so pumpAndSettle would never return.
@@ -75,7 +76,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(RunwayApp(state: buildState()));
+    await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
     // Infinite ambient animations (aurora, pet) mean pumpAndSettle never
     // settles; pump past the entrance animations instead.
     await settle(tester, const Duration(seconds: 2));
@@ -95,7 +96,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(RunwayApp(state: buildState()));
+    await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
     await settle(tester, const Duration(seconds: 1));
     await tester.tap(find.text('Coach'));
     await settle(tester, const Duration(seconds: 1));
@@ -133,7 +134,7 @@ void main() {
     );
     final streak = state.streak;
 
-    await tester.pumpWidget(RunwayApp(state: state));
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
     await settle(tester, const Duration(seconds: 1));
     await tester.tap(find.bySemanticsLabel('Add expense'));
     await settle(tester, const Duration(seconds: 1));
@@ -155,7 +156,7 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(RunwayApp(state: buildState()));
+    await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
     await settle(tester);
     for (final tab in ['Coach', 'Squad', 'Home']) {
       await tester.tap(find.text(tab).last);
@@ -172,7 +173,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(RunwayApp(state: buildState()));
+    await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
     await settle(tester);
 
     double opacityOf(Finder f) => tester
@@ -206,7 +207,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     final state = buildState();
-    await tester.pumpWidget(RunwayApp(state: state));
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
     await settle(tester);
     await tester.tap(find.bySemanticsLabel('Add expense'));
     await settle(tester);
@@ -241,7 +242,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     final state = buildState();
-    await tester.pumpWidget(RunwayApp(state: state));
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
     await settle(tester);
     await tester.tap(find.text('Squad').last);
     await settle(tester);
@@ -282,14 +283,14 @@ void main() {
       tester.view.physicalSize = const Size(750, 1334); // small phone
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(RunwayApp(state: state));
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
       await settle(tester);
     }
 
     testWidgets('signing in reveals home with your name', (tester) async {
       final state = signedOut();
       await boot(tester, state);
-      expect(find.text('runway'), findsOneWidget);
+      expect(find.byType(LogoMark), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).at(0), 'maya.k@uni.edu');
       await tester.enterText(find.byType(TextField).at(1), 'hunter22');
@@ -299,7 +300,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(state.user?.name, 'Maya');
       expect(find.text('Hey, Maya'), findsOneWidget);
-      expect(find.text('runway'), findsNothing); // login route is gone
+      expect(find.byType(LogoMark), findsNothing); // login route is gone
     });
 
     testWidgets('bad credentials show an error and stay put', (tester) async {
@@ -340,7 +341,7 @@ void main() {
       await settle(tester, const Duration(seconds: 2));
 
       expect(state.user, isNull);
-      expect(find.text('runway'), findsOneWidget);
+      expect(find.byType(LogoMark), findsOneWidget);
     });
   });
 

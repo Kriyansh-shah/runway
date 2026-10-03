@@ -10,6 +10,7 @@ import 'app/app_state.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
 import 'app/theme.dart';
+import 'screens/launch_intro.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
 
@@ -37,8 +38,11 @@ Future<void> main() async {
 }
 
 class RunwayApp extends StatelessWidget {
-  const RunwayApp({super.key, required this.state});
+  const RunwayApp({super.key, required this.state, this.intro = true});
   final AppState state;
+
+  /// Play "Mochi's Takeoff" on launch. Tests turn it off.
+  final bool intro;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +55,11 @@ class RunwayApp extends StatelessWidget {
         scrollBehavior: const _BouncyScroll(),
         // Decided once at startup; after that, navigation is explicit so the
         // login → home reveal transition can run.
-        home: state.user == null ? const LoginScreen() : const Shell(),
+        home: switch ((state.user != null, intro)) {
+          (false, _) => LoginScreen(playIntro: intro),
+          (true, true) => const LaunchIntro(),
+          (true, false) => const Shell(),
+        },
       ),
     );
   }
