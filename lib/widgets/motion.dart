@@ -23,7 +23,7 @@ class RollingNumber extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value),
-      duration: duration,
+      duration: Motion.reduced(context) ? Duration.zero : duration,
       curve: Motion.roll,
       builder: (context, v, _) => Text(
         (format ?? money)(v),
@@ -64,6 +64,12 @@ class _EntranceState extends State<Entrance>
         curve: Motion.out,
       ),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.reduced(context)) _controller.value = 1;
   }
 
   @override

@@ -11,8 +11,10 @@ import '../widgets/gradient_button.dart';
 import '../widgets/pressable.dart';
 import '../widgets/ph_icons.dart';
 
-Future<void> showQuickAddSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+/// Returns where the Log button was (global), so the caller can fly a coin
+/// from it; null if the sheet was dismissed.
+Future<Offset?> showQuickAddSheet(BuildContext context) {
+  return showModalBottomSheet<Offset>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -82,8 +84,12 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     });
   }
 
+  final _logKey = GlobalKey();
+
   void _save() {
     if (_amount <= 0) return;
+    final box = _logKey.currentContext?.findRenderObject() as RenderBox?;
+    final from = box?.localToGlobal(box.size.center(Offset.zero));
     final note = _note.text.trim();
     AppScope.read(context).addExpense(
       amount: _amount,
@@ -92,7 +98,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
       note: note.isEmpty ? null : note,
     );
     HapticFeedback.mediumImpact();
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(from);
   }
 
   @override
@@ -126,6 +132,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
         _Keypad(onKey: _key),
         const SizedBox(height: 16),
         GradientButton(
+          key: _logKey,
           label: _amount > 0 ? 'Log ${money(_amount)}' : 'Enter an amount',
           gradient: _isNeed ? AppGradients.good : AppGradients.hot,
           glow: _isNeed ? AppColors.lime : AppColors.pink,

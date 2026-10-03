@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
+import '../widgets/celebrations.dart';
 import '../widgets/glass.dart';
 import '../widgets/pressable.dart';
 import 'coach_screen.dart';
@@ -31,16 +32,24 @@ class _ShellState extends State<Shell> {
 
   static const _screens = [HomeScreen(), CoachScreen(), SquadScreen()];
 
-  void _select(int tab) {
+  void _select(int tab, {bool haptic = true}) {
     if (tab == _tab) return;
-    HapticFeedback.selectionClick();
+    if (haptic) HapticFeedback.selectionClick();
     setState(() {
       _tab = tab;
       _visited.add(tab);
     });
   }
 
-  void _openQuickAdd() => showQuickAddSheet(context);
+  /// After logging: jump to Home and toss a coin from the Log button into
+  /// the ring.
+  Future<void> _openQuickAdd() async {
+    final from = await showQuickAddSheet(context);
+    if (from == null || !mounted) return;
+    _select(0, haptic: false);
+    await Future<void>.delayed(Motion.fast);
+    if (mounted) flyCoinToRing(context, from: from);
+  }
 
   @override
   Widget build(BuildContext context) {

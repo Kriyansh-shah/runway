@@ -16,9 +16,13 @@ Next plans for Runway, in the order we intend to build them. Each item says
 - [x] Squad: Mochi pet, no-delivery challenge, streak leaderboard, roommate splits
 - [x] Split a bill: even split, IOUs for roommates, only your share counts as spending
 - [x] Login UI with circular reveal transition (on-device stand-in auth)
-- [x] Dark neon design system, motion tokens, smooth tab switching
+- [x] First design system (dark neon), motion tokens, smooth tab switching
 - [x] Local database (drift / SQLite): everything survives closing the app — see #1
-- [x] 50 tests (maths, coach, widget flows, small-screen layout, save → reopen)
+- [x] Lime & Lilac palette, Phosphor icons, two-tone category icons
+- [x] "Mochi's Takeoff" launch intro (tap to skip, Reduce Motion aware)
+- [x] Motion upgrades: coin into the ring, sliding nav pill, collapsing header,
+      spring physics on presses, 120 fps, Reduce Motion support
+- [x] 63 tests (maths, coach, intro, motion, widget flows, small-screen layout, save → reopen)
 
 ---
 
@@ -155,7 +159,7 @@ spring break?") on top of the existing rules.
 - [ ] Custom categories and custom quick picks
 - [ ] Uneven bill splits and "they paid, I owe"
 - [ ] Multi-currency for international students
-- [ ] App icon, launch screen, App Store screenshots
+- [ ] App icon + native launch screen in Lime & Lilac, App Store screenshots
 - [ ] Accessibility pass: reduce motion, larger text, screen reader labels
 - [ ] Light theme (maybe)
 - [ ] Set up iOS signing + Android SDK for real-device testing

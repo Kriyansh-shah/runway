@@ -22,6 +22,17 @@ class _MochiState extends State<Mochi> with SingleTickerProviderStateMixin {
     duration: const Duration(milliseconds: 3800),
   )..repeat();
 
+  /// Holds still when the phone asks for reduced motion.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.reduced(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();

@@ -9,25 +9,44 @@ import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
 import '../widgets/category_icon.dart';
+import '../widgets/celebrations.dart';
 import '../widgets/glass.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import 'account_sheet.dart';
 import 'shell.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final s = state.snapshot;
     final sections = <Widget>[
-      _Header(
-        streak: state.streak,
-        termName: state.term.name,
-        s: s,
-        user: state.user,
+      // The big greeting fades and shrinks away as you scroll; the compact
+      // bar takes over.
+      _ScrollFade(
+        scroll: _scroll,
+        child: _Header(
+          streak: state.streak,
+          termName: state.term.name,
+          s: s,
+          user: state.user,
+        ),
       ),
       _HeroRing(s: s),
       _RunwayCard(s: s, costs: state.comingUp),
@@ -35,19 +54,116 @@ class HomeScreen extends StatelessWidget {
       _WeekSplit(split: state.thisWeek),
       _Recent(expenses: state.recentExpenses(), today: s.today),
     ];
-    return SafeArea(
-      bottom: false,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 8, 20, navClearance(context)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < sections.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Entrance(index: i, child: sections[i]),
+    return Stack(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            controller: _scroll,
+            padding: EdgeInsets.fromLTRB(20, 8, 20, navClearance(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < sections.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Entrance(index: i, child: sections[i]),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _CompactBar(scroll: _scroll, user: state.user, s: s),
+        ),
+      ],
+    );
+  }
+}
+
+double _offsetOf(ScrollController c) => c.hasClients ? c.offset : 0;
+
+class _ScrollFade extends StatelessWidget {
+  const _ScrollFade({required this.scroll, required this.child});
+  final ScrollController scroll;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: scroll,
+      child: child,
+      builder: (context, child) {
+        final p = (_offsetOf(scroll) / 70).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: 1 - p,
+          child: Transform.scale(
+            scale: 1 - 0.06 * p,
+            alignment: Alignment.centerLeft,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Frosted mini header that slides in once the big greeting scrolls away.
+class _CompactBar extends StatelessWidget {
+  const _CompactBar({
+    required this.scroll,
+    required this.user,
+    required this.s,
+  });
+  final ScrollController scroll;
+  final UserProfile? user;
+  final RunwaySnapshot s;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    return AnimatedBuilder(
+      animation: scroll,
+      builder: (context, child) {
+        final p = Curves.easeOutCubic.transform(
+          ((_offsetOf(scroll) - 40) / 50).clamp(0.0, 1.0),
+        );
+        if (p == 0) return const SizedBox.shrink();
+        return IgnorePointer(
+          ignoring: p < 1,
+          child: Opacity(
+            opacity: p,
+            child: Transform.translate(
+              offset: Offset(0, -14 * (1 - p)),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: FrostedGlass(
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, top + 8, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  user == null ? 'Runway' : 'Hey, ${user!.name}',
+                  style: AppText.heading.copyWith(fontSize: 18),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-          ],
+              Pill(
+                label: 'Safe today ${money(s.safeToSpendToday)}',
+                color: s.safeToSpendToday >= 0 ? AppColors.lime : AppColors.red,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -207,54 +323,59 @@ class _HeroRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final over = s.safeToSpendToday < 0;
     return Center(
-      child: SizedBox.square(
-        dimension: 272,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            RepaintBoundary(
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: s.usedToday),
-                duration: Motion.slow,
-                curve: Motion.roll,
-                builder: (context, v, _) => CustomPaint(
-                  size: const Size.square(272),
-                  painter: _RingPainter(used: v, over: over),
+      child: RingPulse(
+        key: homeRingKey,
+        child: SizedBox.square(
+          dimension: 272,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              RepaintBoundary(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: s.usedToday),
+                  duration: Motion.slow,
+                  curve: Motion.roll,
+                  builder: (context, v, _) => CustomPaint(
+                    size: const Size.square(272),
+                    painter: _RingPainter(used: v, over: over),
+                  ),
                 ),
               ),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Safe to spend today', style: AppText.label),
-                const SizedBox(height: 8),
-                FittedBox(
-                  child: over
-                      ? RollingNumber(
-                          value: s.safeToSpendToday,
-                          style: AppText.display.copyWith(color: AppColors.red),
-                        )
-                      : ShaderMask(
-                          blendMode: BlendMode.srcIn,
-                          shaderCallback: const LinearGradient(
-                            colors: [Colors.white, Color(0xFFD9D2FF)],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ).createShader,
-                          child: RollingNumber(
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Safe to spend today', style: AppText.label),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    child: over
+                        ? RollingNumber(
                             value: s.safeToSpendToday,
-                            style: AppText.display,
+                            style: AppText.display.copyWith(
+                              color: AppColors.red,
+                            ),
+                          )
+                        : ShaderMask(
+                            blendMode: BlendMode.srcIn,
+                            shaderCallback: const LinearGradient(
+                              colors: [Colors.white, Color(0xFFD9D2FF)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ).createShader,
+                            child: RollingNumber(
+                              value: s.safeToSpendToday,
+                              style: AppText.display,
+                            ),
                           ),
-                        ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '${money(s.spentToday)} of ${money(s.dailyAllowance)} used',
-                  style: AppText.caption.copyWith(fontSize: 12),
-                ),
-              ],
-            ),
-          ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${money(s.spentToday)} of ${money(s.dailyAllowance)} used',
+                    style: AppText.caption.copyWith(fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

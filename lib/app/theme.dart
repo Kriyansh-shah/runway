@@ -61,6 +61,17 @@ abstract final class Motion {
 
   /// Delay between items in a staggered entrance.
   static const stagger = Duration(milliseconds: 60);
+
+  /// Bouncy-but-quick spring for press release and small pops.
+  static const pressSpring = SpringDescription(
+    mass: 1,
+    stiffness: 520,
+    damping: 20,
+  );
+
+  /// True when the phone asks for reduced motion (Accessibility setting).
+  static bool reduced(BuildContext context) =>
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 }
 
 abstract final class AppText {

@@ -6,6 +6,8 @@ import 'package:runway/app/auth.dart';
 import 'package:runway/app/models.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
+import 'package:runway/screens/quick_add_sheet.dart';
+import 'package:runway/widgets/celebrations.dart';
 import 'package:runway/widgets/expense_inputs.dart';
 import 'package:runway/widgets/mochi_takeoff.dart';
 
@@ -360,6 +362,94 @@ void main() {
     test('derives a display name from the email', () {
       expect(nameFromEmail('alex.kim99@uni.edu'), 'Alex');
       expect(nameFromEmail('42@uni.edu'), 'Friend');
+    });
+  });
+
+  group('motion', () {
+    Future<void> bootHome(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
+      await settle(tester);
+    }
+
+    Future<void> logCoffee(WidgetTester tester) async {
+      await tester.tap(find.bySemanticsLabel('Add expense'));
+      await settle(tester);
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(QuickAddSheet),
+              matching: find.text('Coffee'),
+            )
+            .first,
+      );
+      await settle(tester, const Duration(milliseconds: 300));
+      await tester.tap(find.text('Log \$4.50'));
+    }
+
+    testWidgets('logging tosses a coin into the ring, which pulses', (
+      tester,
+    ) async {
+      await bootHome(tester);
+      final pulses = ringPulse.value;
+      await logCoffee(tester);
+      await settle(tester, const Duration(milliseconds: 500));
+      expect(find.text(r'$'), findsWidgets); // coin in flight
+      await settle(tester, const Duration(seconds: 1));
+      expect(ringPulse.value, pulses + 1);
+      expect(find.text(r'$'), findsNothing); // coin landed and removed
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('logging from another tab brings you back to Home', (
+      tester,
+    ) async {
+      await bootHome(tester);
+      await tester.tap(find.text('Squad').last);
+      await settle(tester);
+      await logCoffee(tester);
+      await settle(tester, const Duration(seconds: 2));
+      final home = tester.widget<AnimatedOpacity>(
+        find
+            .ancestor(
+              of: find.text('Safe to spend today'),
+              matching: find.byType(AnimatedOpacity),
+            )
+            .first,
+      );
+      expect(home.opacity, 1);
+    });
+
+    testWidgets('compact bar slides in once the greeting scrolls away', (
+      tester,
+    ) async {
+      await bootHome(tester);
+      expect(find.text('Hey, Alex'), findsOneWidget); // only the big one
+      await tester.drag(
+        find.text('Safe to spend today'),
+        const Offset(0, -300),
+      );
+      await settle(tester);
+      expect(find.text('Hey, Alex'), findsNWidgets(2));
+      expect(find.textContaining('Safe today'), findsOneWidget);
+    });
+
+    testWidgets('Reduce Motion: no coin, but the ring still pulses', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await bootHome(tester);
+      final pulses = ringPulse.value;
+      await logCoffee(tester);
+      await settle(tester, const Duration(milliseconds: 400));
+      expect(find.text(r'$'), findsNothing);
+      expect(ringPulse.value, pulses + 1);
     });
   });
 }

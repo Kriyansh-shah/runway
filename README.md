@@ -10,7 +10,7 @@ and tells you how much you can safely spend **today**.
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-50%20passing-3DFFA8)
+![Tests](https://img.shields.io/badge/tests-63%20passing-C6FF3D)
 ![Status](https://img.shields.io/badge/status-prototype-FFB547)
 
 </div>
@@ -93,11 +93,24 @@ as it can be: two taps for most purchases. Your money data never leaves your pho
 - **Split a bill:** enter what it was and what you paid, pick roommates, and it
   splits evenly. They get IOUs; only **your share** counts as spending.
 
+### 🎬 Launch intro: "Mochi's Takeoff"
+A ~4-second intro on launch, in the spirit of Pixar's lamp:
+1. A lime runway draws itself and landing lights blink on.
+2. Mochi hops in with squash & stretch; each letter of **r·u·n·w·a·y** pops up to catch it.
+3. Mochi flattens the **y**, looks at you, blinks, and hops it back up.
+4. The lights race, Mochi zooms off, and the word glides up into the logo.
+5. Mochi lands on the logo's **y**, and the login card rises underneath.
+
+Tap anywhere to skip. Signed-in users go straight from the intro into Home
+through a circle that opens from Mochi. With **Reduce Motion** on, it's skipped.
+It's drawn in code (one `CustomPainter`, no video), with haptic ticks on the
+lights and landings.
+
 ### 🔐 Login
 - Sign in / Create account with a sliding toggle, inline validation and a shake on errors.
 - The button morphs from label to spinner to ✓, then Home is revealed through a
-  **circle that grows out of the button**, with a neon ring on its edge.
-- Account sheet with sign out.
+  **circle that grows out of the button**, with a lime ring on its edge.
+- Login is remembered on the device; the avatar on Home opens an account sheet with sign out.
 
 ---
 
@@ -135,34 +148,50 @@ rounded to the cent; any leftover cent goes to you.
 
 ## Design system
 
-Dark and neon, glassy, premium Gen Z feel. Tokens live in [`lib/app/theme.dart`](lib/app/theme.dart).
+**Lime & Lilac**: warm charcoal, one electric lime for action, lilac for
+personality, and glow only where it matters (main button, ring, nav pill).
+Tokens live in [`lib/app/theme.dart`](lib/app/theme.dart).
 
 | Token | Value | Use |
 |---|---|---|
-| Background | `#07070D` | App background |
-| Surface | `#11111B` | Sheets, nav bar |
-| Glass | white 6–10% + 12% hairline | Cards |
-| Text / Muted | `#F5F5FA` / `#8C8CA6` | Typography |
-| Violet | `#8B6CFF` | Brand |
-| Cyan | `#2EE6FF` | Brand, **Need** |
-| Pink | `#FF4FB8` | **Want** |
-| Mint | `#3DFFA8` | Good / covered |
-| Amber | `#FFB547` | Caution / trade |
-| Coral | `#FF5C7A` | Short / over budget |
+| Background | `#0D0D10` | App background |
+| Surface | `#18181D` | Sheets, nav bar |
+| Glass | white 5.5–9% + 10% hairline | Cards |
+| Text / Muted | `#F4F4F1` / `#8E8E99` | Typography |
+| **Lime** | `#C6FF3D` | Main accent: buttons, ring, active tab, good states (dark `#0D0D10` text on it) |
+| **Lilac** | `#B9A4FF` | Second accent: Mochi, category icons, highlights |
+| Butter | `#FFD66B` | Caution / "trade for it" |
+| Red | `#FF6B6B` | Short / over budget |
+| Sky | `#8FD3FF` | **Need** |
+| Pink | `#FF9BD6` | **Want** |
 
-Gradients: **brand** violet → cyan · **hot** pink → violet · **good** mint → cyan.
+**Type:** system font (SF Pro on Apple) for the UI, with tabular figures for money;
+[Bricolage Grotesque](https://github.com/ateliertriay/bricolage) (OFL) for the
+`runway` wordmark.
+
+**Icons:** [Phosphor](https://phosphoricons.com) (MIT), bundled as fonts in
+`assets/fonts/phosphor` and listed in `lib/widgets/ph_icons.dart`. Nav icons morph
+from outline to filled when selected; categories use two-tone icons, which look
+identical on every platform (unlike emoji).
 
 **Motion tokens:** `fast 180ms` · `med 320ms` · `slow 650ms` · curves `easeOutCubic`,
-`easeOutBack` (springs), `easeOutExpo` (rolling numbers).
+`easeOutBack`, `easeOutExpo` (rolling numbers) · `pressSpring` (real spring physics).
 
 **Smoothness rules:**
-- Springy press feedback (scale ≈ 0.95 + light haptic) on every tappable.
-- Staggered fade/slide entrances on each screen.
-- Numbers roll to new values.
+- Press feedback on every tappable: dips to ≈0.95 with a light haptic, then
+  springs back with real physics (interruptible, so fast taps never stutter).
+- **Log an expense** and a coin arcs from the Log button into the Home ring, which springs and glows.
+- A lime **pill glides between nav tabs** while icons morph outline → filled.
+- **Collapsing header:** the big greeting fades away as you scroll and a frosted
+  mini bar slides in with your safe-to-spend.
+- Staggered fade/slide entrances on each screen; numbers roll to new values.
 - Tabs cross-fade and slide while keeping each tab's scroll position.
 - The aurora background is painted with radial gradients rather than blur, so it's cheap to animate.
-- Real frosted blur (`BackdropFilter`) is used only on the nav bar and sheets.
+- Real frosted blur (`BackdropFilter`) is used only on the nav bar, sheets and the mini header.
 - `RepaintBoundary` around every animated painter, and bouncing scroll physics everywhere.
+- 120 fps on ProMotion iPhones (`CADisableMinimumFrameDurationOnPhone`).
+- **Reduce Motion** is respected: the intro, entrances, rolling numbers, aurora,
+  pet and coin all hold still or jump straight to the end.
 
 ---
 
@@ -185,8 +214,11 @@ lib/
 ├── widgets/                  # shared UI
 │   ├── aurora_background.dart  glass.dart  pressable.dart  motion.dart
 │   ├── gradient_button.dart    mochi.dart  expense_inputs.dart  transitions.dart
+│   ├── mochi_takeoff.dart      # launch intro + LogoMark
+│   ├── celebrations.dart       # coin → ring, ring pulse
+│   ├── ph_icons.dart  category_icon.dart
 └── screens/
-    ├── login_screen.dart     shell.dart (tabs + nav)   home_screen.dart
+    ├── launch_intro.dart     login_screen.dart   shell.dart (tabs + nav)   home_screen.dart
     ├── coach_screen.dart     squad_screen.dart         quick_add_sheet.dart
     ├── split_bill_sheet.dart account_sheet.dart
 test/
@@ -254,7 +286,7 @@ flutter run -d android    # needs the Android SDK
 
 ```sh
 flutter analyze   # static analysis, currently clean
-flutter test      # 50 tests
+flutter test      # 63 tests
 ```
 
 After changing a table in `lib/app/database.dart`, regenerate the drift code:
@@ -268,6 +300,7 @@ dart run build_runner build
 | `budget_math_test.dart` | Every runway formula, days short, no-spend and overspend cases, last day of term, streaks, pet levels, weekly split, even splits, mock data calibration |
 | `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing |
 | `coach_test.dart` | All three verdicts, the inclusive 12% boundary, minimum trade, goal suggestion, amount parsing (`$1,299.99`, phrasing, no amount) |
+| `intro_test.dart` | Intro maths (Mochi lands on each letter, the y beat, logo hand-off is pixel-exact), first launch → login, tap to skip, signed-in → Home, Reduce Motion |
 | `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, login/sign-up/sign-out, small-screen (iPhone SE) layout |
 
 ---
