@@ -96,7 +96,14 @@ can delete a term or everything at any time.
 there's sync or Squad, so this ships together with #5.
 
 **What:**
-- Sign in with Apple (required on iOS when offering other social logins) + email.
+- **"Continue with Google"** and **"Continue with Apple"** buttons on the existing
+  login screen (keeping the circular reveal). Google opens its own secure sign-in
+  sheet / account picker and returns to the app with a signed token.
+- Apple's App Store rules require Sign in with Apple whenever Google login is offered
+  on iOS, so the two ship together. Email login stays as a third option.
+- Setup: Google Cloud OAuth client IDs (iOS, Android, macOS), URL scheme in
+  `Info.plist`, Android signing SHA-1, `google_sign_in` + Apple sign-in packages.
+- Tokens are verified by Supabase Auth (see #5), so no custom auth server.
 - Optional **Face ID / Touch ID / passcode lock** for the app, which works even with no account.
 - Swap `LocalAuthService` for a real `AuthService` implementation (no UI changes).
 

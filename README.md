@@ -279,7 +279,7 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 | 1 | **Local database (drift / SQLite):** save expenses, splits, streaks and session | 🔜 Next |
 | 2 | **Onboarding & setup:** term dates, starting balance, upcoming costs, money lumps | 📋 Planned |
 | 3 | **History by semester:** term recaps, undo delete, CSV export, encrypted backup | 📋 Planned |
-| 4 | **Real accounts:** Sign in with Apple + email, biometric app lock | 📋 Planned |
+| 4 | **Real accounts:** Continue with Google / Apple + email, biometric app lock | 📋 Planned |
 | 5 | **Squad backend (Supabase):** real friends, challenges and IOUs; never amounts | 📋 Planned |
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |
 | 7 | **Polish:** notifications, home-screen widget, recurring costs, app icon | 💡 Ideas |
