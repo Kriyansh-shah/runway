@@ -1,34 +1,60 @@
-/// Persistence boundary. [AppState] only depends on [BudgetRepository], so the
-/// in-memory mock can be replaced by a SQLite implementation later.
+/// Persistence boundary. [AppState] only depends on [BudgetRepository]:
+/// [DriftBudgetRepository] saves to SQLite on the device, and
+/// [MockBudgetRepository] keeps everything in memory (tests, demos).
 library;
 
 import 'dart:math' as math;
 
+import 'auth.dart';
 import 'models.dart';
 
 abstract interface class BudgetRepository {
   Future<BudgetData> load();
+
+  /// The remembered signed-in user, or null when signed out.
+  Future<UserProfile?> currentUser();
+  Future<void> setCurrentUser(UserProfile? user);
+
   Future<void> addExpense(Expense expense);
-  Future<void> addSplit(BillSplit split);
+
+  /// Saves every roommate IOU plus your own share together — all or nothing.
+  Future<void> splitBill(List<BillSplit> splits, Expense myShare);
   Future<void> settleSplit(String splitId);
+
+  Future<void> saveTerm(Term term);
+  Future<void> addUpcomingCost(UpcomingCost cost);
 }
 
+/// Nothing is saved: every launch starts from the same demo data.
 class MockBudgetRepository implements BudgetRepository {
   MockBudgetRepository({DateTime? now}) : _now = now ?? DateTime.now();
 
   final DateTime _now;
+  UserProfile? _user;
 
   @override
   Future<BudgetData> load() async => seed(_now);
 
   @override
+  Future<UserProfile?> currentUser() async => _user;
+
+  @override
+  Future<void> setCurrentUser(UserProfile? user) async => _user = user;
+
+  @override
   Future<void> addExpense(Expense expense) async {}
 
   @override
-  Future<void> addSplit(BillSplit split) async {}
+  Future<void> splitBill(List<BillSplit> splits, Expense myShare) async {}
 
   @override
   Future<void> settleSplit(String splitId) async {}
+
+  @override
+  Future<void> saveTerm(Term term) async {}
+
+  @override
+  Future<void> addUpcomingCost(UpcomingCost cost) async {}
 
   /// Total of the seeded past expenses. Tuned so the demo lands at
   /// "14 days short" with today's coffee included.

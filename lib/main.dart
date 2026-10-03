@@ -7,7 +7,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'app/app_state.dart';
-import 'app/repository.dart';
+import 'app/database.dart';
+import 'app/drift_repository.dart';
 import 'app/theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/shell.dart';
@@ -23,11 +24,14 @@ Future<void> main() async {
     unawaited(preview.applyPreset(DevicePresets.iPhone16ProMax));
   }
 
-  final repository = MockBudgetRepository();
+  // Everything is saved in runway.sqlite on this device. On first launch it
+  // is filled with demo data once; after that it's your real data.
+  final repository = DriftBudgetRepository(RunwayDatabase.onDevice());
   final data = await repository.load();
+  final user = await repository.currentUser();
   runApp(
     RunwayApp(
-      state: AppState(repository: repository, data: data),
+      state: AppState(repository: repository, data: data, user: user),
     ),
   );
 }

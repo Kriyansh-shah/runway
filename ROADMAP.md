@@ -17,14 +17,17 @@ Next plans for Runway, in the order we intend to build them. Each item says
 - [x] Split a bill: even split, IOUs for roommates, only your share counts as spending
 - [x] Login UI with circular reveal transition (on-device stand-in auth)
 - [x] Dark neon design system, motion tokens, smooth tab switching
-- [x] 40 tests (maths, coach, widget flows, small-screen layout)
+- [x] Local database (drift / SQLite): everything survives closing the app — see #1
+- [x] 50 tests (maths, coach, widget flows, small-screen layout, save → reopen)
 
 ---
 
-## 1. 🔜 Local database (drift / SQLite)
+## 1. ✅ Local database (drift / SQLite)
 
-**Why:** Right now everything lives in memory, so closing the app wipes your
-expenses, splits, streak and login. This is the most important next step.
+**Shipped.** Everything is saved in `runway.sqlite` on the device.
+
+**Why:** Before this, everything lived in memory, so closing the app wiped your
+expenses, splits, streak and login.
 
 **What:**
 - Add [`drift`](https://pub.dev/packages/drift), a typed SQLite library for Flutter with
@@ -34,18 +37,19 @@ expenses, splits, streak and login. This is the most important next step.
 - Seed demo data **only on first launch**, then use real entries.
 - Remember the signed-in user so the app opens straight to Home.
 
-**Draft schema:**
+**Schema (version 1):**
 
 | Table | Columns |
 |---|---|
 | `terms` | id, name, start, end, starting_balance, archived_at |
 | `expenses` | id, term_id, amount_cents, category, is_need, note, created_at, deleted_at |
 | `upcoming_costs` | id, term_id, emoji, name, amount_cents, due_date, paid_at |
-| `income_lumps` | id, term_id, source (loan / scholarship / parents / job), amount_cents, received_at |
 | `bill_splits` | id, person, amount_cents, note, they_owe_you, created_at, settled_at |
-| `friends` | id, name, emoji |
-| `session` | user_name, email, signed_in_at |
-| `meta` | schema_version, seeded_at |
+| `friends` | id, position, name, emoji, streak, no_delivery_days |
+| `sessions` | id, name, email, signed_in_at |
+| `meta` | key, value (seeded_at, challenge_start) |
+
+*`income_lumps` (loan / scholarship / parents / job) moves to #2 with the setup flow.*
 
 Notes:
 - Store money as **integer cents** to avoid floating-point rounding errors.
@@ -56,7 +60,7 @@ everything is still there, with tests that simulate closing and reopening.
 
 ---
 
-## 2. 📋 Onboarding & setup
+## 2. 🔜 Onboarding & setup
 
 **Why:** Term dates, starting balance and upcoming costs are currently hard-coded demo data.
 

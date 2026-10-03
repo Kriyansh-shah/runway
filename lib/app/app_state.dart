@@ -82,24 +82,17 @@ class AppState extends ChangeNotifier {
 
   CoachGrounding get grounding => CoachGrounding.fromSnapshot(_snapshot);
 
+  /// Updates the screen immediately, then saves in the background.
   void addExpense({
     required double amount,
     required ExpenseCategory category,
     required bool isNeed,
     String? note,
   }) {
-    final expense = Expense(
-      id: 'e${DateTime.now().microsecondsSinceEpoch}',
-      amount: amount,
-      category: category,
-      isNeed: isNeed,
-      date: _clock(),
-      note: note,
-    );
+    final expense = _newExpense(amount, category, isNeed, note);
     _expenses.add(expense);
-    _recompute();
-    notifyListeners();
-    unawaited(_repo.addExpense(expense));
+    _changed();
+    _persist(_repo.addExpense(expense));
   }
 
   /// You paid [total] for something shared with [roommates]. Each roommate
@@ -124,46 +117,78 @@ class AppState extends ChangeNotifier {
           theyOweYou: true,
         ),
     ];
+    final myShare = _newExpense(shares.mine, category, isNeed, description);
     _splits.insertAll(0, added);
-    for (final split in added) {
-      unawaited(_repo.addSplit(split));
-    }
-    // addExpense recomputes and notifies for both changes.
-    addExpense(
-      amount: shares.mine,
-      category: category,
-      isNeed: isNeed,
-      note: description,
-    );
+    _expenses.add(myShare);
+    _changed();
+    _persist(_repo.splitBill(added, myShare));
   }
 
   void settleSplit(String id) {
     _splits.removeWhere((s) => s.id == id);
     notifyListeners();
-    unawaited(_repo.settleSplit(id));
+    _persist(_repo.settleSplit(id));
   }
 
   void signedIn(UserProfile user) {
     _user = user;
     notifyListeners();
+    _persist(_repo.setCurrentUser(user));
   }
 
   Future<void> signOut() async {
     await auth.signOut();
     _user = null;
     notifyListeners();
+    await _repo.setCurrentUser(null);
   }
 
   void updateTerm(Term term) {
     _term = term;
-    _recompute();
-    notifyListeners();
+    _changed();
+    _persist(_repo.saveTerm(term));
   }
 
   void addUpcomingCost(UpcomingCost cost) {
     _upcoming.add(cost);
+    _changed();
+    _persist(_repo.addUpcomingCost(cost));
+  }
+
+  Expense _newExpense(
+    double amount,
+    ExpenseCategory category,
+    bool isNeed,
+    String? note,
+  ) => Expense(
+    id: 'e${DateTime.now().microsecondsSinceEpoch}',
+    amount: amount,
+    category: category,
+    isNeed: isNeed,
+    date: _clock(),
+    note: note,
+  );
+
+  void _changed() {
     _recompute();
     notifyListeners();
+  }
+
+  /// Saves without blocking the UI. A failed save is reported (red screen in
+  /// debug, logged in release) instead of disappearing silently.
+  void _persist(Future<void> write) {
+    unawaited(
+      write.catchError((Object error, StackTrace stack) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'runway storage',
+            context: ErrorDescription('while saving to the database'),
+          ),
+        );
+      }),
+    );
   }
 
   void _recompute() {
