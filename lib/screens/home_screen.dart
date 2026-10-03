@@ -8,6 +8,7 @@ import '../app/budget_math.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
+import '../widgets/category_icon.dart';
 import '../widgets/glass.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
@@ -160,14 +161,14 @@ class _StreakChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(99),
           gradient: LinearGradient(
             colors: [
-              AppColors.amber.withValues(alpha: 0.22),
+              AppColors.butter.withValues(alpha: 0.22),
               AppColors.pink.withValues(alpha: 0.18),
             ],
           ),
-          border: Border.all(color: AppColors.amber.withValues(alpha: 0.4)),
+          border: Border.all(color: AppColors.butter.withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
-              color: AppColors.amber.withValues(alpha: 0.25),
+              color: AppColors.butter.withValues(alpha: 0.25),
               blurRadius: 18,
             ),
           ],
@@ -231,9 +232,7 @@ class _HeroRing extends StatelessWidget {
                   child: over
                       ? RollingNumber(
                           value: s.safeToSpendToday,
-                          style: AppText.display.copyWith(
-                            color: AppColors.coral,
-                          ),
+                          style: AppText.display.copyWith(color: AppColors.red),
                         )
                       : ShaderMask(
                           blendMode: BlendMode.srcIn,
@@ -285,8 +284,8 @@ class _RingPainter extends CustomPainter {
     final sweep = 2 * math.pi * used.clamp(0.0, 1.0);
     if (sweep <= 0.001) return;
     final colors = over
-        ? const [AppColors.pink, AppColors.coral, AppColors.pink]
-        : const [AppColors.cyan, AppColors.violet, AppColors.cyan];
+        ? const [AppColors.red, AppColors.pink, AppColors.red]
+        : const [AppColors.lime, Color(0xFFDFFF8A), AppColors.lime];
     final shader = SweepGradient(
       colors: colors,
       transform: const GradientRotation(-math.pi / 2),
@@ -346,12 +345,12 @@ class _RunwayCard extends StatelessWidget {
                     ? const Pill(
                         key: ValueKey('ok'),
                         label: 'Covered ✓',
-                        color: AppColors.mint,
+                        color: AppColors.lime,
                       )
                     : Pill(
                         key: ValueKey(s.daysShort),
                         label: '${plural(s.daysShort, 'day')} short',
-                        color: AppColors.coral,
+                        color: AppColors.red,
                       ),
               ),
             ],
@@ -482,7 +481,7 @@ class _Timeline extends StatelessWidget {
                   84,
                   Text(
                     'Runs out',
-                    style: AppText.caption.copyWith(color: AppColors.coral),
+                    style: AppText.caption.copyWith(color: AppColors.red),
                   ),
                 ),
               Positioned(
@@ -548,8 +547,8 @@ class _TimelinePainter extends CustomPainter {
         Paint()
           ..shader = LinearGradient(
             colors: [
-              AppColors.coral.withValues(alpha: 0.55 * reveal),
-              AppColors.coral.withValues(alpha: 0.15 * reveal),
+              AppColors.red.withValues(alpha: 0.55 * reveal),
+              AppColors.red.withValues(alpha: 0.15 * reveal),
             ],
           ).createShader(Rect.fromLTRB(x, 0, w, size.height)),
       );
@@ -587,7 +586,7 @@ class _TimelinePainter extends CustomPainter {
       canvas.drawCircle(
         Offset(x, barY),
         2.5,
-        Paint()..color = AppColors.amber.withValues(alpha: reveal),
+        Paint()..color = AppColors.butter.withValues(alpha: reveal),
       );
     }
 
@@ -597,12 +596,12 @@ class _TimelinePainter extends CustomPainter {
       canvas.drawCircle(
         c,
         10,
-        Paint()..color = AppColors.coral.withValues(alpha: 0.3 * reveal),
+        Paint()..color = AppColors.red.withValues(alpha: 0.3 * reveal),
       );
       canvas.drawCircle(
         c,
         5.5,
-        Paint()..color = AppColors.coral.withValues(alpha: reveal),
+        Paint()..color = AppColors.red.withValues(alpha: reveal),
       );
     }
 
@@ -611,10 +610,10 @@ class _TimelinePainter extends CustomPainter {
     canvas.drawCircle(
       t,
       12,
-      Paint()..color = AppColors.cyan.withValues(alpha: 0.25),
+      Paint()..color = AppColors.lime.withValues(alpha: 0.25),
     );
     canvas.drawCircle(t, 7, Paint()..color = Colors.white);
-    canvas.drawCircle(t, 3.5, Paint()..color = AppColors.violet);
+    canvas.drawCircle(t, 3.5, Paint()..color = AppColors.lilac);
   }
 
   @override
@@ -649,12 +648,15 @@ class _ComingUp extends StatelessWidget {
               for (var i = 0; i < costs.length; i++) ...[
                 if (i > 0) Divider(height: 1, color: AppColors.hairline),
                 _Row(
-                  emoji: costs[i].emoji,
+                  leading: Text(
+                    costs[i].emoji,
+                    style: const TextStyle(fontSize: 20),
+                  ),
                   title: costs[i].name,
                   subtitle:
                       '${shortDate(costs[i].dueDate)} · in ${plural(daysBetween(today, costs[i].dueDate), 'day')}',
                   amount: money(costs[i].amount, cents: false),
-                  accent: AppColors.amber,
+                  accent: AppColors.butter,
                 ),
               ],
             ],
@@ -667,14 +669,14 @@ class _ComingUp extends StatelessWidget {
 
 class _Row extends StatelessWidget {
   const _Row({
-    required this.emoji,
+    required this.leading,
     required this.title,
     required this.subtitle,
     required this.amount,
     this.accent,
   });
 
-  final String emoji;
+  final Widget leading;
   final String title;
   final String subtitle;
   final String amount;
@@ -695,7 +697,7 @@ class _Row extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.hairline),
             ),
-            child: Text(emoji, style: const TextStyle(fontSize: 20)),
+            child: leading,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -889,7 +891,7 @@ class _Recent extends StatelessWidget {
                         if (i > 0)
                           Divider(height: 1, color: AppColors.hairline),
                         _Row(
-                          emoji: expenses[i].category.emoji,
+                          leading: CategoryIcon(expenses[i].category),
                           title: expenses[i].title,
                           subtitle:
                               '${relativeDay(expenses[i].date, today)} · ${expenses[i].isNeed ? 'Need' : 'Want'}',

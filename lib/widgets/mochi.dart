@@ -48,9 +48,9 @@ class _MochiPainter extends CustomPainter {
   final PetMood mood;
 
   List<Color> get _colors => switch (mood) {
-    PetMood.thriving => const [AppColors.mint, AppColors.cyan],
-    PetMood.chill => const [Color(0xFFB7A6FF), AppColors.violet],
-    PetMood.worried => const [AppColors.amber, AppColors.coral],
+    PetMood.thriving => const [Color(0xFFE2FF94), AppColors.lime],
+    PetMood.chill => const [Color(0xFFD6CAFF), Color(0xFF8F78FF)],
+    PetMood.worried => const [AppColors.butter, AppColors.red],
   };
 
   @override
@@ -227,7 +227,7 @@ class _MochiPainter extends CustomPainter {
         ..quadraticBezierTo(d.dx - eyeR, d.dy, d.dx, d.dy - eyeR * 1.4);
       canvas.drawPath(
         drop,
-        Paint()..color = AppColors.cyan.withValues(alpha: 0.85),
+        Paint()..color = AppColors.lime.withValues(alpha: 0.85),
       );
     }
   }

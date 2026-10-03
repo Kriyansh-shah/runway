@@ -9,6 +9,7 @@ import 'coach_screen.dart';
 import 'home_screen.dart';
 import 'quick_add_sheet.dart';
 import 'squad_screen.dart';
+import '../widgets/ph_icons.dart';
 
 /// Height of the floating nav bar (excluding the safe-area inset).
 const navBarHeight = 68.0;
@@ -121,34 +122,78 @@ class _NavBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onAdd;
 
+  /// Nav slots left to right: Home, Coach, (+), Squad.
+  static const _slotOfTab = [0, 1, 3];
+
   @override
   Widget build(BuildContext context) {
+    final slot = _slotOfTab[current];
     return FrostedGlass(
       borderRadius: BorderRadius.circular(30),
       child: SizedBox(
         height: navBarHeight,
-        child: Row(
+        child: Stack(
           children: [
-            _NavItem(
-              icon: Icons.blur_circular_rounded,
-              label: 'Home',
-              active: current == 0,
-              onTap: () => onSelect(0),
+            // Soft lime pill that glides to the selected tab.
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(7),
+                child: AnimatedAlign(
+                  alignment: Alignment(-1 + 2 * slot / 3, 0),
+                  duration: Motion.med,
+                  curve: Motion.spring,
+                  child: FractionallySizedBox(
+                    widthFactor: 0.25,
+                    heightFactor: 1,
+                    child: Center(
+                      child: Container(
+                        width: 64,
+                        decoration: BoxDecoration(
+                          color: AppColors.lime.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: AppColors.lime.withValues(alpha: 0.28),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.lime.withValues(alpha: 0.12),
+                              blurRadius: 16,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            _NavItem(
-              icon: Icons.auto_awesome_rounded,
-              label: 'Coach',
-              active: current == 1,
-              onTap: () => onSelect(1),
-            ),
-            Expanded(
-              child: Center(child: _AddButton(onTap: onAdd)),
-            ),
-            _NavItem(
-              icon: Icons.groups_rounded,
-              label: 'Squad',
-              active: current == 2,
-              onTap: () => onSelect(2),
+            Row(
+              children: [
+                _NavItem(
+                  icon: PhIcons.house,
+                  activeIcon: PhIcons.houseFill,
+                  label: 'Home',
+                  active: current == 0,
+                  onTap: () => onSelect(0),
+                ),
+                _NavItem(
+                  icon: PhIcons.sparkle,
+                  activeIcon: PhIcons.sparkleFill,
+                  label: 'Coach',
+                  active: current == 1,
+                  onTap: () => onSelect(1),
+                ),
+                Expanded(
+                  child: Center(child: _AddButton(onTap: onAdd)),
+                ),
+                _NavItem(
+                  icon: PhIcons.usersThree,
+                  activeIcon: PhIcons.usersThreeFill,
+                  label: 'Squad',
+                  active: current == 2,
+                  onTap: () => onSelect(2),
+                ),
+              ],
             ),
           ],
         ),
@@ -160,19 +205,21 @@ class _NavBar extends StatelessWidget {
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.icon,
+    required this.activeIcon,
     required this.label,
     required this.active,
     required this.onTap,
   });
 
   final IconData icon;
+  final IconData activeIcon;
   final String label;
   final bool active;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.text : AppColors.muted;
+    final color = active ? AppColors.lime : AppColors.muted;
     return Expanded(
       child: Pressable(
         onTap: onTap,
@@ -180,23 +227,23 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Outline → filled morph with a little pop.
             AnimatedSwitcher(
-              duration: Motion.fast,
-              child: active
-                  ? ShaderMask(
-                      key: const ValueKey(true),
-                      blendMode: BlendMode.srcIn,
-                      shaderCallback: AppGradients.brand.createShader,
-                      child: Icon(icon, size: 26),
-                    )
-                  : Icon(
-                      icon,
-                      key: const ValueKey(false),
-                      size: 26,
-                      color: color,
-                    ),
+              duration: Motion.med,
+              switchInCurve: Motion.spring,
+              switchOutCurve: Motion.out,
+              transitionBuilder: (child, a) => ScaleTransition(
+                scale: Tween(begin: 0.6, end: 1.0).animate(a),
+                child: FadeTransition(opacity: a, child: child),
+              ),
+              child: Icon(
+                active ? activeIcon : icon,
+                key: ValueKey(active),
+                size: 25,
+                color: color,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             AnimatedDefaultTextStyle(
               duration: Motion.fast,
               style: AppText.caption.copyWith(
@@ -221,23 +268,23 @@ class _AddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Pressable(
       onTap: onTap,
-      scale: 0.9,
+      scale: 0.88,
       semanticLabel: 'Add expense',
       child: Container(
-        width: 54,
-        height: 54,
+        width: 52,
+        height: 52,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: AppGradients.brand,
           boxShadow: [
             BoxShadow(
-              color: AppColors.violet.withValues(alpha: 0.6),
-              blurRadius: 22,
+              color: AppColors.lime.withValues(alpha: 0.35),
+              blurRadius: 20,
               offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+        child: const Icon(PhIcons.plusBold, color: AppColors.onLime, size: 26),
       ),
     );
   }

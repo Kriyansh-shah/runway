@@ -216,7 +216,7 @@ void main() {
     await tester.tap(find.text('7'));
     await settle(tester, const Duration(milliseconds: 300));
     await tester.scrollUntilVisible(
-      find.text('🚕 Uber / ride'),
+      find.text('Uber / ride'),
       120,
       scrollable: find.descendant(
         of: find.byType(CategoryPicker),
@@ -224,7 +224,7 @@ void main() {
       ),
     );
     await settle(tester, const Duration(milliseconds: 300));
-    await tester.tap(find.text('🚕 Uber / ride'));
+    await tester.tap(find.text('Uber / ride'));
     await settle(tester, const Duration(milliseconds: 300));
     await tester.tap(find.text('Log \$27.00'));
     await settle(tester);

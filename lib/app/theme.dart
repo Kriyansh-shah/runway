@@ -1,43 +1,52 @@
 import 'package:flutter/material.dart';
 
-/// Brand palette. Dark + neon.
+/// "Lime & Lilac": warm charcoal, one electric lime for action, lilac for
+/// personality. Glow is used sparingly (main button, ring, nav pill).
 abstract final class AppColors {
-  static const bg = Color(0xFF07070D);
-  static const surface = Color(0xFF11111B);
-  static const text = Color(0xFFF5F5FA);
-  static const muted = Color(0xFF8C8CA6);
+  static const bg = Color(0xFF0D0D10);
+  static const surface = Color(0xFF18181D);
+  static const text = Color(0xFFF4F4F1);
+  static const muted = Color(0xFF8E8E99);
 
-  static const violet = Color(0xFF8B6CFF);
-  static const cyan = Color(0xFF2EE6FF);
-  static const pink = Color(0xFFFF4FB8);
-  static const mint = Color(0xFF3DFFA8);
-  static const amber = Color(0xFFFFB547);
-  static const coral = Color(0xFFFF5C7A);
+  /// Main accent: buttons, ring, active tab, "good" states.
+  static const lime = Color(0xFFC6FF3D);
 
-  static const need = cyan;
+  /// Dark ink for text and icons sitting on lime.
+  static const onLime = Color(0xFF0D0D10);
+
+  /// Second accent: Mochi, highlights, selected chips.
+  static const lilac = Color(0xFFB9A4FF);
+  static const pink = Color(0xFFFF9BD6);
+
+  /// Caution ("trade for it") and problems ("14 days short").
+  static const butter = Color(0xFFFFD66B);
+  static const red = Color(0xFFFF6B6B);
+
+  static const need = Color(0xFF8FD3FF);
   static const want = pink;
 
-  static final glass = Colors.white.withValues(alpha: 0.07);
-  static final glassStrong = Colors.white.withValues(alpha: 0.10);
-  static final hairline = Colors.white.withValues(alpha: 0.12);
+  static final glass = Colors.white.withValues(alpha: 0.055);
+  static final glassStrong = Colors.white.withValues(alpha: 0.09);
+  static final hairline = Colors.white.withValues(alpha: 0.10);
 }
 
 abstract final class AppGradients {
+  /// Main call-to-action: lime with a slight sheen. Text on it is [AppColors.onLime].
   static const brand = LinearGradient(
-    colors: [AppColors.violet, AppColors.cyan],
+    colors: [Color(0xFFD6FF70), AppColors.lime],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  /// Personality: lilac → pink (avatars, chat bubbles, sign out).
   static const hot = LinearGradient(
-    colors: [AppColors.pink, AppColors.violet],
+    colors: [AppColors.lilac, AppColors.pink],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
-  static const good = LinearGradient(
-    colors: [AppColors.mint, AppColors.cyan],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+
+  /// Success / settled.
+  static const good = brand;
 }
 
 /// Shared motion tokens so every animation feels like the same app.
@@ -110,10 +119,11 @@ ThemeData buildTheme() {
     brightness: Brightness.dark,
     useMaterial3: true,
     colorScheme: const ColorScheme.dark(
-      primary: AppColors.violet,
-      secondary: AppColors.cyan,
+      primary: AppColors.lime,
+      onPrimary: AppColors.onLime,
+      secondary: AppColors.lilac,
       surface: AppColors.surface,
-      error: AppColors.coral,
+      error: AppColors.red,
       onSurface: AppColors.text,
     ),
   );
@@ -126,7 +136,9 @@ ThemeData buildTheme() {
       displayColor: AppColors.text,
     ),
     textSelectionTheme: const TextSelectionThemeData(
-      cursorColor: AppColors.cyan,
+      cursorColor: AppColors.lime,
+      selectionColor: Color(0x55B9A4FF),
+      selectionHandleColor: AppColors.lilac,
     ),
   );
 }

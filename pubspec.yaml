@@ -38,7 +38,6 @@ dependencies:
   drift: ^2.35.1
   drift_flutter: ^0.3.1
   path_provider: ^2.1.6
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -93,3 +92,22 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  fonts:
+    # Logo face for the "runway" wordmark (SIL OFL, see assets/fonts/OFL.txt).
+    - family: Bricolage
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque.ttf
+    # Phosphor icon fonts (MIT, see assets/fonts/phosphor/LICENSE).
+    - family: PhosphorRegular
+      fonts:
+        - asset: assets/fonts/phosphor/Phosphor-Regular.ttf
+    - family: PhosphorFill
+      fonts:
+        - asset: assets/fonts/phosphor/Phosphor-Fill.ttf
+    - family: PhosphorBold
+      fonts:
+        - asset: assets/fonts/phosphor/Phosphor-Bold.ttf
+    - family: PhosphorDuotone
+      fonts:
+        - asset: assets/fonts/phosphor/Phosphor-Duotone.ttf

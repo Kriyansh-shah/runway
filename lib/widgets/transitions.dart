@@ -90,10 +90,10 @@ class _RingPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: center, radius: radius);
     final shader = const SweepGradient(
       colors: [
-        AppColors.violet,
-        AppColors.cyan,
+        AppColors.lilac,
+        AppColors.lime,
         AppColors.pink,
-        AppColors.violet,
+        AppColors.lilac,
       ],
     ).createShader(rect);
     canvas.drawCircle(

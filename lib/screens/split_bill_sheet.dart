@@ -8,6 +8,7 @@ import '../app/models.dart';
 import '../app/theme.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/gradient_button.dart';
+import '../widgets/ph_icons.dart';
 
 Future<void> showSplitBillSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -93,7 +94,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
         GlassTextField(
           controller: _description,
           hint: 'e.g. Costco run, Uber home, Wi-Fi',
-          icon: Icons.edit_note_rounded,
+          icon: PhIcons.notePencil,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 14),
@@ -120,7 +121,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
               ChoiceChipPill(
                 key: ValueKey(f.id),
                 selected: _selected.contains(f.id),
-                color: AppColors.cyan,
+                color: AppColors.lime,
                 onTap: () => _toggle(f),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -132,9 +133,9 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
                           ? const Padding(
                               padding: EdgeInsets.only(left: 6),
                               child: Icon(
-                                Icons.check_rounded,
+                                PhIcons.checkBold,
                                 size: 16,
-                                color: AppColors.cyan,
+                                color: AppColors.lime,
                               ),
                             )
                           : const SizedBox.shrink(),
@@ -212,7 +213,7 @@ class _Preview extends StatelessWidget {
                     money(each),
                     style: AppText.number.copyWith(
                       fontSize: 16,
-                      color: AppColors.mint,
+                      color: AppColors.lime,
                     ),
                   ),
                 ],

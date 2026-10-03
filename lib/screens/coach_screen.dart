@@ -11,6 +11,7 @@ import '../widgets/glass.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import 'shell.dart';
+import '../widgets/ph_icons.dart';
 
 class CoachScreen extends StatefulWidget {
   const CoachScreen({super.key});
@@ -132,8 +133,8 @@ class _CoachScreenState extends State<CoachScreen> {
                   Pill(
                     label: 'Safe today ${money(s.safeToSpendToday)}',
                     color: s.safeToSpendToday >= 0
-                        ? AppColors.mint
-                        : AppColors.coral,
+                        ? AppColors.lime
+                        : AppColors.red,
                   ),
                 ],
               ),
@@ -202,7 +203,7 @@ class _CoachScreenState extends State<CoachScreen> {
                         color: Colors.white.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: AppColors.violet.withValues(alpha: 0.45),
+                          color: AppColors.lilac.withValues(alpha: 0.45),
                         ),
                       ),
                       child: Text(
@@ -276,15 +277,12 @@ class _InputBar extends StatelessWidget {
                 gradient: AppGradients.brand,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.violet.withValues(alpha: 0.5),
+                    color: AppColors.lime.withValues(alpha: 0.3),
                     blurRadius: 14,
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.arrow_upward_rounded,
-                color: Colors.white,
-              ),
+              child: const Icon(PhIcons.arrowUpBold, color: AppColors.onLime),
             ),
           ),
         ],
@@ -314,12 +312,18 @@ class _UserBubble extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.violet.withValues(alpha: 0.35),
+              color: AppColors.lime.withValues(alpha: 0.18),
               blurRadius: 16,
             ),
           ],
         ),
-        child: Text(text, style: AppText.body.copyWith(color: Colors.white)),
+        child: Text(
+          text,
+          style: AppText.body.copyWith(
+            color: AppColors.onLime,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -398,7 +402,7 @@ class _TypingBubbleState extends State<_TypingBubble>
                         width: 7,
                         height: 7,
                         decoration: const BoxDecoration(
-                          color: AppColors.cyan,
+                          color: AppColors.lime,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -419,9 +423,9 @@ class _VerdictCard extends StatelessWidget {
   final Assessment a;
 
   (Color, String) get _style => switch (a.verdict) {
-    Verdict.yes => (AppColors.mint, '✅'),
-    Verdict.trade => (AppColors.amber, '🔁'),
-    Verdict.no => (AppColors.coral, '⏳'),
+    Verdict.yes => (AppColors.lime, '✅'),
+    Verdict.trade => (AppColors.butter, '🔁'),
+    Verdict.no => (AppColors.red, '⏳'),
   };
 
   @override
@@ -499,7 +503,7 @@ class _VerdictCard extends StatelessWidget {
                                 const Padding(
                                   padding: EdgeInsets.symmetric(horizontal: 6),
                                   child: Icon(
-                                    Icons.arrow_forward_rounded,
+                                    PhIcons.arrowRightBold,
                                     size: 14,
                                     color: AppColors.muted,
                                   ),
@@ -527,7 +531,7 @@ class _VerdictCard extends StatelessWidget {
                             daysText,
                             style: AppText.number.copyWith(
                               fontSize: 16,
-                              color: days == 0 ? AppColors.mint : color,
+                              color: days == 0 ? AppColors.lime : color,
                             ),
                           ),
                         ],

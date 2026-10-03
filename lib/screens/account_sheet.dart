@@ -6,6 +6,7 @@ import '../widgets/expense_inputs.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/transitions.dart';
 import 'login_screen.dart';
+import '../widgets/ph_icons.dart';
 
 Future<void> showAccountSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -70,7 +71,7 @@ class _AccountSheet extends StatelessWidget {
         const SizedBox(height: 24),
         GradientButton(
           label: 'Sign out',
-          icon: Icons.logout_rounded,
+          icon: PhIcons.signOut,
           gradient: AppGradients.hot,
           glow: AppColors.pink,
           onTap: () => _signOut(context),

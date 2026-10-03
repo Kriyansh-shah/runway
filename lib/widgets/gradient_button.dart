@@ -10,7 +10,7 @@ class GradientButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.gradient = AppGradients.brand,
-    this.glow = AppColors.violet,
+    this.glow = AppColors.lime,
     this.icon,
     this.height = 56,
   });
@@ -21,6 +21,16 @@ class GradientButton extends StatelessWidget {
   final Color glow;
   final IconData? icon;
   final double height;
+
+  /// Dark ink on light gradients (lime, lilac), white on dark ones.
+  Color get _ink {
+    final first = gradient is LinearGradient
+        ? (gradient as LinearGradient).colors.first
+        : AppColors.lime;
+    return ThemeData.estimateBrightnessForColor(first) == Brightness.light
+        ? AppColors.onLime
+        : Colors.white;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +47,7 @@ class GradientButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(height / 2),
             boxShadow: [
               BoxShadow(
-                color: glow.withValues(alpha: enabled ? 0.45 : 0),
+                color: glow.withValues(alpha: enabled ? 0.28 : 0),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -48,13 +58,13 @@ class GradientButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, color: Colors.white, size: 20),
+                Icon(icon, color: _ink, size: 20),
                 const SizedBox(width: 8),
               ],
               Text(
                 label,
                 style: AppText.heading.copyWith(
-                  color: Colors.white,
+                  color: _ink,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),

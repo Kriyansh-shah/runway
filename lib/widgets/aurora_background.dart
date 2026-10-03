@@ -65,20 +65,20 @@ class _AuroraPainter extends CustomPainter {
 
   static const _blobs = [
     _Blob(
-      AppColors.violet,
+      AppColors.lilac,
       Offset(0.15, 0.08),
       0.95,
       Offset(0.10, 0.06),
       0,
-      0.30,
+      0.20,
     ),
     _Blob(
-      AppColors.cyan,
+      AppColors.lime,
       Offset(0.95, 0.22),
       0.75,
       Offset(0.08, 0.08),
       2.1,
-      0.16,
+      0.05,
     ),
     _Blob(
       AppColors.pink,
@@ -86,15 +86,15 @@ class _AuroraPainter extends CustomPainter {
       0.85,
       Offset(0.12, 0.05),
       4.2,
-      0.14,
+      0.07,
     ),
     _Blob(
-      AppColors.violet,
+      AppColors.lilac,
       Offset(0.05, 0.70),
       0.70,
       Offset(0.06, 0.10),
       1.3,
-      0.14,
+      0.09,
     ),
   ];
 

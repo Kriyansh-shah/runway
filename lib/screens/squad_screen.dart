@@ -12,6 +12,7 @@ import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import 'shell.dart';
 import 'split_bill_sheet.dart';
+import '../widgets/ph_icons.dart';
 
 class SquadScreen extends StatelessWidget {
   const SquadScreen({super.key});
@@ -59,9 +60,9 @@ class _PetCard extends StatelessWidget {
   final int streak;
 
   Color get _moodColor => switch (mood) {
-    PetMood.thriving => AppColors.mint,
-    PetMood.chill => AppColors.violet,
-    PetMood.worried => AppColors.amber,
+    PetMood.thriving => AppColors.lime,
+    PetMood.chill => AppColors.lilac,
+    PetMood.worried => AppColors.butter,
   };
 
   @override
@@ -148,7 +149,7 @@ class _XpBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(5),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.cyan.withValues(alpha: 0.5),
+                  color: AppColors.lime.withValues(alpha: 0.5),
                   blurRadius: 10,
                 ),
               ],
@@ -180,7 +181,7 @@ class _ChallengeCard extends StatelessWidget {
               const Text('📦', style: TextStyle(fontSize: 22)),
               const SizedBox(width: 10),
               Expanded(child: Text('No-delivery week', style: AppText.heading)),
-              Pill(label: 'Day $day of 7', color: AppColors.cyan),
+              Pill(label: 'Day $day of 7', color: AppColors.lime),
             ],
           ),
           const SizedBox(height: 4),
@@ -234,8 +235,8 @@ class _Dot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (state) {
-      1 => AppColors.mint,
-      -1 => AppColors.coral,
+      1 => AppColors.lime,
+      -1 => AppColors.red,
       _ => Colors.transparent,
     };
     return Padding(
@@ -267,7 +268,7 @@ class _Dot extends StatelessWidget {
           child: state == 0
               ? null
               : Icon(
-                  state == 1 ? Icons.check_rounded : Icons.close_rounded,
+                  state == 1 ? PhIcons.checkBold : PhIcons.xBold,
                   size: 12,
                   color: AppColors.bg,
                 ),
@@ -328,7 +329,7 @@ class _Leaderboard extends StatelessWidget {
                         style: AppText.number.copyWith(
                           fontSize: 17,
                           color: entries[i].$4
-                              ? AppColors.amber
+                              ? AppColors.butter
                               : AppColors.text,
                         ),
                       ),
@@ -364,7 +365,7 @@ class _Splits extends StatelessWidget {
                 borderRadius: BorderRadius.circular(99),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.violet.withValues(alpha: 0.45),
+                    color: AppColors.lime.withValues(alpha: 0.28),
                     blurRadius: 14,
                   ),
                 ],
@@ -372,12 +373,16 @@ class _Splits extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                  const Icon(
+                    PhIcons.plusBold,
+                    size: 16,
+                    color: AppColors.onLime,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'Split a bill',
                     style: AppText.label.copyWith(
-                      color: Colors.white,
+                      color: AppColors.onLime,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -395,7 +400,7 @@ class _Splits extends StatelessWidget {
                     child: Text(
                       'All square ✨  Paid for something shared? Split it.',
                       textAlign: TextAlign.center,
-                      style: AppText.body.copyWith(color: AppColors.mint),
+                      style: AppText.body.copyWith(color: AppColors.lime),
                     ),
                   ),
                 )
@@ -455,7 +460,7 @@ class _SplitRowState extends State<_SplitRow>
   @override
   Widget build(BuildContext context) {
     final s = widget.split;
-    final color = s.theyOweYou ? AppColors.mint : AppColors.coral;
+    final color = s.theyOweYou ? AppColors.lime : AppColors.red;
     return SizeTransition(
       sizeFactor: _collapse,
       alignment: Alignment.topCenter,
@@ -508,12 +513,12 @@ class _SplitRowState extends State<_SplitRow>
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       gradient: _settled
-                          ? AppGradients.good
+                          ? AppGradients.hot
                           : AppGradients.brand,
                       boxShadow: [
                         BoxShadow(
-                          color: (_settled ? AppColors.mint : AppColors.violet)
-                              .withValues(alpha: 0.45),
+                          color: (_settled ? AppColors.lilac : AppColors.lime)
+                              .withValues(alpha: 0.3),
                           blurRadius: 14,
                         ),
                       ],
@@ -525,7 +530,7 @@ class _SplitRowState extends State<_SplitRow>
                           ScaleTransition(scale: a, child: child),
                       child: _settled
                           ? const Icon(
-                              Icons.check_rounded,
+                              PhIcons.checkBold,
                               key: ValueKey(1),
                               color: AppColors.bg,
                             )
@@ -534,7 +539,7 @@ class _SplitRowState extends State<_SplitRow>
                               key: const ValueKey(0),
                               maxLines: 1,
                               style: AppText.label.copyWith(
-                                color: Colors.white,
+                                color: AppColors.onLime,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

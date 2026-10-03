@@ -15,6 +15,7 @@ import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
 import 'shell.dart';
+import '../widgets/ph_icons.dart';
 
 enum _Phase { idle, loading, success }
 
@@ -157,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen>
                             child: GlassTextField(
                               controller: _name,
                               hint: 'Your first name',
-                              icon: Icons.person_outline_rounded,
+                              icon: PhIcons.user,
                               textCapitalization: TextCapitalization.words,
                               textInputAction: TextInputAction.next,
                               autofillHints: const [AutofillHints.givenName],
@@ -172,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen>
                 GlassTextField(
                   controller: _email,
                   hint: 'you@uni.edu',
-                  icon: Icons.alternate_email_rounded,
+                  icon: PhIcons.at,
                   keyboardType: TextInputType.emailAddress,
                   textCapitalization: TextCapitalization.none,
                   textInputAction: TextInputAction.next,
@@ -183,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen>
                 GlassTextField(
                   controller: _password,
                   hint: 'Password',
-                  icon: Icons.lock_outline_rounded,
+                  icon: PhIcons.lock,
                   obscureText: !_showPassword,
                   textCapitalization: TextCapitalization.none,
                   textInputAction: TextInputAction.go,
@@ -204,9 +205,7 @@ class _LoginScreenState extends State<LoginScreen>
                       child: AnimatedSwitcher(
                         duration: Motion.fast,
                         child: Icon(
-                          _showPassword
-                              ? Icons.visibility_off_rounded
-                              : Icons.visibility_rounded,
+                          _showPassword ? PhIcons.eyeSlash : PhIcons.eye,
                           key: ValueKey(_showPassword),
                           size: 20,
                           color: AppColors.muted,
@@ -226,16 +225,16 @@ class _LoginScreenState extends State<LoginScreen>
                           child: Row(
                             children: [
                               const Icon(
-                                Icons.error_outline_rounded,
+                                PhIcons.warningCircle,
                                 size: 16,
-                                color: AppColors.coral,
+                                color: AppColors.red,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   _error!,
                                   style: AppText.label.copyWith(
-                                    color: AppColors.coral,
+                                    color: AppColors.red,
                                   ),
                                 ),
                               ),
@@ -419,7 +418,7 @@ class _MorphButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final idle = phase == _Phase.idle;
     final success = phase == _Phase.success;
-    final glow = success ? AppColors.mint : AppColors.violet;
+    final glow = success ? AppColors.lime : AppColors.lilac;
     return LayoutBuilder(
       builder: (context, c) => Pressable(
         onTap: onTap,
@@ -457,18 +456,18 @@ class _MorphButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.clip,
                 softWrap: false,
-                style: AppText.heading.copyWith(color: Colors.white),
+                style: AppText.heading.copyWith(color: AppColors.onLime),
               ),
               _Phase.loading => const SizedBox.square(
                 key: ValueKey('spin'),
                 dimension: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: Colors.white,
+                  color: AppColors.onLime,
                 ),
               ),
               _Phase.success => const Icon(
-                Icons.check_rounded,
+                PhIcons.checkBold,
                 key: ValueKey('done'),
                 color: AppColors.bg,
                 size: 28,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../app/models.dart';
 import '../app/theme.dart';
+import 'category_icon.dart';
 import 'glass.dart';
 import 'pressable.dart';
 
@@ -167,7 +168,7 @@ class ChoiceChipPill extends StatelessWidget {
     required this.selected,
     required this.onTap,
     required this.child,
-    this.color = AppColors.violet,
+    this.color = AppColors.lilac,
   });
 
   final bool selected;
@@ -250,7 +251,14 @@ class CategoryPicker extends StatelessWidget {
               HapticFeedback.selectionClick();
               onChanged(c);
             },
-            child: Text('${c.emoji} ${c.label}'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CategoryIcon(c, size: 17),
+                const SizedBox(width: 6),
+                Text(c.label),
+              ],
+            ),
           ),
       ],
     );

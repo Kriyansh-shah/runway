@@ -5,9 +5,11 @@ import '../app/app_state.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
+import '../widgets/category_icon.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/pressable.dart';
+import '../widgets/ph_icons.dart';
 
 Future<void> showQuickAddSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -104,7 +106,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
         GlassTextField(
           controller: _note,
           hint: 'What was it? e.g. Uber to airport',
-          icon: Icons.edit_note_rounded,
+          icon: PhIcons.notePencil,
         ),
         const SizedBox(height: 16),
         const FieldLabel('Quick picks'),
@@ -126,7 +128,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
         GradientButton(
           label: _amount > 0 ? 'Log ${money(_amount)}' : 'Enter an amount',
           gradient: _isNeed ? AppGradients.good : AppGradients.hot,
-          glow: _isNeed ? AppColors.cyan : AppColors.pink,
+          glow: _isNeed ? AppColors.lime : AppColors.pink,
           onTap: _amount > 0 ? _save : null,
         ),
       ],
@@ -194,19 +196,20 @@ class _Presets extends StatelessWidget {
           ChoiceChipPill(
             selected: selected == p.category,
             onTap: () => onTap(p),
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: '${p.category.emoji} ${p.category.label}'),
-                  TextSpan(
-                    text:
-                        '  ${money(p.amount, cents: p.amount != p.amount.roundToDouble())}',
-                    style: AppText.label.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CategoryIcon(p.category, size: 17),
+                const SizedBox(width: 6),
+                Text(p.category.label),
+                const SizedBox(width: 6),
+                Text(
+                  money(p.amount, cents: p.amount != p.amount.roundToDouble()),
+                  style: AppText.label.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
       ],
@@ -258,7 +261,7 @@ class _Keypad extends StatelessWidget {
               child: Center(
                 child: k == '⌫'
                     ? const Icon(
-                        Icons.backspace_outlined,
+                        PhIcons.backspace,
                         color: AppColors.text,
                         size: 22,
                       )
