@@ -23,6 +23,10 @@ abstract interface class BudgetRepository {
 
   Future<void> saveTerm(Term term);
   Future<void> addUpcomingCost(UpcomingCost cost);
+
+  /// Replaces the current term with the user's own: the old term (and its
+  /// expenses) is archived and [term] starts empty with [upcoming] reserved.
+  Future<void> startTerm(Term term, List<UpcomingCost> upcoming);
 }
 
 /// Nothing is saved: every launch starts from the same demo data.
@@ -55,6 +59,9 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> addUpcomingCost(UpcomingCost cost) async {}
+
+  @override
+  Future<void> startTerm(Term term, List<UpcomingCost> upcoming) async {}
 
   /// Total of the seeded past expenses. Tuned so the demo lands at
   /// "14 days short" with today's coffee included.

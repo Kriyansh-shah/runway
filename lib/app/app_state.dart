@@ -26,6 +26,7 @@ class AppState extends ChangeNotifier {
        _upcoming = [...data.upcoming],
        _friends = data.friends,
        _splits = [...data.splits],
+       _needsSetup = data.needsSetup,
        challengeStart = data.challengeStart {
     _user = user;
     _recompute();
@@ -44,11 +45,15 @@ class AppState extends ChangeNotifier {
   final List<BillSplit> _splits;
 
   UserProfile? _user;
+  bool _needsSetup;
   late RunwaySnapshot _snapshot;
   late int _streak;
 
   DateTime get today => dateOnly(_clock());
   UserProfile? get user => _user;
+
+  /// Still on demo data: show the setup flow before Home.
+  bool get needsSetup => _needsSetup;
   Term get term => _term;
   RunwaySnapshot get snapshot => _snapshot;
   int get streak => _streak;
@@ -153,6 +158,18 @@ class AppState extends ChangeNotifier {
     _upcoming.add(cost);
     _changed();
     _persist(_repo.addUpcomingCost(cost));
+  }
+
+  /// Swaps the demo term for the user's own, starting with no expenses.
+  void startTerm(Term term, List<UpcomingCost> upcoming) {
+    _term = term;
+    _expenses.clear();
+    _upcoming
+      ..clear()
+      ..addAll(upcoming);
+    _needsSetup = false;
+    _changed();
+    _persist(_repo.startTerm(term, upcoming));
   }
 
   Expense _newExpense(

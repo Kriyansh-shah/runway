@@ -14,7 +14,7 @@ import '../widgets/mochi_takeoff.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
-import 'shell.dart';
+import 'setup_screen.dart';
 import '../widgets/ph_icons.dart';
 
 enum _Phase { idle, loading, success }
@@ -143,7 +143,10 @@ class _LoginScreenState extends State<LoginScreen>
     state.signedIn(user);
     _exit.forward();
     await Navigator.of(context).pushReplacement(
-      CircularRevealRoute<void>(center: center, builder: (_) => const Shell()),
+      CircularRevealRoute<void>(
+        center: center,
+        builder: (_) => landingFor(state),
+      ),
     );
   }
 

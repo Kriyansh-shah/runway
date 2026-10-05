@@ -274,4 +274,49 @@ void main() {
       closeTo(state.snapshot.totalSpent, 1e-9),
     );
   });
+
+  test('setup replaces the demo term and survives reopening', () async {
+    var repo = openRepo();
+    final demo = await repo.load();
+    expect(demo.needsSetup, isTrue);
+
+    final state = AppState(repository: repo, data: demo, clock: () => now);
+    final term = Term(
+      name: 'Spring term',
+      start: DateTime(2026, 10, 1),
+      end: DateTime(2026, 12, 20),
+      startingBalance: 2500,
+    );
+    state.startTerm(term, [
+      UpcomingCost(
+        id: 'u1',
+        emoji: '📌',
+        name: 'Flight home',
+        amount: 300,
+        dueDate: DateTime(2026, 12, 18),
+      ),
+    ]);
+    expect(state.needsSetup, isFalse);
+    expect(state.recentExpenses(), isEmpty);
+    expect(state.snapshot.available, 2200);
+    // Logged right after setup, so it must land in the new term.
+    state.addExpense(
+      amount: 12,
+      category: ExpenseCategory.coffee,
+      isNeed: false,
+    );
+    await pumpEventQueue(times: 100);
+
+    repo = await reopen(repo);
+    final data = await repo.load();
+    expect(data.needsSetup, isFalse);
+    expect(data.term.name, 'Spring term');
+    expect(data.term.start, DateTime(2026, 10, 1));
+    expect(data.term.end, DateTime(2026, 12, 20));
+    expect(data.term.startingBalance, 2500);
+    expect(data.expenses.map((e) => e.amount), [12]);
+    expect(data.upcoming.map((c) => c.name), ['Flight home']);
+    // Squad stays until it has a real backend.
+    expect(data.friends.length, demo.friends.length);
+  });
 }

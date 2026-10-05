@@ -309,12 +309,12 @@ dart run build_runner build
 
 This is an early prototype:
 
-- **Demo data on first launch.** The database starts with a sample semester;
-  there's no setup screen or "reset" yet.
+- **Setup covers the basics only.** A first-run screen sets the term, starting
+  balance and upcoming costs, but there's no settings screen to edit them later,
+  no "reset", and no way to add money mid-term (see the next question below).
 - **Login is a stand-in.** Any well-formed email and password is accepted; there's no server.
 - **The coach is rule-based.** It uses no AI and no API keys, and makes no network calls.
 - **Squad friends are mock data.** There's no real friend sync yet.
-- **No setup screen yet.** You can't edit the term dates, starting balance or upcoming costs in the app.
 
 ---
 
@@ -332,6 +332,29 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |
 | 7 | **Polish:** notifications, home-screen widget, recurring costs, app icon | 💡 Ideas |
 
+### ❓ Next question: money coming in during the term
+
+Students don't only get one lump at the start. Many have a job paid **weekly or
+every two weeks**, an **allowance** from parents, or one-off money like a
+**project payment** or scholarship. How should Runway count it?
+
+- **One-time money** (project payment, scholarship, gift): name, amount, date.
+- **Recurring money** (paycheck, allowance): name, amount, how often
+  (weekly / every 2 weeks / monthly), next pay date.
+
+**The open decision: when does future income count?**
+
+- **Option A: only once it arrives.** Safe, but strict: today's budget ignores
+  money the student will definitely get, and jumps up on every payday.
+- **Option B: count expected paychecks ahead of time** (the mirror of how big
+  costs are reserved ahead of time). Today's budget reflects the real semester
+  and stays steady.
+
+Leaning towards **B**, with two safeguards: use the student's *lowest usual*
+paycheck (shift work varies; they correct it when it lands), and warn about
+gaps between paydays ("Tight until Friday's paycheck"), since the semester can
+add up while a single week doesn't.
+
 ---
 
 ## Privacy
@@ -346,6 +369,6 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 
 <div align="center">
 
-Made with 💜 and Flutter by **Kriyansh Shah**
+Made with Flutter by **Kriyansh Shah**
 
 </div>

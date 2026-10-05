@@ -92,6 +92,69 @@ void main() {
     expect(find.text('No-delivery week'), findsOneWidget);
   });
 
+  testWidgets('first run: setup replaces the demo term', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final demo = MockBudgetRepository.seed(now);
+    final state = AppState(
+      repository: MockBudgetRepository(now: now),
+      data: BudgetData(
+        term: demo.term,
+        expenses: demo.expenses,
+        upcoming: demo.upcoming,
+        friends: demo.friends,
+        splits: demo.splits,
+        challengeStart: demo.challengeStart,
+        needsSetup: true,
+      ),
+      user: const UserProfile(name: 'Alex', email: 'alex@uni.edu'),
+      clock: () => now,
+    );
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    expect(find.text('Set up your semester'), findsOneWidget);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Winter term');
+    await tester.enterText(fields.at(1), '1500');
+    await tester.tap(find.text('Pick date').first); // term end
+    await settle(tester);
+    await tester.tap(find.text('20'));
+    await tester.tap(find.text('OK'));
+    await settle(tester);
+    expect(find.text('Oct 20, 2026'), findsOneWidget);
+
+    await tester.enterText(fields.at(2), 'Concert');
+    await tester.enterText(fields.at(3), '100');
+    await tester.tap(find.text('Pick date')); // cost due date
+    await settle(tester);
+    await tester.tap(find.text('10'));
+    await tester.tap(find.text('OK'));
+    await settle(tester);
+    await tester.tap(find.text('Add cost'));
+    await settle(tester);
+    expect(find.text('📌 Concert · Oct 10'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Start my runway'));
+    await tester.tap(find.text('Start my runway'));
+    await settle(tester, const Duration(seconds: 2));
+
+    expect(state.needsSetup, isFalse);
+    expect(state.term.name, 'Winter term');
+    expect(state.term.end, DateTime(2026, 10, 20));
+    expect(state.recentExpenses(), isEmpty);
+    expect(state.snapshot.available, 1400);
+    expect(find.text('Safe to spend today'), findsOneWidget);
+    expect(find.text('Concert'), findsOneWidget);
+    expect(
+      find.text('Nothing logged yet. Tap + to add your first expense.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('coach chip produces a verdict after typing', (tester) async {
     final semantics = tester.ensureSemantics();
     tester.view.physicalSize = const Size(1290, 2796);

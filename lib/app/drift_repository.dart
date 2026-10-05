@@ -20,6 +20,7 @@ class DriftBudgetRepository implements BudgetRepository {
 
   static const _seededAtKey = 'seeded_at';
   static const _challengeStartKey = 'challenge_start';
+  static const _setUpAtKey = 'set_up_at';
   static const _sessionId = 1;
 
   Future<void> close() => _db.close();
@@ -51,6 +52,7 @@ class DriftBudgetRepository implements BudgetRepository {
       _db.friends,
     )..orderBy([(f) => OrderingTerm.asc(f.position)])).get();
     final challengeStart = await _getMeta(_challengeStartKey);
+    final setUpAt = await _getMeta(_setUpAtKey);
 
     return BudgetData(
       term: Term(
@@ -95,6 +97,7 @@ class DriftBudgetRepository implements BudgetRepository {
       challengeStart: challengeStart == null
           ? dateOnly(_clock())
           : _day(DateTime.parse(challengeStart)),
+      needsSetup: setUpAt == null,
     );
   }
 
@@ -182,6 +185,36 @@ class DriftBudgetRepository implements BudgetRepository {
   Future<void> addUpcomingCost(UpcomingCost cost) async {
     final termId = await _currentTermId();
     await _db.into(_db.upcomingCosts).insert(_costRow(cost, termId));
+  }
+
+  @override
+  Future<void> startTerm(Term term, List<UpcomingCost> upcoming) {
+    // Writes that start after this wait for the transaction, then look up
+    // the new term instead of using the cached old one.
+    _termId = null;
+    final now = _clock();
+    return _db.transaction(() async {
+      await (_db.update(_db.terms)..where((t) => t.archivedAt.isNull())).write(
+        TermsCompanion(archivedAt: Value(now)),
+      );
+      final termId = await _db
+          .into(_db.terms)
+          .insert(
+            TermsCompanion.insert(
+              name: term.name,
+              start: term.start,
+              end: term.end,
+              startingBalanceCents: _cents(term.startingBalance),
+            ),
+          );
+      await _db.batch((b) {
+        b.insertAll(_db.upcomingCosts, [
+          for (final c in upcoming) _costRow(c, termId),
+        ]);
+      });
+      await _setMeta(_setUpAtKey, now.toIso8601String());
+      _termId = termId;
+    });
   }
 
   // ---------------------------------------------------------------- seeding

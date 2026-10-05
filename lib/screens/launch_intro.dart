@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../app/app_state.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/mochi_takeoff.dart';
 import '../widgets/transitions.dart';
-import 'shell.dart';
+import 'setup_screen.dart';
 
 /// Launch screen for someone who's already signed in: "Mochi's Takeoff",
 /// then Home opens through a circle that grows out of Mochi.
@@ -20,13 +21,11 @@ class _LaunchIntroState extends State<LaunchIntro> {
   void _openHome(Offset from, {bool instant = false}) {
     if (_leaving) return;
     _leaving = true;
+    final next = landingFor(AppScope.read(context));
     Navigator.of(context).pushReplacement(
       instant
-          ? FadeScaleRoute<void>(builder: (_) => const Shell())
-          : CircularRevealRoute<void>(
-              center: from,
-              builder: (_) => const Shell(),
-            ),
+          ? FadeScaleRoute<void>(builder: (_) => next)
+          : CircularRevealRoute<void>(center: from, builder: (_) => next),
     );
   }
 

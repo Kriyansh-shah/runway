@@ -133,6 +133,7 @@ class BudgetData {
     required this.friends,
     required this.splits,
     required this.challengeStart,
+    this.needsSetup = false,
   });
 
   final Term term;
@@ -141,4 +142,7 @@ class BudgetData {
   final List<Friend> friends;
   final List<BillSplit> splits;
   final DateTime challengeStart;
+
+  /// True until the user has entered their own term (still on demo data).
+  final bool needsSetup;
 }

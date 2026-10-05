@@ -1002,6 +1002,15 @@ class _Recent extends StatelessWidget {
             alignment: Alignment.topCenter,
             child: Column(
               children: [
+                if (expenses.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Text(
+                      'Nothing logged yet. Tap + to add your first expense.',
+                      style: AppText.label,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 for (var i = 0; i < expenses.length; i++)
                   // Keyed so a newly logged expense gets its own entrance.
                   Entrance(

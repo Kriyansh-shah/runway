@@ -12,7 +12,7 @@ import 'app/drift_repository.dart';
 import 'app/theme.dart';
 import 'screens/launch_intro.dart';
 import 'screens/login_screen.dart';
-import 'screens/shell.dart';
+import 'screens/setup_screen.dart';
 
 Future<void> main() async {
   // On macOS debug builds, show the app inside an iPhone frame. Everywhere
@@ -59,7 +59,7 @@ class RunwayApp extends StatelessWidget {
         home: switch ((state.user != null, intro)) {
           (false, _) => LoginScreen(playIntro: intro),
           (true, true) => const LaunchIntro(),
-          (true, false) => const Shell(),
+          (true, false) => landingFor(state),
         },
       ),
     );
