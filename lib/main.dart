@@ -18,7 +18,8 @@ Future<void> main() async {
   // On macOS debug builds, show the app inside an iPhone frame. Everywhere
   // else this behaves exactly like WidgetsFlutterBinding.
   DevicePreview.enable(
-    enabled: kDebugMode && defaultTargetPlatform == TargetPlatform.macOS,
+    enabled:
+        kDebugMode && !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS,
   );
   final preview = DevicePreview.maybeController;
   if (preview != null) {

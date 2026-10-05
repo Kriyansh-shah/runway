@@ -128,6 +128,10 @@ class RunwayDatabase extends _$RunwayDatabase {
       native: const DriftNativeOptions(
         databaseDirectory: getApplicationSupportDirectory,
       ),
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.js'),
+      ),
     ),
   );
 
