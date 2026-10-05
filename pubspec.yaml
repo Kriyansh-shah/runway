@@ -50,6 +50,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.35.1
   build_runner: ^2.16.1
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -111,3 +112,20 @@ flutter:
     - family: PhosphorDuotone
       fonts:
         - asset: assets/fonts/phosphor/Phosphor-Duotone.ttf
+
+# App icon for every platform: `dart run flutter_launcher_icons`
+# Sources in assets/icon/ (Mochi on the runway, drawn with paintMochi).
+flutter_launcher_icons:
+  image_path: assets/icon/icon.png
+  android: true
+  adaptive_icon_background: "#1A1726"
+  adaptive_icon_foreground: assets/icon/icon_foreground.png
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: assets/icon/icon_macos.png
+  web:
+    generate: true
+    background_color: "#0D0D10"
+    theme_color: "#0D0D10"
