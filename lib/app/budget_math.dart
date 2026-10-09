@@ -13,9 +13,11 @@ class RunwaySnapshot {
     required this.termStart,
     required this.termEnd,
     required this.balance,
+    required this.received,
     required this.reserved,
     required this.spentToday,
     required this.totalSpent,
+    required this.everydaySpent,
     required this.daysLeft,
     required this.daysElapsed,
   });
@@ -24,13 +26,25 @@ class RunwaySnapshot {
   final DateTime termStart;
   final DateTime termEnd;
 
-  /// Starting balance minus everything spent so far.
+  /// Starting balance plus money received so far, minus everything spent.
   final double balance;
 
-  /// Sum of upcoming costs that haven't come due yet.
+  /// Money that has come in this term so far (paychecks, one-off payments).
+  final double received;
+
+  /// Sum of upcoming costs that haven't been paid yet, including overdue
+  /// ones: that money is still owed.
   final double reserved;
+
+  /// Everyday spending today (excludes paid upcoming costs).
   final double spentToday;
+
+  /// Everything spent this term, including paid upcoming costs.
   final double totalSpent;
+
+  /// Day-to-day spending this term: [totalSpent] minus paid upcoming costs,
+  /// which were planned for and would otherwise distort the burn rate.
+  final double everydaySpent;
 
   /// Days left in term, counting today.
   final int daysLeft;
@@ -51,8 +65,8 @@ class RunwaySnapshot {
   double get usedToday =>
       dailyAllowance <= 0 ? 1 : (spentToday / dailyAllowance).clamp(0, 2);
 
-  /// Average spend per day so far.
-  double get burnRate => totalSpent / daysElapsed;
+  /// Average everyday spend per day so far.
+  double get burnRate => everydaySpent / daysElapsed;
 
   /// How many more days the available money lasts at the current burn rate.
   /// `null` means "forever" (nothing spent yet).
@@ -84,34 +98,111 @@ class RunwaySnapshot {
       (daysBetween(termStart, d) / termLength).clamp(0.0, 1.0);
 }
 
+/// [upcoming] holds only unpaid costs; each stays reserved until it's paid.
+/// [incomes] count only for the paydays that have already arrived.
 RunwaySnapshot computeRunway({
   required Term term,
   required List<Expense> expenses,
   required List<UpcomingCost> upcoming,
+  List<Income> incomes = const [],
   required DateTime today,
 }) {
   final day = dateOnly(today);
   var total = 0.0;
+  var everyday = 0.0;
   var todaySpend = 0.0;
   for (final e in expenses) {
     total += e.amount;
+    if (e.planned) continue;
+    everyday += e.amount;
     if (sameDay(e.date, day)) todaySpend += e.amount;
   }
   var reserved = 0.0;
   for (final c in upcoming) {
-    if (!c.dueDate.isBefore(day)) reserved += c.amount;
+    reserved += c.amount;
   }
+  final received = incomeReceived(incomes, term: term, today: day);
   return RunwaySnapshot(
     today: day,
     termStart: dateOnly(term.start),
     termEnd: dateOnly(term.end),
-    balance: term.startingBalance - total,
+    balance: term.startingBalance + received - total,
+    received: received,
     reserved: reserved,
     spentToday: todaySpend,
     totalSpent: total,
+    everydaySpent: everyday,
     daysLeft: math.max(1, daysBetween(day, term.end) + 1),
     daysElapsed: math.max(1, daysBetween(term.start, day) + 1),
   );
+}
+
+/// Every payday of [income] from [from] to [to], inclusive, in order.
+/// Monthly pay on the 31st lands on the last day of shorter months.
+Iterable<DateTime> paydays(
+  Income income, {
+  required DateTime from,
+  required DateTime to,
+}) sync* {
+  final first = dateOnly(income.firstDate);
+  final endsOn = income.endsOn;
+  final last = endsOn == null || endsOn.isAfter(to)
+      ? dateOnly(to)
+      : dateOnly(endsOn);
+  final start = dateOnly(from);
+  for (var n = 0; ; n++) {
+    final DateTime date;
+    switch (income.frequency) {
+      case IncomeFrequency.once:
+        if (n > 0) return;
+        date = first;
+      case IncomeFrequency.weekly:
+        date = DateTime(first.year, first.month, first.day + 7 * n);
+      case IncomeFrequency.biweekly:
+        date = DateTime(first.year, first.month, first.day + 14 * n);
+      case IncomeFrequency.monthly:
+        final lastDay = DateTime(first.year, first.month + n + 1, 0).day;
+        date = DateTime(
+          first.year,
+          first.month + n,
+          math.min(first.day, lastDay),
+        );
+    }
+    if (date.isAfter(last)) return;
+    if (!date.isBefore(start)) yield date;
+  }
+}
+
+/// Money that has arrived this term, up to and including [today]. Option A
+/// from the README: income never counts before it lands.
+double incomeReceived(
+  List<Income> incomes, {
+  required Term term,
+  required DateTime today,
+}) {
+  final until = today.isAfter(term.end) ? term.end : today;
+  var total = 0.0;
+  for (final i in incomes) {
+    total += i.amount * paydays(i, from: term.start, to: until).length;
+  }
+  return total;
+}
+
+/// The next payment after [today] and before the term ends, if any.
+({Income income, DateTime date})? nextIncome(
+  List<Income> incomes, {
+  required Term term,
+  required DateTime today,
+}) {
+  final from = DateTime(today.year, today.month, today.day + 1);
+  ({Income income, DateTime date})? next;
+  for (final i in incomes) {
+    final date = paydays(i, from: from, to: term.end).firstOrNull;
+    if (date != null && (next == null || date.isBefore(next.date))) {
+      next = (income: i, date: date);
+    }
+  }
+  return next;
 }
 
 /// Consecutive days with at least one logged expense. Today not being logged

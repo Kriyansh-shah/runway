@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/app_state.dart';
+import '../app/purchase_link.dart';
 import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/celebrations.dart';
@@ -32,6 +34,31 @@ class _ShellState extends State<Shell> {
 
   static const _screens = [HomeScreen(), CoachScreen(), SquadScreen()];
 
+  late final ValueNotifier<ApplePayPurchase?> _purchases;
+
+  @override
+  void initState() {
+    super.initState();
+    // A purchase may have arrived during login, setup or the intro; open it
+    // once Home is on screen, and any later ones as they come in.
+    _purchases = AppScope.read(context).pendingPurchase
+      ..addListener(_openPurchase);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openPurchase());
+  }
+
+  @override
+  void dispose() {
+    _purchases.removeListener(_openPurchase);
+    super.dispose();
+  }
+
+  void _openPurchase() {
+    final purchase = _purchases.value;
+    if (purchase == null || !mounted) return;
+    _purchases.value = null;
+    _openQuickAdd(purchase: purchase);
+  }
+
   void _select(int tab, {bool haptic = true}) {
     if (tab == _tab) return;
     if (haptic) HapticFeedback.selectionClick();
@@ -43,8 +70,8 @@ class _ShellState extends State<Shell> {
 
   /// After logging: jump to Home and toss a coin from the Log button into
   /// the ring.
-  Future<void> _openQuickAdd() async {
-    final from = await showQuickAddSheet(context);
+  Future<void> _openQuickAdd({ApplePayPurchase? purchase}) async {
+    final from = await showQuickAddSheet(context, purchase: purchase);
     if (from == null || !mounted) return;
     _select(0, haptic: false);
     await Future<void>.delayed(Motion.fast);

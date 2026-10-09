@@ -319,4 +319,187 @@ void main() {
     // Squad stays until it has a real backend.
     expect(data.friends.length, demo.friends.length);
   });
+
+  test('money coming in survives reopening, stopping and deleting', () async {
+    var repo = openRepo();
+    await repo.load();
+    await repo.addIncome(
+      Income(
+        id: 'job',
+        name: 'Campus job',
+        amount: 312.40,
+        frequency: IncomeFrequency.biweekly,
+        firstDate: DateTime(2026, 10, 9),
+      ),
+    );
+    await repo.addIncome(
+      Income(
+        id: 'gift',
+        name: 'Birthday',
+        amount: 50,
+        frequency: IncomeFrequency.once,
+        firstDate: DateTime(2026, 10, 1),
+      ),
+    );
+    await repo.stopIncome('job', DateTime(2026, 11, 20));
+    await repo.deleteIncome('gift');
+
+    repo = await reopen(repo);
+    final job = (await repo.load()).incomes.single;
+    expect(job.name, 'Campus job');
+    expect(job.amount, 312.40);
+    expect(job.frequency, IncomeFrequency.biweekly);
+    expect(job.firstDate, DateTime(2026, 10, 9));
+    expect(job.endsOn, DateTime(2026, 11, 20));
+  });
+
+  test('paying a cost logs a planned expense and removes it', () async {
+    var repo = openRepo();
+    final before = await repo.load();
+    final phone = before.upcoming.first;
+    await repo.payUpcomingCost(
+      phone.id,
+      Expense(
+        id: 'paid-phone',
+        amount: phone.amount,
+        category: ExpenseCategory.bills,
+        isNeed: true,
+        date: now,
+        note: phone.name,
+        planned: true,
+      ),
+    );
+    await repo.deleteUpcomingCost(before.upcoming.last.id);
+
+    repo = await reopen(repo);
+    final after = await repo.load();
+    expect(after.upcoming.map((c) => c.id), [before.upcoming[1].id]);
+    final paid = after.expenses.singleWhere((e) => e.id == 'paid-phone');
+    expect(paid.planned, isTrue);
+    expect(paid.amount, phone.amount);
+    expect(after.expenses.where((e) => e.planned), hasLength(1));
+  });
+
+  test('a failed payment leaves the cost unpaid', () async {
+    final repo = openRepo();
+    final before = await repo.load();
+    // Reusing an existing expense id makes the insert fail mid-transaction.
+    final clash = before.expenses.first;
+    await expectLater(
+      repo.payUpcomingCost(
+        before.upcoming.first.id,
+        Expense(
+          id: clash.id,
+          amount: 1,
+          category: ExpenseCategory.bills,
+          isNeed: true,
+          date: now,
+          planned: true,
+        ),
+      ),
+      throwsA(anything),
+    );
+    expect((await repo.load()).upcoming.length, before.upcoming.length);
+  });
+
+  test('erasing everything starts over like a fresh install', () async {
+    var repo = openRepo();
+    final state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      user: const UserProfile(name: 'Alex', email: 'alex@uni.edu'),
+      clock: () => now,
+    );
+    state.startTerm(
+      Term(
+        name: 'Mine',
+        start: DateTime(2026, 10, 1),
+        end: DateTime(2026, 12, 1),
+        startingBalance: 900,
+      ),
+      const [],
+    );
+    state.addIncome(
+      name: 'Job',
+      amount: 100,
+      frequency: IncomeFrequency.weekly,
+      firstDate: now,
+    );
+    await pumpEventQueue(times: 100);
+
+    await state.eraseEverything();
+    expect(state.user, isNull);
+    expect(state.needsSetup, isTrue);
+    expect(state.incomes, isEmpty);
+
+    repo = await reopen(repo);
+    expect(await repo.currentUser(), isNull);
+    final data = await repo.load();
+    expect(data.needsSetup, isTrue);
+    expect(data.term.name, 'Fall term'); // demo again, until set up
+    expect(data.incomes, isEmpty);
+  });
+
+  test('a version 1 database upgrades without losing data', () async {
+    var repo = openRepo();
+    await repo.load();
+    await repo.addExpense(expense('old', 7.25, note: 'From v1'));
+    await repo.close();
+    open.remove(repo);
+
+    // Turn the file back into the version 1 schema.
+    final db = RunwayDatabase(NativeDatabase(file));
+    await db.customStatement('DROP TABLE incomes');
+    await db.customStatement('ALTER TABLE expenses DROP COLUMN is_planned');
+    await db.customStatement('PRAGMA user_version = 1');
+    await db.close();
+
+    repo = openRepo();
+    final data = await repo.load();
+    final old = data.expenses.singleWhere((e) => e.id == 'old');
+    expect(old.note, 'From v1');
+    expect(old.planned, isFalse);
+    await repo.addIncome(
+      Income(
+        id: 'new',
+        name: 'Stipend',
+        amount: 80,
+        frequency: IncomeFrequency.monthly,
+        firstDate: DateTime(2026, 10, 15),
+      ),
+    );
+    expect((await repo.load()).incomes.single.name, 'Stipend');
+  });
+
+  test('edited, deleted and restored expenses survive reopening', () async {
+    var repo = openRepo();
+    await repo.load();
+    await repo.addExpense(expense('fix', 20, note: 'Typo'));
+    await repo.addExpense(expense('gone', 5));
+    await repo.addExpense(expense('back', 8));
+    await repo.updateExpense(
+      Expense(
+        id: 'fix',
+        amount: 2,
+        category: ExpenseCategory.coffee,
+        isNeed: false,
+        date: now, // ignored: the original date stays
+        note: 'Latte',
+      ),
+    );
+    await repo.deleteExpense('gone');
+    await repo.deleteExpense('back');
+    await repo.restoreExpense('back');
+
+    repo = await reopen(repo);
+    final expenses = (await repo.load()).expenses;
+    final fixed = expenses.singleWhere((e) => e.id == 'fix');
+    expect(fixed.amount, 2);
+    expect(fixed.category, ExpenseCategory.coffee);
+    expect(fixed.isNeed, isFalse);
+    expect(fixed.note, 'Latte');
+    expect(fixed.date, now.add(const Duration(minutes: 5)));
+    expect(expenses.map((e) => e.id), isNot(contains('gone')));
+    expect(expenses.map((e) => e.id), contains('back'));
+  });
 }

@@ -4,12 +4,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/app_state.dart';
 import 'package:runway/app/auth.dart';
 import 'package:runway/app/models.dart';
+// import 'package:runway/app/purchase_link.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
+import 'package:runway/screens/add_income_sheet.dart';
 import 'package:runway/screens/quick_add_sheet.dart';
+import 'package:runway/screens/settings_screen.dart';
 import 'package:runway/widgets/celebrations.dart';
 import 'package:runway/widgets/expense_inputs.dart';
 import 'package:runway/widgets/mochi_takeoff.dart';
+import 'package:runway/widgets/ph_icons.dart';
 
 /// Pumps frame-by-frame for [d]. The app has endless ambient animations
 /// (aurora, pet), so pumpAndSettle would never return.
@@ -21,6 +25,13 @@ Future<void> settle(
   for (var t = Duration.zero; t < d; t += frame) {
     await tester.pump(frame);
   }
+}
+
+/// Scrolls [finder] to the middle of its scroll view, clear of the floating
+/// nav bar that covers the bottom edge.
+Future<void> centerOn(WidgetTester tester, Finder finder) async {
+  await Scrollable.ensureVisible(tester.element(finder), alignment: 0.5);
+  await tester.pump();
 }
 
 void main() {
@@ -231,6 +242,23 @@ void main() {
     await settle(tester);
     expect(find.text('Quick add'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    Navigator.of(tester.element(find.text('Quick add'))).pop();
+    await settle(tester);
+
+    await centerOn(tester, find.text('Add money'));
+    await tester.tap(find.text('Add money'));
+    await settle(tester);
+    expect(find.text('Money coming in'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    Navigator.of(tester.element(find.text('Money coming in'))).pop();
+    await settle(tester);
+
+    await tester.ensureVisible(find.text('A'));
+    await settle(tester);
+    await tester.tap(find.text('A')); // avatar opens Settings
+    await settle(tester);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('switching tabs fully hides the previous tab', (tester) async {
@@ -299,6 +327,253 @@ void main() {
     expect(e.title, 'Uber to airport');
     expect(e.category, ExpenseCategory.rideshare);
     expect(e.amount, 27);
+  });
+
+  // Apple Pay logging is switched off for now.
+  // testWidgets('an Apple Pay purchase opens Quick Add pre-filled', (
+  //   tester,
+  // ) async {
+  //   tester.view.physicalSize = const Size(1290, 2796);
+  //   tester.view.devicePixelRatio = 3;
+  //   addTearDown(tester.view.reset);
+
+  //   // Arrives before Home is on screen, as when the link launches the app.
+  //   final state = buildState();
+  //   state.pendingPurchase.value = const ApplePayPurchase(
+  //     amount: 6.45,
+  //     merchant: 'Blue Bottle Coffee',
+  //   );
+  //   await tester.pumpWidget(RunwayApp(state: state, intro: false));
+  //   await settle(tester);
+
+  //   expect(find.text('From Apple Pay'), findsOneWidget);
+  //   expect(find.text('Blue Bottle Coffee'), findsOneWidget);
+  //   expect(state.pendingPurchase.value, isNull);
+  //   await tester.tap(find.text('Log \$6.45'));
+  //   await settle(tester);
+
+  //   final e = state.recentExpenses(1).single;
+  //   expect(e.title, 'Blue Bottle Coffee');
+  //   expect(e.amount, 6.45);
+
+  //   // And while the app is already open; a missing amount is left to type.
+  //   state.pendingPurchase.value = const ApplePayPurchase(merchant: 'CVS');
+  //   await settle(tester);
+  //   expect(find.text('From Apple Pay'), findsOneWidget);
+  //   expect(find.text('CVS'), findsOneWidget);
+  //   expect(find.text('Enter an amount'), findsOneWidget);
+  // });
+
+  test('money due later only counts once its day arrives', () {
+    var clock = now;
+    final state = AppState(
+      repository: MockBudgetRepository(now: now),
+      data: MockBudgetRepository.seed(now),
+      clock: () => clock,
+    );
+    final before = state.snapshot.balance;
+    state.addIncome(
+      name: 'Scholarship',
+      amount: 500,
+      frequency: IncomeFrequency.once,
+      firstDate: DateTime(2026, 10, 5),
+    );
+    expect(state.snapshot.balance, before);
+    expect(state.nextIncome?.income.name, 'Scholarship');
+
+    clock = DateTime(2026, 10, 5, 9);
+    state.addExpense(
+      amount: 1,
+      category: ExpenseCategory.coffee,
+      isNeed: false,
+    );
+    expect(state.snapshot.received, 500);
+    expect(state.snapshot.balance, closeTo(before + 500 - 1, 1e-9));
+    expect(state.nextIncome, isNull);
+  });
+
+  test('paying a reserved cost keeps today\'s budget steady', () {
+    final state = buildState();
+    final safe = state.snapshot.safeToSpendToday;
+    final available = state.snapshot.available;
+    final phone = state.comingUp.first;
+
+    state.payUpcomingCost(phone.id);
+
+    expect(state.comingUp.map((c) => c.id), isNot(contains(phone.id)));
+    expect(state.snapshot.safeToSpendToday, closeTo(safe, 1e-9));
+    expect(state.snapshot.available, closeTo(available, 1e-9));
+    final logged = state.recentExpenses(1).single;
+    expect(logged.title, phone.name);
+    expect(logged.planned, isTrue);
+  });
+
+  testWidgets('adding money on Home raises safe-to-spend today', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    final safe = state.snapshot.safeToSpendToday;
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await centerOn(tester, find.text('Add money'));
+    await tester.tap(find.text('Add money'));
+    await settle(tester);
+    expect(find.text('Money coming in'), findsOneWidget);
+
+    final fields = find.descendant(
+      of: find.byType(AddIncomeSheet),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.at(0), 'Tutoring');
+    await tester.enterText(fields.at(1), '70');
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Add \$70.00'));
+    await settle(tester);
+
+    expect(state.incomes.single.name, 'Tutoring');
+    expect(state.snapshot.received, 70);
+    expect(
+      state.snapshot.safeToSpendToday,
+      closeTo(safe + 70 / state.snapshot.daysLeft, 1e-9),
+    );
+    expect(find.text('Tutoring'), findsOneWidget);
+  });
+
+  testWidgets('settings saves term edits and can erase everything', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await tester.tap(find.text('A')); // avatar opens Settings
+    await settle(tester);
+
+    expect(find.text('Saved'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, '');
+    await settle(tester, const Duration(milliseconds: 300));
+    expect(find.text('Give the term a name.'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'Fall 2026');
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Save changes'));
+    await settle(tester);
+    expect(state.term.name, 'Fall 2026');
+    expect(find.text('Saved'), findsOneWidget);
+
+    final settingsList = find
+        .descendant(
+          of: find.byType(SettingsScreen),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('Erase everything on this phone'),
+      200,
+      scrollable: settingsList,
+    );
+    await tester.ensureVisible(find.text('Erase everything on this phone'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Erase everything on this phone'));
+    await settle(tester);
+    expect(find.text('Erase everything?'), findsOneWidget);
+    await tester.tap(find.text('Erase everything'));
+    await settle(tester, const Duration(seconds: 2));
+
+    expect(state.user, isNull);
+    expect(find.byType(LogoMark), findsOneWidget);
+  });
+
+  test('editing and deleting an expense updates the numbers', () {
+    final state = buildState();
+    final safe = state.snapshot.safeToSpendToday;
+    final coffee = state.recentExpenses(1).single; // today's $4.50
+
+    state.updateExpense(coffee.copyWith(amount: 10, note: () => 'Big latte'));
+    expect(state.snapshot.safeToSpendToday, closeTo(safe - 5.5, 1e-9));
+    expect(state.recentExpenses(1).single.title, 'Big latte');
+
+    final removed = state.deleteExpense(coffee.id)!;
+    expect(state.snapshot.safeToSpendToday, closeTo(safe + 4.5, 1e-9));
+    expect(state.deleteExpense(coffee.id), isNull);
+
+    state.restoreExpense(removed);
+    state.restoreExpense(removed); // a second Undo does nothing
+    expect(state.allExpenses.where((e) => e.id == coffee.id), hasLength(1));
+    expect(state.snapshot.safeToSpendToday, closeTo(safe - 5.5, 1e-9));
+  });
+
+  testWidgets('tap a recent expense to edit it, delete it, and undo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    final count = state.allExpenses.length;
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    final coffee = find.text('Coffee').first;
+    await centerOn(tester, coffee);
+    await tester.tap(coffee);
+    await settle(tester);
+    await tester.tap(find.text('Edit'));
+    await settle(tester);
+    expect(find.text('Edit expense'), findsOneWidget);
+    expect(find.text('Save \$4.50'), findsOneWidget);
+    await tester.tap(find.byIcon(PhIcons.backspace));
+    await tester.tap(find.byIcon(PhIcons.backspace));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Save \$4.00'));
+    await settle(tester);
+    expect(state.recentExpenses(1).single.amount, 4);
+    expect(state.allExpenses.length, count);
+
+    await centerOn(tester, find.text('Coffee').first);
+    await tester.tap(find.text('Coffee').first);
+    await settle(tester);
+    await tester.tap(find.text('Delete expense'));
+    await settle(tester);
+    expect(state.allExpenses.length, count - 1);
+    expect(find.text('Deleted Coffee'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    expect(state.allExpenses.length, count);
+  });
+
+  testWidgets('see all lists every expense by day and can delete', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    final count = state.allExpenses.length;
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await centerOn(tester, find.text('See all'));
+    await tester.tap(find.text('See all'));
+    await settle(tester);
+
+    expect(find.text('All expenses'), findsOneWidget);
+    expect(find.textContaining('$count expenses'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('Yesterday'), findsOneWidget);
+
+    await tester.tap(find.text('Coffee').first);
+    await settle(tester);
+    await tester.tap(find.text('Delete expense'));
+    await settle(tester);
+    expect(state.allExpenses.length, count - 1);
+    expect(find.textContaining('${count - 1} expenses'), findsOneWidget);
   });
 
   testWidgets('squad split-a-bill sheet creates IOUs', (tester) async {
@@ -402,6 +677,17 @@ void main() {
 
       await tester.tap(find.text('A')); // avatar initial
       await settle(tester);
+      expect(find.text('Settings'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Sign out'),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(SettingsScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       await tester.tap(find.text('Sign out'));
       await settle(tester, const Duration(seconds: 2));
 

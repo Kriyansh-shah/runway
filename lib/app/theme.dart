@@ -146,6 +146,16 @@ ThemeData buildTheme() {
       bodyColor: AppColors.text,
       displayColor: AppColors.text,
     ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: const Color(0xFF26262E),
+      contentTextStyle: AppText.body,
+      actionTextColor: AppColors.lime,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: AppColors.hairline),
+      ),
+    ),
     textSelectionTheme: const TextSelectionThemeData(
       cursorColor: AppColors.lime,
       selectionColor: Color(0x55B9A4FF),

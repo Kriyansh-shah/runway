@@ -22,7 +22,10 @@ Next plans for Runway, in the order we intend to build them. Each item says
 - [x] "Mochi's Takeoff" launch intro (tap to skip, Reduce Motion aware)
 - [x] Motion upgrades: coin into the ring, sliding nav pill, collapsing header,
       spring physics on presses, 120 fps, Reduce Motion support
-- [x] 63 tests (maths, coach, intro, motion, widget flows, small-screen layout, save → reopen)
+- [x] Money coming in (paychecks, allowance, one-off payments), counted on the day it arrives
+- [x] Settings: edit term, manage big costs, new semester, erase everything, sign out
+- [x] Edit and delete expenses, with Undo; "See all" expenses by day
+- [x] 89 tests (maths, coach, intro, motion, widget flows, small-screen layout, save → reopen, v1 → v2 migration)
 
 ---
 
@@ -64,7 +67,14 @@ everything is still there, with tests that simulate closing and reopening.
 
 ---
 
-## 2. 🔜 Onboarding & setup
+## 2. ✅ Onboarding & setup
+
+**Shipped.** First-run setup, money coming in (Option A: counts on the day it
+arrives), mark-paid / delete for upcoming costs, and a Settings screen (edit
+term, new semester, erase everything, sign out). Database schema version 2
+adds the `incomes` table and `expenses.is_planned`.
+
+Still open: editing a cost or income in place (today it's delete + re-add).
 
 **Why:** Term dates, starting balance and upcoming costs are currently hard-coded demo data.
 
@@ -88,7 +98,8 @@ than last fall"). Expense data is tiny, so we keep everything.
 - **Term recap** when a term ends: total spent, need vs want, top categories,
   best streak, and whether the money lasted.
 - Past terms become read-only and browsable.
-- **Undo** toast after deleting an expense (soft delete, permanently removed after 30 days).
+- ✅ ~~**Undo** toast after deleting an expense~~ (shipped). Still to do: permanently
+  remove soft-deleted expenses after 30 days.
 - Search and filter expenses by category, note and date.
 - **Export CSV** for any term.
 - Optional **encrypted backup** to iCloud Drive / Google Drive.

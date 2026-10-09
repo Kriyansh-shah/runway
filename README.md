@@ -10,7 +10,7 @@ and tells you how much you can safely spend **today**.
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-63%20passing-C6FF3D)
+![Tests](https://img.shields.io/badge/tests-89%20passing-C6FF3D)
 ![Status](https://img.shields.io/badge/status-prototype-FFB547)
 
 </div>
@@ -58,9 +58,23 @@ as it can be: two taps for most purchases. Your money data never leaves your pho
 - **Status pill:** "Money lasts until Nov 27 · Term ends Dec 11", with
   `14 days short` (coral) or `Covered ✓` (mint).
 - **Coming up:** big known costs (flight home, formal ticket, phone bill) that
-  are **reserved ahead of time** so they can't be spent by accident.
-- **This week:** a need vs want split bar, plus your recent expenses.
+  are **reserved ahead of time** so they can't be spent by accident. Tap one to
+  mark it paid (your daily budget doesn't move) or delete it. Overdue costs stay
+  reserved until you do.
+- **Money in:** paychecks (weekly, every 2 weeks, monthly), allowance or a
+  one-off payment like a scholarship. Each payment counts **on the day it
+  arrives, never before**, and shows what's coming next. Repeating pay can be
+  stopped (past paydays still count) or deleted.
+- **This week:** a need vs want split bar, plus your recent expenses. Tap an
+  expense to **edit** it (amount, note, category, need/want) or **delete** it,
+  with an **Undo** bar. **See all** lists every expense this term by day.
 - **Personal greeting** with your 🔥 streak chip and account avatar.
+
+### ⚙️ Settings
+- Tap your avatar. Edit the term's name, dates and starting money (with
+  validation), add or manage big costs, start a new semester, or **erase
+  everything on this phone** (the database file is rewritten so deleted data
+  doesn't linger).
 
 ### ➕ Quick Add: log an expense in two taps
 - Big amount display with a **custom keypad and haptics**.
@@ -120,18 +134,24 @@ All of the maths lives in [`lib/app/budget_math.dart`](lib/app/budget_math.dart)
 Dart and fully unit-tested.
 
 ```text
-balance          = starting balance − everything spent so far
-reserved         = sum of upcoming costs not yet due
+received         = every payday from term start to today (never future pay)
+balance          = starting balance + received − everything spent so far
+reserved         = sum of upcoming costs not yet paid (overdue ones too)
 available        = balance − reserved
 daily allowance  = (available + spentToday) / daysLeftInTerm      (today counts)
 safe to spend    = daily allowance − spentToday
-burn rate        = total spent / days elapsed                      (today counts)
+burn rate        = everyday spent / days elapsed                   (today counts)
 runway date      = today + available / burn rate
 days short       = term end − runway date   (0 = covered)
 ```
 
 Spending today moves money from *available* to *spentToday*, so your daily
 allowance stays the same all day and safe-to-spend drops by exactly what you spent.
+
+Marking an upcoming cost **paid** logs a *planned* expense: it leaves the balance
+and the reservation at the same time, so *available* doesn't change, and it's
+left out of *spentToday* and the burn rate (it was budgeted for, not everyday
+spending).
 
 **Coach verdicts** ([`lib/app/coach.dart`](lib/app/coach.dart)):
 
@@ -286,7 +306,7 @@ flutter run -d android    # needs the Android SDK
 
 ```sh
 flutter analyze   # static analysis, currently clean
-flutter test      # 63 tests
+flutter test      # 89 tests
 ```
 
 After changing a table in `lib/app/database.dart`, regenerate the drift code:
@@ -309,9 +329,10 @@ dart run build_runner build
 
 This is an early prototype:
 
-- **Setup covers the basics only.** A first-run screen sets the term, starting
-  balance and upcoming costs, but there's no settings screen to edit them later,
-  no "reset", and no way to add money mid-term (see the next question below).
+- **Costs and income can't be edited in place yet.** They can be deleted and
+  re-added. (Expenses can be edited.)
+- **Money coming in belongs to one term.** Starting a new semester starts
+  with no paychecks; add them again in the new term.
 - **Login is a stand-in.** Any well-formed email and password is accepted; there's no server.
 - **The coach is rule-based.** It uses no AI and no API keys, and makes no network calls.
 - **Squad friends are mock data.** There's no real friend sync yet.
@@ -325,14 +346,14 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 | # | Plan | Status |
 |---|---|---|
 | 1 | **Local database (drift / SQLite):** save expenses, splits, streaks and session | ✅ Done |
-| 2 | **Onboarding & setup:** term dates, starting balance, upcoming costs, money lumps | 🔜 Next |
+| 2 | **Onboarding & setup:** term dates, starting balance, upcoming costs, money coming in, settings | ✅ Done |
 | 3 | **History by semester:** term recaps, undo delete, CSV export, encrypted backup | 📋 Planned |
 | 4 | **Real accounts:** Continue with Google / Apple + email, biometric app lock | 📋 Planned |
 | 5 | **Squad backend (Supabase):** real friends, challenges and IOUs; never amounts | 📋 Planned |
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |
 | 7 | **Polish:** notifications, home-screen widget, recurring costs, app icon | 💡 Ideas |
 
-### ❓ Next question: money coming in during the term
+### ✅ Decided: money coming in during the term
 
 Students don't only get one lump at the start. Many have a job paid **weekly or
 every two weeks**, an **allowance** from parents, or one-off money like a
@@ -350,10 +371,13 @@ every two weeks**, an **allowance** from parents, or one-off money like a
   costs are reserved ahead of time). Today's budget reflects the real semester
   and stays steady.
 
-Leaning towards **B**, with two safeguards: use the student's *lowest usual*
-paycheck (shift work varies; they correct it when it lands), and warn about
-gaps between paydays ("Tight until Friday's paycheck"), since the semester can
-add up while a single week doesn't.
+**Decided: A for now** (October 9, 2026): money counts only once it arrives, so
+Runway never lets you spend money you don't have yet. The question is in
+`~/Developer/Professor Questions.docx` (outside the repo) to revisit. If we
+switch to B later, use two safeguards: use the student's *lowest usual* paycheck
+(shift work varies; they correct it when it lands), and warn about gaps between
+paydays ("Tight until Friday's paycheck"), since the semester can add up while a
+single week doesn't.
 
 ---
 

@@ -17,16 +17,39 @@ abstract interface class BudgetRepository {
 
   Future<void> addExpense(Expense expense);
 
+  /// Saves new amount, category, need/want and note; the date stays.
+  Future<void> updateExpense(Expense expense);
+
+  /// Soft delete, so [restoreExpense] can undo it.
+  Future<void> deleteExpense(String expenseId);
+  Future<void> restoreExpense(String expenseId);
+
   /// Saves every roommate IOU plus your own share together — all or nothing.
   Future<void> splitBill(List<BillSplit> splits, Expense myShare);
   Future<void> settleSplit(String splitId);
 
   Future<void> saveTerm(Term term);
   Future<void> addUpcomingCost(UpcomingCost cost);
+  Future<void> deleteUpcomingCost(String costId);
+
+  /// Marks the cost paid and logs [expense] for it together — all or nothing.
+  Future<void> payUpcomingCost(String costId, Expense expense);
+
+  Future<void> addIncome(Income income);
+
+  /// A repeating payment stops after [endsOn]; earlier paydays still count.
+  Future<void> stopIncome(String incomeId, DateTime endsOn);
+
+  /// Removes the payment entirely, as if it was never added.
+  Future<void> deleteIncome(String incomeId);
 
   /// Replaces the current term with the user's own: the old term (and its
   /// expenses) is archived and [term] starts empty with [upcoming] reserved.
   Future<void> startTerm(Term term, List<UpcomingCost> upcoming);
+
+  /// Permanently deletes everything on the device, including the session.
+  /// The next [load] starts over as a brand-new install.
+  Future<void> eraseEverything();
 }
 
 /// Nothing is saved: every launch starts from the same demo data.
@@ -49,6 +72,15 @@ class MockBudgetRepository implements BudgetRepository {
   Future<void> addExpense(Expense expense) async {}
 
   @override
+  Future<void> updateExpense(Expense expense) async {}
+
+  @override
+  Future<void> deleteExpense(String expenseId) async {}
+
+  @override
+  Future<void> restoreExpense(String expenseId) async {}
+
+  @override
   Future<void> splitBill(List<BillSplit> splits, Expense myShare) async {}
 
   @override
@@ -61,7 +93,25 @@ class MockBudgetRepository implements BudgetRepository {
   Future<void> addUpcomingCost(UpcomingCost cost) async {}
 
   @override
+  Future<void> deleteUpcomingCost(String costId) async {}
+
+  @override
+  Future<void> payUpcomingCost(String costId, Expense expense) async {}
+
+  @override
+  Future<void> addIncome(Income income) async {}
+
+  @override
+  Future<void> stopIncome(String incomeId, DateTime endsOn) async {}
+
+  @override
+  Future<void> deleteIncome(String incomeId) async {}
+
+  @override
   Future<void> startTerm(Term term, List<UpcomingCost> upcoming) async {}
+
+  @override
+  Future<void> eraseEverything() async => _user = null;
 
   /// Total of the seeded past expenses. Tuned so the demo lands at
   /// "14 days short" with today's coffee included.

@@ -39,6 +39,9 @@ class Expenses extends Table {
   TextColumn get note => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
+  /// Paid from a reserved upcoming cost (added in schema 2).
+  BoolColumn get isPlanned => boolean().withDefault(const Constant(false))();
+
   /// Soft delete, so a future "Undo" can bring it back.
   DateTimeColumn get deletedAt => dateTime().nullable()();
 
@@ -55,6 +58,30 @@ class UpcomingCosts extends Table {
   IntColumn get amountCents => integer()();
   DateTimeColumn get dueDate => dateTime()();
   DateTimeColumn get paidAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Money coming in. A row is one payment ([IncomeFrequency.once]) or a
+/// repeating schedule; paydays are worked out from it, never stored.
+@DataClassName('IncomeRow')
+class Incomes extends Table {
+  TextColumn get id => text()();
+  IntColumn get termId => integer().references(Terms, #id)();
+  TextColumn get name => text()();
+  IntColumn get amountCents => integer()();
+
+  /// Stored by enum *name* — rename values only together with a migration.
+  TextColumn get frequency => textEnum<IncomeFrequency>()();
+  DateTimeColumn get firstDate => dateTime()();
+
+  /// Set when a repeating payment is stopped; paydays up to it still count.
+  DateTimeColumn get endsOn => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// Soft delete: removed by mistake, so none of its payments count.
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -115,7 +142,16 @@ class Meta extends Table {
 }
 
 @DriftDatabase(
-  tables: [Terms, Expenses, UpcomingCosts, BillSplits, Friends, Sessions, Meta],
+  tables: [
+    Terms,
+    Expenses,
+    UpcomingCosts,
+    Incomes,
+    BillSplits,
+    Friends,
+    Sessions,
+    Meta,
+  ],
 )
 class RunwayDatabase extends _$RunwayDatabase {
   RunwayDatabase(super.executor);
@@ -136,14 +172,18 @@ class RunwayDatabase extends _$RunwayDatabase {
   );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
-    // Future schema changes go here, e.g.
-    //   if (from < 2) await m.addColumn(expenses, expenses.receiptPath);
-    onUpgrade: (m, from, to) async {},
+    // One step per version, oldest first, so any old install can catch up.
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(incomes);
+        await m.addColumn(expenses, expenses.isPlanned);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

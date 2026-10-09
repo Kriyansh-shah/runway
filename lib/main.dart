@@ -1,5 +1,7 @@
 import 'dart:async';
 
+// Apple Pay logging is switched off for now.
+// import 'package:app_links/app_links.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:device_preview/presets.dart';
 import 'package:flutter/foundation.dart';
@@ -9,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'app/app_state.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
+// import 'app/purchase_link.dart';
 import 'app/theme.dart';
 import 'screens/launch_intro.dart';
 import 'screens/login_screen.dart';
@@ -31,11 +34,18 @@ Future<void> main() async {
   final repository = DriftBudgetRepository(RunwayDatabase.onDevice());
   final data = await repository.load();
   final user = await repository.currentUser();
-  runApp(
-    RunwayApp(
-      state: AppState(repository: repository, data: data, user: user),
-    ),
-  );
+  final state = AppState(repository: repository, data: data, user: user);
+
+  // Switched off for now. Apple Pay purchases arrive as runway://log links from a Shortcuts
+  // automation, both when they launch the app and while it's open.
+  // if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+  //   AppLinks().uriLinkStream.listen((uri) {
+  //     final purchase = ApplePayPurchase.fromUri(uri);
+  //     if (purchase != null) state.pendingPurchase.value = purchase;
+  //   });
+  // }
+
+  runApp(RunwayApp(state: state));
 }
 
 class RunwayApp extends StatelessWidget {

@@ -7,6 +7,7 @@ import '../app/models.dart';
 import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/expense_inputs.dart';
+import '../widgets/form_fields.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/motion.dart';
@@ -21,8 +22,13 @@ Widget landingFor(AppState state) =>
 
 /// First run: term name and dates, money for the term, and big costs coming
 /// up. Replaces the demo data with the user's own semester.
+///
+/// Also used from Settings to start a new semester; then [cancellable] shows
+/// a way back, and the current term is only archived once you finish.
 class SetupScreen extends StatefulWidget {
-  const SetupScreen({super.key});
+  const SetupScreen({super.key, this.cancellable = false});
+
+  final bool cancellable;
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -31,17 +37,10 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   final _name = TextEditingController();
   final _balance = TextEditingController();
-  final _costName = TextEditingController();
-  final _costAmount = TextEditingController();
   final _costs = <UpcomingCost>[];
   late DateTime _start;
   DateTime? _end;
-  DateTime? _costDue;
   bool _done = false;
-
-  static final _amountFormat = FilteringTextInputFormatter.allow(
-    RegExp(r'^\d{0,6}(\.\d{0,2})?'),
-  );
 
   @override
   void initState() {
@@ -53,78 +52,50 @@ class _SetupScreenState extends State<SetupScreen> {
   void dispose() {
     _name.dispose();
     _balance.dispose();
-    _costName.dispose();
-    _costAmount.dispose();
     super.dispose();
   }
 
   DateTime get _today => AppScope.read(context).today;
-  double get _startingBalance => double.tryParse(_balance.text) ?? 0;
-  double get _costValue => double.tryParse(_costAmount.text) ?? 0;
+  double get _startingBalance => parseAmountInput(_balance.text);
 
   bool get _ready =>
       _name.text.trim().isNotEmpty && _end != null && _startingBalance > 0;
 
-  bool get _costReady =>
-      _costName.text.trim().isNotEmpty && _costValue > 0 && _costDue != null;
-
-  Future<DateTime?> _pick(DateTime initial, DateTime first, DateTime last) =>
-      showDatePicker(
-        context: context,
-        initialDate: initial,
-        firstDate: first,
-        lastDate: last,
-      );
-
   Future<void> _pickStart() async {
     final today = _today;
-    final picked = await _pick(
-      _start,
-      DateTime(today.year - 1, today.month, today.day),
-      today,
+    final picked = await pickDate(
+      context,
+      initial: _start,
+      first: DateTime(today.year - 1, today.month, today.day),
+      last: today,
     );
     if (picked != null) setState(() => _start = picked);
   }
 
   Future<void> _pickEnd() async {
     final today = _today;
-    final first = today.add(const Duration(days: 1));
-    final picked = await _pick(
-      _end ?? first,
-      first,
-      DateTime(today.year + 2, today.month, today.day),
+    final first = DateTime(today.year, today.month, today.day + 1);
+    final picked = await pickDate(
+      context,
+      initial: _end ?? first,
+      first: first,
+      last: DateTime(today.year + 2, today.month, today.day),
     );
     if (picked != null) setState(() => _end = picked);
   }
 
-  Future<void> _pickDue() async {
-    final today = _today;
-    final picked = await _pick(
-      _costDue ?? today,
-      today,
-      _end ?? DateTime(today.year + 2, today.month, today.day),
-    );
-    if (picked != null) setState(() => _costDue = picked);
+  void _addCost(UpcomingCost cost) {
+    setState(() {
+      _costs.add(cost);
+      _costs.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    });
   }
 
-  void _addCost() {
-    if (!_costReady) return;
-    HapticFeedback.selectionClick();
-    setState(() {
-      _costs.add(
-        UpcomingCost(
-          id: 'u${DateTime.now().microsecondsSinceEpoch}',
-          emoji: '📌',
-          name: _costName.text.trim(),
-          amount: _costValue,
-          dueDate: _costDue!,
-        ),
-      );
-      _costs.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-      _costName.clear();
-      _costAmount.clear();
-      _costDue = null;
-    });
+  void _cancel() {
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeScaleRoute<void>(builder: (_) => const Shell()),
+      (_) => false,
+    );
   }
 
   void _finish() {
@@ -142,8 +113,10 @@ class _SetupScreenState extends State<SetupScreen> {
       _costs.where((c) => !c.dueDate.isAfter(_end!)).toList(),
     );
     HapticFeedback.mediumImpact();
-    Navigator.of(context)
-        .pushReplacement(FadeScaleRoute<void>(builder: (_) => const Shell()));
+    Navigator.of(context).pushAndRemoveUntil(
+      FadeScaleRoute<void>(builder: (_) => const Shell()),
+      (_) => false,
+    );
   }
 
   @override
@@ -178,7 +151,7 @@ class _SetupScreenState extends State<SetupScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _DateField(
+                  child: DateField(
                     label: 'Starts',
                     date: _start,
                     onTap: _pickStart,
@@ -186,21 +159,14 @@ class _SetupScreenState extends State<SetupScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _DateField(label: 'Ends', date: _end, onTap: _pickEnd),
+                  child: DateField(label: 'Ends', date: _end, onTap: _pickEnd),
                 ),
               ],
             ),
             const SizedBox(height: 14),
             const FieldLabel('Money you have right now'),
-            GlassTextField(
+            AmountField(
               controller: _balance,
-              hint: '0.00',
-              prefixText: '\$ ',
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [_amountFormat],
-              maxLength: 9,
               style: AppText.number,
               onChanged: (_) => setState(() {}),
             ),
@@ -250,50 +216,11 @@ class _SetupScreenState extends State<SetupScreen> {
                   ],
                 ),
               ),
-            GlassTextField(
-              controller: _costName,
-              hint: 'e.g. Flight home',
-              textCapitalization: TextCapitalization.sentences,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: GlassTextField(
-                    controller: _costAmount,
-                    hint: '0.00',
-                    prefixText: '\$ ',
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [_amountFormat],
-                    maxLength: 9,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _DateField(date: _costDue, onTap: _pickDue),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: ChoiceChipPill(
-                selected: _costReady,
-                color: AppColors.lime,
-                onTap: _addCost,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(PhIcons.plusBold, size: 16),
-                    SizedBox(width: 6),
-                    Text('Add cost'),
-                  ],
-                ),
-              ),
+            AddCostForm(
+              firstDate: _today,
+              lastDate:
+                  _end ?? DateTime(_today.year + 2, _today.month, _today.day),
+              onAdd: _addCost,
             ),
           ],
         ),
@@ -304,6 +231,15 @@ class _SetupScreenState extends State<SetupScreen> {
         icon: PhIcons.arrowRightBold,
         onTap: _ready ? _finish : null,
       ),
+      if (widget.cancellable) ...[
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton(
+            onPressed: _cancel,
+            child: Text('Keep my current semester', style: AppText.label),
+          ),
+        ),
+      ],
     ];
 
     return Scaffold(
@@ -329,46 +265,6 @@ class _SetupScreenState extends State<SetupScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Tappable date box styled like [GlassTextField].
-class _DateField extends StatelessWidget {
-  const _DateField({this.label, required this.date, required this.onTap});
-  final String? label;
-  final DateTime? date;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final d = date;
-    final text = d == null ? 'Pick date' : '${shortDate(d)}, ${d.year}';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (label != null) FieldLabel(label!),
-        Pressable(
-          onTap: onTap,
-          scale: 0.98,
-          semanticLabel: '${label ?? 'Due date'}: $text',
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.hairline),
-            ),
-            child: Text(
-              text,
-              style: AppText.body.copyWith(
-                color: d == null ? AppColors.muted : AppColors.text,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

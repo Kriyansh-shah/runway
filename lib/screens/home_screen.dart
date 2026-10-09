@@ -11,9 +11,15 @@ import '../app/theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/celebrations.dart';
 import '../widgets/glass.dart';
+import '../widgets/list_row.dart';
 import '../widgets/motion.dart';
+import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
-import 'account_sheet.dart';
+import '../widgets/transitions.dart';
+import 'add_income_sheet.dart';
+import 'all_expenses_screen.dart';
+import 'money_actions.dart';
+import 'settings_screen.dart';
 import 'shell.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -51,6 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _HeroRing(s: s),
       _RunwayCard(s: s, costs: state.comingUp),
       _ComingUp(costs: state.comingUp, today: s.today),
+      _MoneyIn(
+        incomes: state.incomes,
+        received: s.received,
+        next: state.nextIncome,
+        today: s.today,
+      ),
       _WeekSplit(split: state.thisWeek),
       _Recent(expenses: state.recentExpenses(), today: s.today),
     ];
@@ -240,8 +252,9 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Pressable(
-      onTap: () => showAccountSheet(context),
-      semanticLabel: 'Account',
+      onTap: () => Navigator.of(context)
+          .push(FadeScaleRoute<void>(builder: (_) => const SettingsScreen())),
+      semanticLabel: 'Settings',
       child: Container(
         width: 46,
         height: 46,
@@ -750,6 +763,14 @@ class _ComingUp extends StatelessWidget {
   final List<UpcomingCost> costs;
   final DateTime today;
 
+  String _when(UpcomingCost c) {
+    final days = daysBetween(today, c.dueDate);
+    final due = shortDate(c.dueDate);
+    if (days < 0) return '$due · overdue';
+    if (days == 0) return '$due · today';
+    return '$due · in ${plural(days, 'day')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -766,18 +787,29 @@ class _ComingUp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Column(
             children: [
+              if (costs.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Text(
+                    'No big costs ahead. Add one in Settings.',
+                    style: AppText.label,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               for (var i = 0; i < costs.length; i++) ...[
                 if (i > 0) Divider(height: 1, color: AppColors.hairline),
-                _Row(
+                ListRow(
                   leading: Text(
                     costs[i].emoji,
                     style: const TextStyle(fontSize: 20),
                   ),
                   title: costs[i].name,
-                  subtitle:
-                      '${shortDate(costs[i].dueDate)} · in ${plural(daysBetween(today, costs[i].dueDate), 'day')}',
+                  subtitle: _when(costs[i]),
                   amount: money(costs[i].amount, cents: false),
-                  accent: AppColors.butter,
+                  accent: costs[i].dueDate.isBefore(today)
+                      ? AppColors.red
+                      : AppColors.butter,
+                  onTap: () => showCostActions(context, costs[i]),
                 ),
               ],
             ],
@@ -788,72 +820,111 @@ class _ComingUp extends StatelessWidget {
   }
 }
 
-class _Row extends StatelessWidget {
-  const _Row({
-    required this.leading,
-    required this.title,
-    required this.subtitle,
-    required this.amount,
-    this.accent,
+/// Paychecks and one-off payments. Each counts on the day it arrives.
+class _MoneyIn extends StatelessWidget {
+  const _MoneyIn({
+    required this.incomes,
+    required this.received,
+    required this.next,
+    required this.today,
   });
 
-  final Widget leading;
-  final String title;
-  final String subtitle;
-  final String amount;
-  final Color? accent;
+  final List<Income> incomes;
+  final double received;
+  final ({Income income, DateTime date})? next;
+  final DateTime today;
+
+  String _subtitle(Income i) {
+    final endsOn = i.endsOn;
+    if (!i.repeats) {
+      final arrived = !i.firstDate.isAfter(today);
+      return '${arrived ? 'Arrived' : 'Arrives'} ${shortDate(i.firstDate)}';
+    }
+    if (endsOn != null) {
+      return '${i.frequency.label} · stopped ${shortDate(endsOn)}';
+    }
+    return '${i.frequency.label} · from ${shortDate(i.firstDate)}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.hairline),
-            ),
-            child: leading,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppText.body.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppText.caption.copyWith(
-                    fontSize: 12,
-                    letterSpacing: 0,
+    final upcoming = next;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          'Money in',
+          trailing: Text('${money(received)} received', style: AppText.label),
+        ),
+        GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Column(
+            children: [
+              if (incomes.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 14, bottom: 4),
+                  child: Text(
+                    'Paycheck, allowance or scholarship? It counts the day '
+                    'it arrives, never before.',
+                    style: AppText.label,
+                    textAlign: TextAlign.center,
                   ),
                 ),
+              if (upcoming != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  child: Text(
+                    'Next: ${upcoming.income.name} +${money(upcoming.income.amount)} '
+                    'on ${shortDate(upcoming.date)}',
+                    style: AppText.label.copyWith(color: AppColors.lime),
+                  ),
+                ),
+              for (var i = 0; i < incomes.length; i++) ...[
+                if (i > 0) Divider(height: 1, color: AppColors.hairline),
+                ListRow(
+                  leading: Icon(
+                    incomes[i].repeats ? PhIcons.repeat : PhIcons.handCoins,
+                    size: 20,
+                    color: AppColors.lime,
+                  ),
+                  title: incomes[i].name,
+                  subtitle: _subtitle(incomes[i]),
+                  amount: '+${money(incomes[i].amount)}',
+                  onTap: () => showIncomeActions(context, incomes[i]),
+                ),
               ],
-            ),
-          ),
-          if (accent != null)
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: accent,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: accent!, blurRadius: 6)],
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Pressable(
+                    onTap: () => showAddIncomeSheet(context),
+                    semanticLabel: 'Add money coming in',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          PhIcons.plusBold,
+                          size: 16,
+                          color: AppColors.lime,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Add money',
+                          style: AppText.body.copyWith(
+                            color: AppColors.lime,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          Text(amount, style: AppText.number.copyWith(fontSize: 16)),
-        ],
-      ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -993,7 +1064,22 @@ class _Recent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader('Recent'),
+        SectionHeader(
+          'Recent',
+          trailing: Pressable(
+            onTap: () => Navigator.of(context).push(
+              FadeScaleRoute<void>(builder: (_) => const AllExpensesScreen()),
+            ),
+            semanticLabel: 'See all expenses',
+            child: Text(
+              'See all',
+              style: AppText.label.copyWith(
+                color: AppColors.lime,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
         GlassCard(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: AnimatedSize(
@@ -1020,7 +1106,7 @@ class _Recent extends StatelessWidget {
                       children: [
                         if (i > 0)
                           Divider(height: 1, color: AppColors.hairline),
-                        _Row(
+                        ListRow(
                           leading: CategoryIcon(expenses[i].category),
                           title: expenses[i].title,
                           subtitle:
@@ -1029,6 +1115,11 @@ class _Recent extends StatelessWidget {
                           accent: expenses[i].isNeed
                               ? AppColors.need
                               : AppColors.want,
+                          onTap: () => showExpenseActions(
+                            context,
+                            expenses[i],
+                            bottomInset: navClearance(context),
+                          ),
                         ),
                       ],
                     ),

@@ -487,6 +487,21 @@ class $ExpensesTable extends Expenses
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _isPlannedMeta = const VerificationMeta(
+    'isPlanned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPlanned = GeneratedColumn<bool>(
+    'is_planned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_planned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _deletedAtMeta = const VerificationMeta(
     'deletedAt',
   );
@@ -507,6 +522,7 @@ class $ExpensesTable extends Expenses
     isNeed,
     note,
     createdAt,
+    isPlanned,
     deletedAt,
   ];
   @override
@@ -567,6 +583,12 @@ class $ExpensesTable extends Expenses
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('is_planned')) {
+      context.handle(
+        _isPlannedMeta,
+        isPlanned.isAcceptableOrUnknown(data['is_planned']!, _isPlannedMeta),
+      );
+    }
     if (data.containsKey('deleted_at')) {
       context.handle(
         _deletedAtMeta,
@@ -612,6 +634,10 @@ class $ExpensesTable extends Expenses
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      isPlanned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_planned'],
+      )!,
       deletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
@@ -641,6 +667,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
   final String? note;
   final DateTime createdAt;
 
+  /// Paid from a reserved upcoming cost (added in schema 2).
+  final bool isPlanned;
+
   /// Soft delete, so a future "Undo" can bring it back.
   final DateTime? deletedAt;
   const ExpenseRow({
@@ -651,6 +680,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     required this.isNeed,
     this.note,
     required this.createdAt,
+    required this.isPlanned,
     this.deletedAt,
   });
   @override
@@ -669,6 +699,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       map['note'] = Variable<String>(note);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_planned'] = Variable<bool>(isPlanned);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
@@ -684,6 +715,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       isNeed: Value(isNeed),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
+      isPlanned: Value(isPlanned),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
@@ -705,6 +737,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       isNeed: serializer.fromJson<bool>(json['isNeed']),
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isPlanned: serializer.fromJson<bool>(json['isPlanned']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
@@ -721,6 +754,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       'isNeed': serializer.toJson<bool>(isNeed),
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isPlanned': serializer.toJson<bool>(isPlanned),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
@@ -733,6 +767,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     bool? isNeed,
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
+    bool? isPlanned,
     Value<DateTime?> deletedAt = const Value.absent(),
   }) => ExpenseRow(
     id: id ?? this.id,
@@ -742,6 +777,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     isNeed: isNeed ?? this.isNeed,
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
+    isPlanned: isPlanned ?? this.isPlanned,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   ExpenseRow copyWithCompanion(ExpensesCompanion data) {
@@ -755,6 +791,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       isNeed: data.isNeed.present ? data.isNeed.value : this.isNeed,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isPlanned: data.isPlanned.present ? data.isPlanned.value : this.isPlanned,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
@@ -769,6 +806,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
           ..write('isNeed: $isNeed, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
+          ..write('isPlanned: $isPlanned, ')
           ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
@@ -783,6 +821,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     isNeed,
     note,
     createdAt,
+    isPlanned,
     deletedAt,
   );
   @override
@@ -796,6 +835,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
           other.isNeed == this.isNeed &&
           other.note == this.note &&
           other.createdAt == this.createdAt &&
+          other.isPlanned == this.isPlanned &&
           other.deletedAt == this.deletedAt);
 }
 
@@ -807,6 +847,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
   final Value<bool> isNeed;
   final Value<String?> note;
   final Value<DateTime> createdAt;
+  final Value<bool> isPlanned;
   final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const ExpensesCompanion({
@@ -817,6 +858,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     this.isNeed = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.isPlanned = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -828,6 +870,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     required bool isNeed,
     this.note = const Value.absent(),
     required DateTime createdAt,
+    this.isPlanned = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -844,6 +887,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     Expression<bool>? isNeed,
     Expression<String>? note,
     Expression<DateTime>? createdAt,
+    Expression<bool>? isPlanned,
     Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
@@ -855,6 +899,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
       if (isNeed != null) 'is_need': isNeed,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
+      if (isPlanned != null) 'is_planned': isPlanned,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -868,6 +913,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     Value<bool>? isNeed,
     Value<String?>? note,
     Value<DateTime>? createdAt,
+    Value<bool>? isPlanned,
     Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
@@ -879,6 +925,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
       isNeed: isNeed ?? this.isNeed,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
+      isPlanned: isPlanned ?? this.isPlanned,
       deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -910,6 +957,9 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (isPlanned.present) {
+      map['is_planned'] = Variable<bool>(isPlanned.value);
+    }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
@@ -929,6 +979,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
           ..write('isNeed: $isNeed, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
+          ..write('isPlanned: $isPlanned, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1388,6 +1439,582 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
           ..write('amountCents: $amountCents, ')
           ..write('dueDate: $dueDate, ')
           ..write('paidAt: $paidAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $IncomesTable extends Incomes with TableInfo<$IncomesTable, IncomeRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $IncomesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _termIdMeta = const VerificationMeta('termId');
+  @override
+  late final GeneratedColumn<int> termId = GeneratedColumn<int>(
+    'term_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES terms (id)',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountCentsMeta = const VerificationMeta(
+    'amountCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountCents = GeneratedColumn<int>(
+    'amount_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<IncomeFrequency, String>
+  frequency = GeneratedColumn<String>(
+    'frequency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  ).withConverter<IncomeFrequency>($IncomesTable.$converterfrequency);
+  static const VerificationMeta _firstDateMeta = const VerificationMeta(
+    'firstDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> firstDate = GeneratedColumn<DateTime>(
+    'first_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endsOnMeta = const VerificationMeta('endsOn');
+  @override
+  late final GeneratedColumn<DateTime> endsOn = GeneratedColumn<DateTime>(
+    'ends_on',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    termId,
+    name,
+    amountCents,
+    frequency,
+    firstDate,
+    endsOn,
+    createdAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'incomes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<IncomeRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('term_id')) {
+      context.handle(
+        _termIdMeta,
+        termId.isAcceptableOrUnknown(data['term_id']!, _termIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_termIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('amount_cents')) {
+      context.handle(
+        _amountCentsMeta,
+        amountCents.isAcceptableOrUnknown(
+          data['amount_cents']!,
+          _amountCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountCentsMeta);
+    }
+    if (data.containsKey('first_date')) {
+      context.handle(
+        _firstDateMeta,
+        firstDate.isAcceptableOrUnknown(data['first_date']!, _firstDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_firstDateMeta);
+    }
+    if (data.containsKey('ends_on')) {
+      context.handle(
+        _endsOnMeta,
+        endsOn.isAcceptableOrUnknown(data['ends_on']!, _endsOnMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  IncomeRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return IncomeRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      termId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}term_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      amountCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_cents'],
+      )!,
+      frequency: $IncomesTable.$converterfrequency.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}frequency'],
+        )!,
+      ),
+      firstDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}first_date'],
+      )!,
+      endsOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ends_on'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $IncomesTable createAlias(String alias) {
+    return $IncomesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<IncomeFrequency, String, String>
+  $converterfrequency = const EnumNameConverter<IncomeFrequency>(
+    IncomeFrequency.values,
+  );
+}
+
+class IncomeRow extends DataClass implements Insertable<IncomeRow> {
+  final String id;
+  final int termId;
+  final String name;
+  final int amountCents;
+
+  /// Stored by enum *name* — rename values only together with a migration.
+  final IncomeFrequency frequency;
+  final DateTime firstDate;
+
+  /// Set when a repeating payment is stopped; paydays up to it still count.
+  final DateTime? endsOn;
+  final DateTime createdAt;
+
+  /// Soft delete: removed by mistake, so none of its payments count.
+  final DateTime? deletedAt;
+  const IncomeRow({
+    required this.id,
+    required this.termId,
+    required this.name,
+    required this.amountCents,
+    required this.frequency,
+    required this.firstDate,
+    this.endsOn,
+    required this.createdAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['term_id'] = Variable<int>(termId);
+    map['name'] = Variable<String>(name);
+    map['amount_cents'] = Variable<int>(amountCents);
+    {
+      map['frequency'] = Variable<String>(
+        $IncomesTable.$converterfrequency.toSql(frequency),
+      );
+    }
+    map['first_date'] = Variable<DateTime>(firstDate);
+    if (!nullToAbsent || endsOn != null) {
+      map['ends_on'] = Variable<DateTime>(endsOn);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  IncomesCompanion toCompanion(bool nullToAbsent) {
+    return IncomesCompanion(
+      id: Value(id),
+      termId: Value(termId),
+      name: Value(name),
+      amountCents: Value(amountCents),
+      frequency: Value(frequency),
+      firstDate: Value(firstDate),
+      endsOn: endsOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endsOn),
+      createdAt: Value(createdAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory IncomeRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return IncomeRow(
+      id: serializer.fromJson<String>(json['id']),
+      termId: serializer.fromJson<int>(json['termId']),
+      name: serializer.fromJson<String>(json['name']),
+      amountCents: serializer.fromJson<int>(json['amountCents']),
+      frequency: $IncomesTable.$converterfrequency.fromJson(
+        serializer.fromJson<String>(json['frequency']),
+      ),
+      firstDate: serializer.fromJson<DateTime>(json['firstDate']),
+      endsOn: serializer.fromJson<DateTime?>(json['endsOn']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'termId': serializer.toJson<int>(termId),
+      'name': serializer.toJson<String>(name),
+      'amountCents': serializer.toJson<int>(amountCents),
+      'frequency': serializer.toJson<String>(
+        $IncomesTable.$converterfrequency.toJson(frequency),
+      ),
+      'firstDate': serializer.toJson<DateTime>(firstDate),
+      'endsOn': serializer.toJson<DateTime?>(endsOn),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  IncomeRow copyWith({
+    String? id,
+    int? termId,
+    String? name,
+    int? amountCents,
+    IncomeFrequency? frequency,
+    DateTime? firstDate,
+    Value<DateTime?> endsOn = const Value.absent(),
+    DateTime? createdAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => IncomeRow(
+    id: id ?? this.id,
+    termId: termId ?? this.termId,
+    name: name ?? this.name,
+    amountCents: amountCents ?? this.amountCents,
+    frequency: frequency ?? this.frequency,
+    firstDate: firstDate ?? this.firstDate,
+    endsOn: endsOn.present ? endsOn.value : this.endsOn,
+    createdAt: createdAt ?? this.createdAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  IncomeRow copyWithCompanion(IncomesCompanion data) {
+    return IncomeRow(
+      id: data.id.present ? data.id.value : this.id,
+      termId: data.termId.present ? data.termId.value : this.termId,
+      name: data.name.present ? data.name.value : this.name,
+      amountCents: data.amountCents.present
+          ? data.amountCents.value
+          : this.amountCents,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      firstDate: data.firstDate.present ? data.firstDate.value : this.firstDate,
+      endsOn: data.endsOn.present ? data.endsOn.value : this.endsOn,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('IncomeRow(')
+          ..write('id: $id, ')
+          ..write('termId: $termId, ')
+          ..write('name: $name, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('frequency: $frequency, ')
+          ..write('firstDate: $firstDate, ')
+          ..write('endsOn: $endsOn, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    termId,
+    name,
+    amountCents,
+    frequency,
+    firstDate,
+    endsOn,
+    createdAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is IncomeRow &&
+          other.id == this.id &&
+          other.termId == this.termId &&
+          other.name == this.name &&
+          other.amountCents == this.amountCents &&
+          other.frequency == this.frequency &&
+          other.firstDate == this.firstDate &&
+          other.endsOn == this.endsOn &&
+          other.createdAt == this.createdAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class IncomesCompanion extends UpdateCompanion<IncomeRow> {
+  final Value<String> id;
+  final Value<int> termId;
+  final Value<String> name;
+  final Value<int> amountCents;
+  final Value<IncomeFrequency> frequency;
+  final Value<DateTime> firstDate;
+  final Value<DateTime?> endsOn;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const IncomesCompanion({
+    this.id = const Value.absent(),
+    this.termId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.amountCents = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.firstDate = const Value.absent(),
+    this.endsOn = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  IncomesCompanion.insert({
+    required String id,
+    required int termId,
+    required String name,
+    required int amountCents,
+    required IncomeFrequency frequency,
+    required DateTime firstDate,
+    this.endsOn = const Value.absent(),
+    required DateTime createdAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       termId = Value(termId),
+       name = Value(name),
+       amountCents = Value(amountCents),
+       frequency = Value(frequency),
+       firstDate = Value(firstDate),
+       createdAt = Value(createdAt);
+  static Insertable<IncomeRow> custom({
+    Expression<String>? id,
+    Expression<int>? termId,
+    Expression<String>? name,
+    Expression<int>? amountCents,
+    Expression<String>? frequency,
+    Expression<DateTime>? firstDate,
+    Expression<DateTime>? endsOn,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (termId != null) 'term_id': termId,
+      if (name != null) 'name': name,
+      if (amountCents != null) 'amount_cents': amountCents,
+      if (frequency != null) 'frequency': frequency,
+      if (firstDate != null) 'first_date': firstDate,
+      if (endsOn != null) 'ends_on': endsOn,
+      if (createdAt != null) 'created_at': createdAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  IncomesCompanion copyWith({
+    Value<String>? id,
+    Value<int>? termId,
+    Value<String>? name,
+    Value<int>? amountCents,
+    Value<IncomeFrequency>? frequency,
+    Value<DateTime>? firstDate,
+    Value<DateTime?>? endsOn,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return IncomesCompanion(
+      id: id ?? this.id,
+      termId: termId ?? this.termId,
+      name: name ?? this.name,
+      amountCents: amountCents ?? this.amountCents,
+      frequency: frequency ?? this.frequency,
+      firstDate: firstDate ?? this.firstDate,
+      endsOn: endsOn ?? this.endsOn,
+      createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (termId.present) {
+      map['term_id'] = Variable<int>(termId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (amountCents.present) {
+      map['amount_cents'] = Variable<int>(amountCents.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(
+        $IncomesTable.$converterfrequency.toSql(frequency.value),
+      );
+    }
+    if (firstDate.present) {
+      map['first_date'] = Variable<DateTime>(firstDate.value);
+    }
+    if (endsOn.present) {
+      map['ends_on'] = Variable<DateTime>(endsOn.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('IncomesCompanion(')
+          ..write('id: $id, ')
+          ..write('termId: $termId, ')
+          ..write('name: $name, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('frequency: $frequency, ')
+          ..write('firstDate: $firstDate, ')
+          ..write('endsOn: $endsOn, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2788,6 +3415,7 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
   late final $TermsTable terms = $TermsTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $UpcomingCostsTable upcomingCosts = $UpcomingCostsTable(this);
+  late final $IncomesTable incomes = $IncomesTable(this);
   late final $BillSplitsTable billSplits = $BillSplitsTable(this);
   late final $FriendsTable friends = $FriendsTable(this);
   late final $SessionsTable sessions = $SessionsTable(this);
@@ -2800,6 +3428,7 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
     terms,
     expenses,
     upcomingCosts,
+    incomes,
     billSplits,
     friends,
     sessions,
@@ -2862,6 +3491,25 @@ final class $$TermsTableReferences
     ).filter((f) => f.termId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_upcomingCostsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$IncomesTable, List<IncomeRow>> _incomesRefsTable(
+    _$RunwayDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.incomes,
+    aliasName: 'terms__id__incomes__term_id',
+  );
+
+  $$IncomesTableProcessedTableManager get incomesRefs {
+    final manager = $$IncomesTableTableManager(
+      $_db,
+      $_db.incomes,
+    ).filter((f) => f.termId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_incomesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2948,6 +3596,31 @@ class $$TermsTableFilterComposer
           }) => $$UpcomingCostsTableFilterComposer(
             $db: $db,
             $table: $db.upcomingCosts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> incomesRefs(
+    Expression<bool> Function($$IncomesTableFilterComposer f) f,
+  ) {
+    final $$IncomesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.incomes,
+      getReferencedColumn: (t) => t.termId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$IncomesTableFilterComposer(
+            $db: $db,
+            $table: $db.incomes,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3078,6 +3751,31 @@ class $$TermsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> incomesRefs<T extends Object>(
+    Expression<T> Function($$IncomesTableAnnotationComposer a) f,
+  ) {
+    final $$IncomesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.incomes,
+      getReferencedColumn: (t) => t.termId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$IncomesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.incomes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TermsTableTableManager
@@ -3093,7 +3791,11 @@ class $$TermsTableTableManager
           $$TermsTableUpdateCompanionBuilder,
           (TermRow, $$TermsTableReferences),
           TermRow,
-          PrefetchHooks Function({bool expensesRefs, bool upcomingCostsRefs})
+          PrefetchHooks Function({
+            bool expensesRefs,
+            bool upcomingCostsRefs,
+            bool incomesRefs,
+          })
         > {
   $$TermsTableTableManager(_$RunwayDatabase db, $TermsTable table)
     : super(
@@ -3147,12 +3849,17 @@ class $$TermsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({expensesRefs = false, upcomingCostsRefs = false}) {
+              ({
+                expensesRefs = false,
+                upcomingCostsRefs = false,
+                incomesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (expensesRefs) db.expenses,
                     if (upcomingCostsRefs) db.upcomingCosts,
+                    if (incomesRefs) db.incomes,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -3199,6 +3906,23 @@ class $$TermsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (incomesRefs)
+                        await $_getPrefetchedData<
+                          TermRow,
+                          $TermsTable,
+                          IncomeRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TermsTableReferences
+                              ._incomesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TermsTableReferences(db, table, p0).incomesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.termId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -3219,7 +3943,11 @@ typedef $$TermsTableProcessedTableManager =
       $$TermsTableUpdateCompanionBuilder,
       (TermRow, $$TermsTableReferences),
       TermRow,
-      PrefetchHooks Function({bool expensesRefs, bool upcomingCostsRefs})
+      PrefetchHooks Function({
+        bool expensesRefs,
+        bool upcomingCostsRefs,
+        bool incomesRefs,
+      })
     >;
 typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String id,
@@ -3229,6 +3957,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required bool isNeed,
   Value<String?> note,
   required DateTime createdAt,
+  Value<bool> isPlanned,
   Value<DateTime?> deletedAt,
   Value<int> rowid,
 });
@@ -3240,6 +3969,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<bool> isNeed,
   Value<String?> note,
   Value<DateTime> createdAt,
+  Value<bool> isPlanned,
   Value<DateTime?> deletedAt,
   Value<int> rowid,
 });
@@ -3303,6 +4033,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPlanned => $composableBuilder(
+    column: $table.isPlanned,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3374,6 +4109,11 @@ class $$ExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isPlanned => $composableBuilder(
+    column: $table.isPlanned,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3431,6 +4171,9 @@ class $$ExpensesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPlanned =>
+      $composableBuilder(column: $table.isPlanned, builder: (column) => column);
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
@@ -3494,6 +4237,7 @@ class $$ExpensesTableTableManager
                 Value<bool> isNeed = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isPlanned = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion(
@@ -3504,6 +4248,7 @@ class $$ExpensesTableTableManager
                 isNeed: isNeed,
                 note: note,
                 createdAt: createdAt,
+                isPlanned: isPlanned,
                 deletedAt: deletedAt,
                 rowid: rowid,
               ),
@@ -3516,6 +4261,7 @@ class $$ExpensesTableTableManager
                 required bool isNeed,
                 Value<String?> note = const Value.absent(),
                 required DateTime createdAt,
+                Value<bool> isPlanned = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion.insert(
@@ -3526,6 +4272,7 @@ class $$ExpensesTableTableManager
                 isNeed: isNeed,
                 note: note,
                 createdAt: createdAt,
+                isPlanned: isPlanned,
                 deletedAt: deletedAt,
                 rowid: rowid,
               ),
@@ -3955,6 +4702,399 @@ typedef $$UpcomingCostsTableProcessedTableManager =
       $$UpcomingCostsTableUpdateCompanionBuilder,
       (UpcomingCostRow, $$UpcomingCostsTableReferences),
       UpcomingCostRow,
+      PrefetchHooks Function({bool termId})
+    >;
+typedef $$IncomesTableCreateCompanionBuilder = IncomesCompanion Function({
+  required String id,
+  required int termId,
+  required String name,
+  required int amountCents,
+  required IncomeFrequency frequency,
+  required DateTime firstDate,
+  Value<DateTime?> endsOn,
+  required DateTime createdAt,
+  Value<DateTime?> deletedAt,
+  Value<int> rowid,
+});
+typedef $$IncomesTableUpdateCompanionBuilder = IncomesCompanion Function({
+  Value<String> id,
+  Value<int> termId,
+  Value<String> name,
+  Value<int> amountCents,
+  Value<IncomeFrequency> frequency,
+  Value<DateTime> firstDate,
+  Value<DateTime?> endsOn,
+  Value<DateTime> createdAt,
+  Value<DateTime?> deletedAt,
+  Value<int> rowid,
+});
+
+final class $$IncomesTableReferences
+    extends BaseReferences<_$RunwayDatabase, $IncomesTable, IncomeRow> {
+  $$IncomesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $TermsTable _termIdTable(_$RunwayDatabase db) =>
+      db.terms.createAlias('incomes__term_id__terms__id');
+
+  $$TermsTableProcessedTableManager get termId {
+    final $_column = $_itemColumn<int>('term_id')!;
+
+    final manager = $$TermsTableTableManager(
+      $_db,
+      $_db.terms,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_termIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$IncomesTableFilterComposer
+    extends Composer<_$RunwayDatabase, $IncomesTable> {
+  $$IncomesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<IncomeFrequency, IncomeFrequency, String>
+  get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<DateTime> get firstDate => $composableBuilder(
+    column: $table.firstDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endsOn => $composableBuilder(
+    column: $table.endsOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TermsTableFilterComposer get termId {
+    final $$TermsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.termId,
+      referencedTable: $db.terms,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TermsTableFilterComposer(
+            $db: $db,
+            $table: $db.terms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$IncomesTableOrderingComposer
+    extends Composer<_$RunwayDatabase, $IncomesTable> {
+  $$IncomesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get firstDate => $composableBuilder(
+    column: $table.firstDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endsOn => $composableBuilder(
+    column: $table.endsOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TermsTableOrderingComposer get termId {
+    final $$TermsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.termId,
+      referencedTable: $db.terms,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TermsTableOrderingComposer(
+            $db: $db,
+            $table: $db.terms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$IncomesTableAnnotationComposer
+    extends Composer<_$RunwayDatabase, $IncomesTable> {
+  $$IncomesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<IncomeFrequency, String> get frequency =>
+      $composableBuilder(column: $table.frequency, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get firstDate =>
+      $composableBuilder(column: $table.firstDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endsOn =>
+      $composableBuilder(column: $table.endsOn, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$TermsTableAnnotationComposer get termId {
+    final $$TermsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.termId,
+      referencedTable: $db.terms,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TermsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.terms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$IncomesTableTableManager
+    extends
+        RootTableManager<
+          _$RunwayDatabase,
+          $IncomesTable,
+          IncomeRow,
+          $$IncomesTableFilterComposer,
+          $$IncomesTableOrderingComposer,
+          $$IncomesTableAnnotationComposer,
+          $$IncomesTableCreateCompanionBuilder,
+          $$IncomesTableUpdateCompanionBuilder,
+          (IncomeRow, $$IncomesTableReferences),
+          IncomeRow,
+          PrefetchHooks Function({bool termId})
+        > {
+  $$IncomesTableTableManager(_$RunwayDatabase db, $IncomesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$IncomesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$IncomesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$IncomesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<int> termId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> amountCents = const Value.absent(),
+                Value<IncomeFrequency> frequency = const Value.absent(),
+                Value<DateTime> firstDate = const Value.absent(),
+                Value<DateTime?> endsOn = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => IncomesCompanion(
+                id: id,
+                termId: termId,
+                name: name,
+                amountCents: amountCents,
+                frequency: frequency,
+                firstDate: firstDate,
+                endsOn: endsOn,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required int termId,
+                required String name,
+                required int amountCents,
+                required IncomeFrequency frequency,
+                required DateTime firstDate,
+                Value<DateTime?> endsOn = const Value.absent(),
+                required DateTime createdAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => IncomesCompanion.insert(
+                id: id,
+                termId: termId,
+                name: name,
+                amountCents: amountCents,
+                frequency: frequency,
+                firstDate: firstDate,
+                endsOn: endsOn,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$IncomesTable, IncomeRow>(table),
+                  $$IncomesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({termId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (termId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.termId,
+                        referencedTable: $$IncomesTableReferences._termIdTable(
+                          db,
+                        ),
+                        referencedColumn: $$IncomesTableReferences
+                            ._termIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$IncomesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RunwayDatabase,
+      $IncomesTable,
+      IncomeRow,
+      $$IncomesTableFilterComposer,
+      $$IncomesTableOrderingComposer,
+      $$IncomesTableAnnotationComposer,
+      $$IncomesTableCreateCompanionBuilder,
+      $$IncomesTableUpdateCompanionBuilder,
+      (IncomeRow, $$IncomesTableReferences),
+      IncomeRow,
       PrefetchHooks Function({bool termId})
     >;
 typedef $$BillSplitsTableCreateCompanionBuilder = BillSplitsCompanion Function({
@@ -4758,6 +5898,8 @@ class $RunwayDatabaseManager {
       $$ExpensesTableTableManager(_db, _db.expenses);
   $$UpcomingCostsTableTableManager get upcomingCosts =>
       $$UpcomingCostsTableTableManager(_db, _db.upcomingCosts);
+  $$IncomesTableTableManager get incomes =>
+      $$IncomesTableTableManager(_db, _db.incomes);
   $$BillSplitsTableTableManager get billSplits =>
       $$BillSplitsTableTableManager(_db, _db.billSplits);
   $$FriendsTableTableManager get friends =>

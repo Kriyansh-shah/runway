@@ -43,6 +43,11 @@ class DriftBudgetRepository implements BudgetRepository {
               ..where((c) => c.termId.equals(term.id) & c.paidAt.isNull())
               ..orderBy([(c) => OrderingTerm.asc(c.dueDate)]))
             .get();
+    final incomes =
+        await (_db.select(_db.incomes)
+              ..where((i) => i.termId.equals(term.id) & i.deletedAt.isNull())
+              ..orderBy([(i) => OrderingTerm.asc(i.createdAt)]))
+            .get();
     final splits =
         await (_db.select(_db.billSplits)
               ..where((s) => s.settledAt.isNull())
@@ -72,6 +77,7 @@ class DriftBudgetRepository implements BudgetRepository {
             dueDate: _day(r.dueDate),
           ),
       ],
+      incomes: [for (final r in incomes) _income(r)],
       friends: [
         for (final r in friends)
           Friend(
@@ -147,6 +153,34 @@ class DriftBudgetRepository implements BudgetRepository {
   }
 
   @override
+  Future<void> updateExpense(Expense expense) async {
+    await (_db.update(
+      _db.expenses,
+    )..where((e) => e.id.equals(expense.id))).write(
+      ExpensesCompanion(
+        amountCents: Value(_cents(expense.amount)),
+        category: Value(expense.category),
+        isNeed: Value(expense.isNeed),
+        note: Value(expense.note),
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteExpense(String expenseId) =>
+      _setExpenseDeleted(expenseId, _clock());
+
+  @override
+  Future<void> restoreExpense(String expenseId) =>
+      _setExpenseDeleted(expenseId, null);
+
+  Future<void> _setExpenseDeleted(String id, DateTime? at) async {
+    await (_db.update(_db.expenses)..where((e) => e.id.equals(id))).write(
+      ExpensesCompanion(deletedAt: Value(at)),
+    );
+  }
+
+  @override
   Future<void> splitBill(List<BillSplit> splits, Expense myShare) async {
     final termId = await _currentTermId();
     final now = _clock();
@@ -185,6 +219,79 @@ class DriftBudgetRepository implements BudgetRepository {
   Future<void> addUpcomingCost(UpcomingCost cost) async {
     final termId = await _currentTermId();
     await _db.into(_db.upcomingCosts).insert(_costRow(cost, termId));
+  }
+
+  @override
+  Future<void> deleteUpcomingCost(String costId) async {
+    await (_db.delete(
+      _db.upcomingCosts,
+    )..where((c) => c.id.equals(costId))).go();
+  }
+
+  @override
+  Future<void> payUpcomingCost(String costId, Expense expense) async {
+    final termId = await _currentTermId();
+    await _db.transaction(() async {
+      await (_db.update(_db.upcomingCosts)..where((c) => c.id.equals(costId)))
+          .write(UpcomingCostsCompanion(paidAt: Value(_clock())));
+      await _db.into(_db.expenses).insert(_expenseRow(expense, termId));
+    });
+  }
+
+  @override
+  Future<void> addIncome(Income income) async {
+    final termId = await _currentTermId();
+    await _db
+        .into(_db.incomes)
+        .insert(
+          IncomesCompanion.insert(
+            id: income.id,
+            termId: termId,
+            name: income.name,
+            amountCents: _cents(income.amount),
+            frequency: income.frequency,
+            firstDate: income.firstDate,
+            endsOn: Value(income.endsOn),
+            createdAt: _clock(),
+          ),
+        );
+  }
+
+  @override
+  Future<void> stopIncome(String incomeId, DateTime endsOn) async {
+    await (_db.update(_db.incomes)..where((i) => i.id.equals(incomeId))).write(
+      IncomesCompanion(endsOn: Value(endsOn)),
+    );
+  }
+
+  @override
+  Future<void> deleteIncome(String incomeId) async {
+    await (_db.update(_db.incomes)..where((i) => i.id.equals(incomeId))).write(
+      IncomesCompanion(deletedAt: Value(_clock())),
+    );
+  }
+
+  @override
+  Future<void> eraseEverything() async {
+    _termId = null;
+    await _db.transaction(() async {
+      // Children before the terms they reference (foreign keys are on).
+      for (final table in <TableInfo<Table, Object?>>[
+        _db.expenses,
+        _db.upcomingCosts,
+        _db.incomes,
+        _db.billSplits,
+        _db.friends,
+        _db.sessions,
+        _db.meta,
+        _db.terms,
+      ]) {
+        await _db.delete(table).go();
+      }
+    });
+    // Deleted rows can linger in free pages of the file; rewrite it so the
+    // old data is really gone from disk.
+    await _db.customStatement('VACUUM');
   }
 
   @override
@@ -290,6 +397,16 @@ class DriftBudgetRepository implements BudgetRepository {
     isNeed: r.isNeed,
     date: r.createdAt.toLocal(),
     note: r.note,
+    planned: r.isPlanned,
+  );
+
+  static Income _income(IncomeRow r) => Income(
+    id: r.id,
+    name: r.name,
+    amount: _dollars(r.amountCents),
+    frequency: r.frequency,
+    firstDate: _day(r.firstDate),
+    endsOn: r.endsOn == null ? null : _day(r.endsOn!),
   );
 
   static ExpensesCompanion _expenseRow(Expense e, int termId) =>
@@ -301,6 +418,7 @@ class DriftBudgetRepository implements BudgetRepository {
         isNeed: e.isNeed,
         note: Value(e.note),
         createdAt: e.date,
+        isPlanned: Value(e.planned),
       );
 
   static UpcomingCostsCompanion _costRow(UpcomingCost c, int termId) =>

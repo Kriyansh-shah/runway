@@ -17,6 +17,14 @@ abstract final class PhIcons {
   static const user = IconData(0xe4c2, fontFamily: 'PhosphorRegular');
   static const eye = IconData(0xe220, fontFamily: 'PhosphorRegular');
   static const eyeSlash = IconData(0xe224, fontFamily: 'PhosphorRegular');
+  static const gearSix = IconData(0xe272, fontFamily: 'PhosphorRegular');
+  static const caretRight = IconData(0xe13a, fontFamily: 'PhosphorRegular');
+  static const trash = IconData(0xe4a6, fontFamily: 'PhosphorRegular');
+  static const checkCircle = IconData(0xe184, fontFamily: 'PhosphorRegular');
+  static const handCoins = IconData(0xea8c, fontFamily: 'PhosphorRegular');
+  static const repeat = IconData(0xe3f6, fontFamily: 'PhosphorRegular');
+  static const stopCircle = IconData(0xe46e, fontFamily: 'PhosphorRegular');
+  static const calendarBlank = IconData(0xe10a, fontFamily: 'PhosphorRegular');
   static const houseFill = IconData(0xe2c2, fontFamily: 'PhosphorFill');
   static const sparkleFill = IconData(0xe6a2, fontFamily: 'PhosphorFill');
   static const usersThreeFill = IconData(0xe68e, fontFamily: 'PhosphorFill');
@@ -25,6 +33,7 @@ abstract final class PhIcons {
   static const arrowUpBold = IconData(0xe08e, fontFamily: 'PhosphorBold');
   static const checkBold = IconData(0xe182, fontFamily: 'PhosphorBold');
   static const xBold = IconData(0xe4f6, fontFamily: 'PhosphorBold');
+  static const caretLeftBold = IconData(0xe138, fontFamily: 'PhosphorBold');
 }
 
 /// A two-tone icon: [primary] drawn on top of a faded [secondary] fill.

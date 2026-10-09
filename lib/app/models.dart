@@ -30,6 +30,7 @@ class Expense {
     required this.isNeed,
     required this.date,
     this.note,
+    this.planned = false,
   });
 
   final String id;
@@ -39,7 +40,27 @@ class Expense {
   final DateTime date;
   final String? note;
 
+  /// Paid from a reserved upcoming cost. It still leaves the balance, but
+  /// it isn't day-to-day spending: the money was set aside in advance.
+  final bool planned;
+
   String get title => note ?? category.label;
+
+  /// The same expense with new details; the id, date and [planned] stay.
+  Expense copyWith({
+    double? amount,
+    ExpenseCategory? category,
+    bool? isNeed,
+    String? Function()? note,
+  }) => Expense(
+    id: id,
+    amount: amount ?? this.amount,
+    category: category ?? this.category,
+    isNeed: isNeed ?? this.isNeed,
+    date: date,
+    note: note == null ? this.note : note(),
+    planned: planned,
+  );
 }
 
 /// One-tap preset on the Quick Add sheet.
@@ -74,6 +95,55 @@ class UpcomingCost {
   final String name;
   final double amount;
   final DateTime dueDate;
+}
+
+/// How often money comes in. [once] is a single payment (scholarship,
+/// project payment, gift); the rest repeat from the first payday.
+enum IncomeFrequency {
+  once('One-time'),
+  weekly('Weekly'),
+  biweekly('Every 2 weeks'),
+  monthly('Monthly');
+
+  const IncomeFrequency(this.label);
+  final String label;
+}
+
+/// Money coming in during the term. It counts toward the balance only on
+/// the days it actually arrives, never ahead of time.
+class Income {
+  const Income({
+    required this.id,
+    required this.name,
+    required this.amount,
+    required this.frequency,
+    required this.firstDate,
+    this.endsOn,
+  });
+
+  final String id;
+  final String name;
+
+  /// Amount of each payment.
+  final double amount;
+  final IncomeFrequency frequency;
+
+  /// The first (or only) payday.
+  final DateTime firstDate;
+
+  /// Last day a repeating payment can arrive, once it has been stopped.
+  final DateTime? endsOn;
+
+  bool get repeats => frequency != IncomeFrequency.once;
+
+  Income copyWith({DateTime? endsOn}) => Income(
+    id: id,
+    name: name,
+    amount: amount,
+    frequency: frequency,
+    firstDate: firstDate,
+    endsOn: endsOn ?? this.endsOn,
+  );
 }
 
 class Term {
@@ -130,6 +200,7 @@ class BudgetData {
     required this.term,
     required this.expenses,
     required this.upcoming,
+    this.incomes = const [],
     required this.friends,
     required this.splits,
     required this.challengeStart,
@@ -139,6 +210,7 @@ class BudgetData {
   final Term term;
   final List<Expense> expenses;
   final List<UpcomingCost> upcoming;
+  final List<Income> incomes;
   final List<Friend> friends;
   final List<BillSplit> splits;
   final DateTime challengeStart;

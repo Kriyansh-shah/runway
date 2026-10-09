@@ -4,9 +4,11 @@ import 'package:flutter/widgets.dart';
 
 import 'auth.dart';
 import 'budget_math.dart';
+import 'budget_math.dart' as budget show nextIncome;
 import 'coach.dart';
 import 'format.dart';
 import 'models.dart';
+import 'purchase_link.dart';
 import 'repository.dart';
 
 /// Single source of truth for the app. Derived numbers are cached and
@@ -24,10 +26,11 @@ class AppState extends ChangeNotifier {
        _term = data.term,
        _expenses = [...data.expenses],
        _upcoming = [...data.upcoming],
-       _friends = data.friends,
+       _incomes = [...data.incomes],
+       _friends = [...data.friends],
        _splits = [...data.splits],
        _needsSetup = data.needsSetup,
-       challengeStart = data.challengeStart {
+       _challengeStart = data.challengeStart {
     _user = user;
     _recompute();
   }
@@ -36,13 +39,18 @@ class AppState extends ChangeNotifier {
   final DateTime Function() _clock;
   final AffordabilityCoach coach;
   final AuthService auth;
-  final DateTime challengeStart;
 
   Term _term;
   final List<Expense> _expenses;
   final List<UpcomingCost> _upcoming;
+  final List<Income> _incomes;
   final List<Friend> _friends;
   final List<BillSplit> _splits;
+  DateTime _challengeStart;
+
+  /// An Apple Pay purchase waiting to open in Quick Add. Set when a
+  /// `runway://log` link arrives; Home picks it up once it's on screen.
+  final pendingPurchase = ValueNotifier<ApplePayPurchase?>(null);
 
   UserProfile? _user;
   bool _needsSetup;
@@ -60,18 +68,28 @@ class AppState extends ChangeNotifier {
   PetMood get mood => moodFor(_snapshot);
   PetLevel get petLevel => PetLevel.fromStreak(_streak);
   NeedWantSplit get thisWeek => weekSplit(_expenses, today);
-  List<Friend> get friends => _friends;
+  List<Friend> get friends => List.unmodifiable(_friends);
   List<BillSplit> get splits => List.unmodifiable(_splits);
+  DateTime get challengeStart => _challengeStart;
+
+  /// Money coming in this term, oldest first.
+  List<Income> get incomes => List.unmodifiable(_incomes);
+
+  /// The next payment still to come this term, if any.
+  ({Income income, DateTime date})? get nextIncome =>
+      budget.nextIncome(_incomes, term: _term, today: today);
 
   /// Newest first.
-  List<Expense> recentExpenses([int count = 6]) {
-    final sorted = [..._expenses]..sort((a, b) => b.date.compareTo(a.date));
-    return sorted.take(count).toList();
-  }
+  List<Expense> recentExpenses([int count = 6]) =>
+      allExpenses.take(count).toList();
 
+  /// Every expense this term, newest first.
+  List<Expense> get allExpenses =>
+      [..._expenses]..sort((a, b) => b.date.compareTo(a.date));
+
+  /// Every unpaid cost, soonest (or most overdue) first.
   List<UpcomingCost> get comingUp =>
-      _upcoming.where((c) => !c.dueDate.isBefore(today)).toList()
-        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      [..._upcoming]..sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
   int get challengeDay => daysBetween(challengeStart, today) + 1;
 
@@ -94,10 +112,39 @@ class AppState extends ChangeNotifier {
     required bool isNeed,
     String? note,
   }) {
+    _checkAmount(amount);
     final expense = _newExpense(amount, category, isNeed, note);
     _expenses.add(expense);
     _changed();
     _persist(_repo.addExpense(expense));
+  }
+
+  /// Replaces the expense with the same id (amount, category, need, note).
+  void updateExpense(Expense expense) {
+    _checkAmount(expense.amount);
+    final index = _expenses.indexWhere((e) => e.id == expense.id);
+    if (index < 0) return;
+    _expenses[index] = expense;
+    _changed();
+    _persist(_repo.updateExpense(expense));
+  }
+
+  /// Removes the expense and returns it, so the caller can offer Undo
+  /// through [restoreExpense]. Null if it's already gone.
+  Expense? deleteExpense(String id) {
+    final index = _expenses.indexWhere((e) => e.id == id);
+    if (index < 0) return null;
+    final removed = _expenses.removeAt(index);
+    _changed();
+    _persist(_repo.deleteExpense(id));
+    return removed;
+  }
+
+  void restoreExpense(Expense expense) {
+    if (_expenses.any((e) => e.id == expense.id)) return;
+    _expenses.add(expense);
+    _changed();
+    _persist(_repo.restoreExpense(expense.id));
   }
 
   /// You paid [total] for something shared with [roommates]. Each roommate
@@ -149,15 +196,83 @@ class AppState extends ChangeNotifier {
   }
 
   void updateTerm(Term term) {
+    if (term.name.trim().isEmpty ||
+        !term.end.isAfter(term.start) ||
+        !term.startingBalance.isFinite ||
+        term.startingBalance < 0) {
+      throw ArgumentError.value(term, 'term', 'invalid name, dates or balance');
+    }
     _term = term;
     _changed();
     _persist(_repo.saveTerm(term));
   }
 
   void addUpcomingCost(UpcomingCost cost) {
+    _checkAmount(cost.amount);
     _upcoming.add(cost);
     _changed();
     _persist(_repo.addUpcomingCost(cost));
+  }
+
+  void deleteUpcomingCost(String id) {
+    _upcoming.removeWhere((c) => c.id == id);
+    _changed();
+    _persist(_repo.deleteUpcomingCost(id));
+  }
+
+  /// The reserved money is now actually spent: the cost leaves "Coming up"
+  /// and is logged as a planned need under Bills, so today's budget and the
+  /// burn rate don't move.
+  void payUpcomingCost(String id) {
+    final index = _upcoming.indexWhere((c) => c.id == id);
+    if (index < 0) return;
+    final cost = _upcoming.removeAt(index);
+    final expense = _newExpense(
+      cost.amount,
+      ExpenseCategory.bills,
+      true,
+      cost.name,
+      planned: true,
+    );
+    _expenses.add(expense);
+    _changed();
+    _persist(_repo.payUpcomingCost(id, expense));
+  }
+
+  void addIncome({
+    required String name,
+    required double amount,
+    required IncomeFrequency frequency,
+    required DateTime firstDate,
+  }) {
+    _checkAmount(amount);
+    final income = Income(
+      id: 'i${DateTime.now().microsecondsSinceEpoch}',
+      name: name.trim(),
+      amount: amount,
+      frequency: frequency,
+      firstDate: dateOnly(firstDate),
+    );
+    _incomes.add(income);
+    _changed();
+    _persist(_repo.addIncome(income));
+  }
+
+  /// No more paydays after today; the ones already received still count.
+  void stopIncome(String id) {
+    final index = _incomes.indexWhere((i) => i.id == id);
+    if (index < 0) return;
+    final endsOn = today;
+    _incomes[index] = _incomes[index].copyWith(endsOn: endsOn);
+    _changed();
+    _persist(_repo.stopIncome(id, endsOn));
+  }
+
+  /// Removes the income and every payment it brought in.
+  void deleteIncome(String id) {
+    _incomes.removeWhere((i) => i.id == id);
+    _changed();
+    _persist(_repo.deleteIncome(id));
   }
 
   /// Swaps the demo term for the user's own, starting with no expenses.
@@ -167,23 +282,55 @@ class AppState extends ChangeNotifier {
     _upcoming
       ..clear()
       ..addAll(upcoming);
+    _incomes.clear();
     _needsSetup = false;
     _changed();
     _persist(_repo.startTerm(term, upcoming));
+  }
+
+  /// Deletes everything on this device and signs out. Unlike other writes
+  /// this waits for the database, so nothing is left behind if it fails.
+  Future<void> eraseEverything() async {
+    await auth.signOut();
+    await _repo.eraseEverything();
+    final data = await _repo.load();
+    _term = data.term;
+    _replace(_expenses, data.expenses);
+    _replace(_upcoming, data.upcoming);
+    _replace(_incomes, data.incomes);
+    _replace(_friends, data.friends);
+    _replace(_splits, data.splits);
+    _challengeStart = data.challengeStart;
+    _needsSetup = data.needsSetup;
+    _user = null;
+    _changed();
+  }
+
+  static void _replace<T>(List<T> list, List<T> items) => list
+    ..clear()
+    ..addAll(items);
+
+  /// Amounts come from validated inputs; anything else is a bug.
+  static void _checkAmount(double amount) {
+    if (!amount.isFinite || amount <= 0 || amount >= 1000000) {
+      throw ArgumentError.value(amount, 'amount', 'must be 0 < amount < 1M');
+    }
   }
 
   Expense _newExpense(
     double amount,
     ExpenseCategory category,
     bool isNeed,
-    String? note,
-  ) => Expense(
+    String? note, {
+    bool planned = false,
+  }) => Expense(
     id: 'e${DateTime.now().microsecondsSinceEpoch}',
     amount: amount,
     category: category,
     isNeed: isNeed,
     date: _clock(),
     note: note,
+    planned: planned,
   );
 
   void _changed() {
@@ -214,6 +361,7 @@ class AppState extends ChangeNotifier {
       term: _term,
       expenses: _expenses,
       upcoming: _upcoming,
+      incomes: _incomes,
       today: now,
     );
     _streak = computeStreak(_expenses, now);
