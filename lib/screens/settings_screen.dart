@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
+import '../app/auth.dart';
+import '../app/device_auth.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
@@ -14,23 +16,13 @@ import '../widgets/gradient_button.dart';
 import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
-import 'login_screen.dart';
+import 'welcome_screen.dart';
 import 'money_actions.dart';
 import 'setup_screen.dart';
 
 /// Account, the current semester, big costs, and your data.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  Future<void> _signOut(BuildContext context) async {
-    final state = AppScope.read(context);
-    final navigator = Navigator.of(context);
-    await state.signOut();
-    await navigator.pushAndRemoveUntil(
-      FadeScaleRoute<void>(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
-  }
 
   Future<void> _newSemester(BuildContext context) async {
     final navigator = Navigator.of(context);
@@ -95,7 +87,7 @@ class SettingsScreen extends StatelessWidget {
       return;
     }
     await navigator.pushAndRemoveUntil(
-      FadeScaleRoute<void>(builder: (_) => const LoginScreen()),
+      FadeScaleRoute<void>(builder: (_) => const WelcomeScreen()),
       (_) => false,
     );
   }
@@ -130,49 +122,9 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   if (user != null)
-                    GlassCard(
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.surface,
-                            ),
-                            child: Text(user.initial, style: AppText.heading),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user.name,
-                                  style: AppText.heading,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  user.email,
-                                  style: AppText.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'On-device account · nothing leaves your phone',
-                                  style: AppText.caption.copyWith(
-                                    letterSpacing: 0,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _ProfileEditor(key: ObjectKey(user), name: user.name),
+                  const SectionHeader('Security'),
+                  const _AppLockCard(),
                   const SectionHeader('Semester'),
                   // Re-created when the term changes elsewhere, so the
                   // fields always start from what's saved.
@@ -247,15 +199,7 @@ class SettingsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  GradientButton(
-                    label: 'Sign out',
-                    icon: PhIcons.signOut,
-                    gradient: AppGradients.hot,
-                    glow: AppColors.pink,
-                    onTap: () => _signOut(context),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Text(
                     'Runway keeps your money data on this phone only. '
                     'No bank linking, no ads, no tracking.',
@@ -448,6 +392,160 @@ class _LinkRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Your name, for the greeting. No account: it never leaves the phone.
+class _ProfileEditor extends StatefulWidget {
+  const _ProfileEditor({super.key, required this.name});
+  final String name;
+
+  @override
+  State<_ProfileEditor> createState() => _ProfileEditorState();
+}
+
+class _ProfileEditorState extends State<_ProfileEditor> {
+  late final _name = TextEditingController(text: widget.name);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  bool get _dirty => _name.text.trim() != widget.name;
+  String? get _problem => _dirty ? validateName(_name.text) : null;
+
+  void _save() {
+    if (!_dirty || _problem != null) return;
+    HapticFeedback.mediumImpact();
+    FocusScope.of(context).unfocus();
+    AppScope.read(context).rename(_name.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final problem = _problem;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const FieldLabel('Your name'),
+          GlassTextField(
+            controller: _name,
+            hint: 'Your first name',
+            icon: PhIcons.user,
+            textCapitalization: TextCapitalization.words,
+            maxLength: 30,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _save(),
+            suffix: _dirty && problem == null
+                ? Pressable(
+                    onTap: _save,
+                    semanticLabel: 'Save name',
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(
+                        PhIcons.checkBold,
+                        size: 20,
+                        color: AppColors.lime,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            problem ?? 'No account needed. Your name and money data stay on this phone.',
+            style: (problem == null ? AppText.caption : AppText.label).copyWith(
+              letterSpacing: 0,
+              color: problem == null ? null : AppColors.red,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Face ID / passcode lock switch. Turning it on or off asks for Face ID
+/// first, so nobody else can change it and you know it works.
+class _AppLockCard extends StatefulWidget {
+  const _AppLockCard();
+
+  @override
+  State<_AppLockCard> createState() => _AppLockCardState();
+}
+
+class _AppLockCardState extends State<_AppLockCard> {
+  late final Future<bool> _available = AppScope.read(context).deviceAuth
+      .isAvailable();
+  bool _busy = false;
+
+  Future<void> _toggle(bool on) async {
+    final state = AppScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    final result = await state.deviceAuth.authenticate(
+      on ? 'Turn on the Runway lock' : 'Turn off the Runway lock',
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    switch (result) {
+      case DeviceAuthResult.success:
+        state.setAppLock(on);
+      case DeviceAuthResult.unavailable:
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Set up a passcode on your phone first.'),
+          ),
+        );
+      case DeviceAuthResult.failed:
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final on = AppScope.of(context).appLockEnabled;
+    return FutureBuilder<bool>(
+      future: _available,
+      builder: (context, snapshot) {
+        final available = snapshot.data ?? false;
+        return GlassCard(
+          child: Row(
+            children: [
+              const Icon(PhIcons.lock, size: 22, color: AppColors.lime),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'App lock',
+                      style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      available || on
+                          ? 'Ask for $deviceLockName when you open Runway '
+                                'or come back after a minute.'
+                          : 'Needs a passcode or Face ID set up on this phone.',
+                      style: AppText.caption.copyWith(letterSpacing: 0),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Switch(
+                value: on,
+                activeTrackColor: AppColors.lime,
+                onChanged: _busy || !(available || on) ? null : _toggle,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

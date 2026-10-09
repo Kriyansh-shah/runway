@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
+import '../app/device_auth.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
@@ -42,10 +43,21 @@ class _SetupScreenState extends State<SetupScreen> {
   DateTime? _end;
   bool _done = false;
 
+  /// Offer the app lock (on by default) if the phone supports it and it
+  /// isn't on already.
+  bool _offerLock = false;
+  bool _lock = true;
+
   @override
   void initState() {
     super.initState();
-    _start = AppScope.read(context).today;
+    final state = AppScope.read(context);
+    _start = state.today;
+    if (!state.appLockEnabled) {
+      state.deviceAuth.isAvailable().then((ok) {
+        if (mounted && ok) setState(() => _offerLock = true);
+      });
+    }
   }
 
   @override
@@ -98,10 +110,19 @@ class _SetupScreenState extends State<SetupScreen> {
     );
   }
 
-  void _finish() {
+  Future<void> _finish() async {
     if (!_ready || _done) return;
     _done = true;
     final state = AppScope.read(context);
+    final navigator = Navigator.of(context);
+    // Asking now also shows iOS's one-time Face ID permission, right when
+    // the user chose it. If they cancel, the lock stays off for now.
+    if (_offerLock && _lock) {
+      final result = await state.deviceAuth.authenticate(
+        'Lock Runway so only you can open it',
+      );
+      if (result == DeviceAuthResult.success) state.setAppLock(true);
+    }
     state.startTerm(
       Term(
         name: _name.text.trim(),
@@ -113,7 +134,7 @@ class _SetupScreenState extends State<SetupScreen> {
       _costs.where((c) => !c.dueDate.isAfter(_end!)).toList(),
     );
     HapticFeedback.mediumImpact();
-    Navigator.of(context).pushAndRemoveUntil(
+    await navigator.pushAndRemoveUntil(
       FadeScaleRoute<void>(builder: (_) => const Shell()),
       (_) => false,
     );
@@ -225,6 +246,39 @@ class _SetupScreenState extends State<SetupScreen> {
           ],
         ),
       ),
+      if (_offerLock) ...[
+        const SizedBox(height: 16),
+        GlassCard(
+          child: Row(
+            children: [
+              const Icon(PhIcons.lock, size: 22, color: AppColors.lime),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lock Runway',
+                      style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Only you can open it, with $deviceLockName.',
+                      style: AppText.caption.copyWith(letterSpacing: 0),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Switch(
+                value: _lock,
+                activeTrackColor: AppColors.lime,
+                onChanged: (v) => setState(() => _lock = v),
+              ),
+            ],
+          ),
+        ),
+      ],
       const SizedBox(height: 20),
       GradientButton(
         label: 'Start my runway',

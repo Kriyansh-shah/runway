@@ -6,6 +6,7 @@ import 'auth.dart';
 import 'budget_math.dart';
 import 'budget_math.dart' as budget show nextIncome;
 import 'coach.dart';
+import 'device_auth.dart';
 import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
@@ -18,7 +19,7 @@ class AppState extends ChangeNotifier {
     required BudgetRepository repository,
     required BudgetData data,
     this.coach = const LocalCoach(),
-    this.auth = const LocalAuthService(),
+    this.deviceAuth = const LocalDeviceAuth(),
     UserProfile? user,
     DateTime Function()? clock,
   }) : _repo = repository,
@@ -30,6 +31,7 @@ class AppState extends ChangeNotifier {
        _friends = [...data.friends],
        _splits = [...data.splits],
        _needsSetup = data.needsSetup,
+       _appLock = data.appLock,
        _challengeStart = data.challengeStart {
     _user = user;
     _recompute();
@@ -38,7 +40,9 @@ class AppState extends ChangeNotifier {
   final BudgetRepository _repo;
   final DateTime Function() _clock;
   final AffordabilityCoach coach;
-  final AuthService auth;
+
+  /// Face ID / Touch ID / passcode prompt for the app lock.
+  final DeviceAuth deviceAuth;
 
   Term _term;
   final List<Expense> _expenses;
@@ -54,10 +58,25 @@ class AppState extends ChangeNotifier {
 
   UserProfile? _user;
   bool _needsSetup;
+  bool _appLock;
+
+  final _problems = StreamController<SaveProblem>.broadcast();
+  int _pendingWrites = 0;
+  bool _resyncNeeded = false;
+  bool _disposed = false;
+
+  /// Fires when a change couldn't be saved; the app shows a message.
+  Stream<SaveProblem> get problems => _problems.stream;
   late RunwaySnapshot _snapshot;
   late int _streak;
 
   DateTime get today => dateOnly(_clock());
+
+  /// The current time, from the same clock as everything else (tests fake it).
+  DateTime get now => _clock();
+
+  /// Ask for Face ID / passcode on launch and after time away.
+  bool get appLockEnabled => _appLock;
   UserProfile? get user => _user;
 
   /// Still on demo data: show the setup flow before Home.
@@ -188,11 +207,23 @@ class AppState extends ChangeNotifier {
     _persist(_repo.setCurrentUser(user));
   }
 
-  Future<void> signOut() async {
-    await auth.signOut();
-    _user = null;
+  /// Changes the name shown in the greeting.
+  void rename(String name) {
+    final user = _user;
+    final trimmed = name.trim();
+    if (user == null || validateName(trimmed) != null) return;
+    _user = UserProfile(name: trimmed, email: user.email);
     notifyListeners();
-    await _repo.setCurrentUser(null);
+    _persist(_repo.setCurrentUser(_user));
+  }
+
+  /// Turns the Face ID / passcode lock on or off. Callers verify the owner
+  /// with [deviceAuth] first.
+  void setAppLock(bool on) {
+    if (on == _appLock) return;
+    _appLock = on;
+    notifyListeners();
+    _persist(_repo.setAppLock(on));
   }
 
   void updateTerm(Term term) {
@@ -291,9 +322,14 @@ class AppState extends ChangeNotifier {
   /// Deletes everything on this device and signs out. Unlike other writes
   /// this waits for the database, so nothing is left behind if it fails.
   Future<void> eraseEverything() async {
-    await auth.signOut();
     await _repo.eraseEverything();
-    final data = await _repo.load();
+    _apply(await _repo.load());
+    _user = null;
+    _changed();
+  }
+
+  /// Replaces everything in memory with what was loaded from storage.
+  void _apply(BudgetData data) {
     _term = data.term;
     _replace(_expenses, data.expenses);
     _replace(_upcoming, data.upcoming);
@@ -302,8 +338,7 @@ class AppState extends ChangeNotifier {
     _replace(_splits, data.splits);
     _challengeStart = data.challengeStart;
     _needsSetup = data.needsSetup;
-    _user = null;
-    _changed();
+    _appLock = data.appLock;
   }
 
   static void _replace<T>(List<T> list, List<T> items) => list
@@ -338,21 +373,69 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Saves without blocking the UI. A failed save is reported (red screen in
-  /// debug, logged in release) instead of disappearing silently.
+  /// Saves without blocking the UI: the screen has already changed, and
+  /// the database catches up in the background.
+  ///
+  /// If a save fails, the screen would be showing something that isn't
+  /// stored. So once every save in flight has finished, everything is
+  /// reloaded from the database (the source of truth) and [problems] tells
+  /// the user their change didn't stick.
   void _persist(Future<void> write) {
+    _pendingWrites++;
     unawaited(
-      write.catchError((Object error, StackTrace stack) {
-        FlutterError.reportError(
-          FlutterErrorDetails(
-            exception: error,
-            stack: stack,
-            library: 'runway storage',
-            context: ErrorDescription('while saving to the database'),
-          ),
-        );
-      }),
+      write
+          .then<void>(
+            (_) {},
+            onError: (Object error, StackTrace stack) {
+              _report(error, stack, 'while saving to the database');
+              _resyncNeeded = true;
+            },
+          )
+          .whenComplete(() {
+            _pendingWrites--;
+            if (_pendingWrites == 0 && _resyncNeeded) unawaited(_resync());
+          }),
     );
+  }
+
+  Future<void> _resync() async {
+    _resyncNeeded = false;
+    try {
+      final data = await _repo.load();
+      final user = await _repo.currentUser();
+      // Newer changes started while loading; their saves would be missing
+      // from what we just read. Try again once they've finished.
+      if (_pendingWrites > 0) {
+        _resyncNeeded = true;
+        return;
+      }
+      if (_disposed) return;
+      _apply(data);
+      _user = user;
+      _changed();
+      _problems.add(SaveProblem.undone);
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while reloading after a failed save');
+      if (!_disposed) _problems.add(SaveProblem.unreadable);
+    }
+  }
+
+  static void _report(Object error, StackTrace stack, String context) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'runway storage',
+        context: ErrorDescription(context),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    unawaited(_problems.close());
+    super.dispose();
   }
 
   void _recompute() {
@@ -366,6 +449,18 @@ class AppState extends ChangeNotifier {
     );
     _streak = computeStreak(_expenses, now);
   }
+}
+
+/// What went wrong when saving, worded for the person using the app.
+enum SaveProblem {
+  /// A change didn't save, so the screen went back to what's stored.
+  undone('Couldn\'t save your last change, so it was undone. Try again.'),
+
+  /// Saving failed and reading the data back failed too.
+  unreadable('Couldn\'t save or reload your data. Close and reopen Runway.');
+
+  const SaveProblem(this.message);
+  final String message;
 }
 
 /// Exposes [AppState] to the tree; widgets that call [AppScope.of] rebuild

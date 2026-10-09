@@ -14,7 +14,8 @@ import 'app/drift_repository.dart';
 // import 'app/purchase_link.dart';
 import 'app/theme.dart';
 import 'screens/launch_intro.dart';
-import 'screens/login_screen.dart';
+import 'screens/lock_gate.dart';
+import 'screens/welcome_screen.dart';
 import 'screens/setup_screen.dart';
 
 Future<void> main() async {
@@ -48,7 +49,7 @@ Future<void> main() async {
   runApp(RunwayApp(state: state));
 }
 
-class RunwayApp extends StatelessWidget {
+class RunwayApp extends StatefulWidget {
   const RunwayApp({super.key, required this.state, this.intro = true});
   final AppState state;
 
@@ -56,18 +57,72 @@ class RunwayApp extends StatelessWidget {
   final bool intro;
 
   @override
+  State<RunwayApp> createState() => _RunwayAppState();
+}
+
+class _RunwayAppState extends State<RunwayApp> {
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+  StreamSubscription<SaveProblem>? _problems;
+
+  @override
+  void initState() {
+    super.initState();
+    _listen();
+  }
+
+  @override
+  void didUpdateWidget(RunwayApp old) {
+    super.didUpdateWidget(old);
+    if (old.state != widget.state) _listen();
+  }
+
+  @override
+  void dispose() {
+    _problems?.cancel();
+    super.dispose();
+  }
+
+  void _listen() {
+    _problems?.cancel();
+    _problems = widget.state.problems.listen(_showProblem);
+  }
+
+  /// Shown above whatever screen is open, clear of the floating nav bar.
+  void _showProblem(SaveProblem problem) {
+    final messenger = _messenger.currentState;
+    if (messenger == null) return;
+    final bottom = MediaQuery.paddingOf(messenger.context).bottom;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(problem.message),
+          margin: EdgeInsets.fromLTRB(16, 0, 16, bottom + 96),
+          duration: const Duration(seconds: 6),
+          backgroundColor: const Color(0xFF3A1E24),
+        ),
+      );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final intro = widget.intro;
     return AppScope(
       state: state,
       child: MaterialApp(
         title: 'Runway',
+        scaffoldMessengerKey: _messenger,
+        // Above the navigator, so the lock and the app-switcher cover hide
+        // every screen and sheet.
+        builder: (context, child) => LockGate(child: child!),
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         scrollBehavior: const _BouncyScroll(),
         // Decided once at startup; after that, navigation is explicit so the
         // login → home reveal transition can run.
         home: switch ((state.user != null, intro)) {
-          (false, _) => LoginScreen(playIntro: intro),
+          (false, _) => WelcomeScreen(playIntro: intro),
           (true, true) => const LaunchIntro(),
           (true, false) => landingFor(state),
         },

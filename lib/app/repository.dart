@@ -15,6 +15,8 @@ abstract interface class BudgetRepository {
   Future<UserProfile?> currentUser();
   Future<void> setCurrentUser(UserProfile? user);
 
+  Future<void> setAppLock(bool on);
+
   Future<void> addExpense(Expense expense);
 
   /// Saves new amount, category, need/want and note; the date stays.
@@ -67,6 +69,9 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> setCurrentUser(UserProfile? user) async => _user = user;
+
+  @override
+  Future<void> setAppLock(bool on) async {}
 
   @override
   Future<void> addExpense(Expense expense) async {}

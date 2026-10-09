@@ -502,4 +502,104 @@ void main() {
     expect(expenses.map((e) => e.id), isNot(contains('gone')));
     expect(expenses.map((e) => e.id), contains('back'));
   });
+
+  test('the app lock setting and your name survive reopening', () async {
+    var repo = openRepo();
+    expect((await repo.load()).appLock, isFalse);
+    final state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      user: const UserProfile(name: 'Alex'),
+      clock: () => now,
+    );
+    state.setAppLock(true);
+    state.rename('Alexis');
+    await pumpEventQueue(times: 100);
+
+    repo = await reopen(repo);
+    expect((await repo.load()).appLock, isTrue);
+    expect((await repo.currentUser())?.name, 'Alexis');
+  });
+
+  group('when a save fails', () {
+    late _FlakyRepository repo;
+    late AppState state;
+    late List<SaveProblem> problems;
+
+    setUp(() async {
+      repo = _FlakyRepository(
+        RunwayDatabase(NativeDatabase(file)),
+        clock: () => now,
+      );
+      state = AppState(
+        repository: repo,
+        data: await repo.load(),
+        clock: () => now,
+      );
+      problems = [];
+      state.problems.listen(problems.add);
+    });
+
+    tearDown(() async {
+      state.dispose();
+      await repo.close();
+    });
+
+    test('the change is undone and the user is told', () async {
+      final before = state.allExpenses.length;
+      final safe = state.snapshot.safeToSpendToday;
+      repo.failWrites = true;
+      state.addExpense(
+        amount: 40,
+        category: ExpenseCategory.fun,
+        isNeed: false,
+      );
+      expect(state.allExpenses.length, before + 1); // optimistic
+
+      await pumpEventQueue(times: 100);
+      expect(state.allExpenses.length, before);
+      expect(state.snapshot.safeToSpendToday, closeTo(safe, 1e-9));
+      expect(problems, [SaveProblem.undone]);
+    });
+
+    test('changes that did save are kept', () async {
+      state.addExpense(
+        amount: 3,
+        category: ExpenseCategory.coffee,
+        isNeed: false,
+      );
+      repo.failWrites = true;
+      state.addExpense(
+        amount: 40,
+        category: ExpenseCategory.fun,
+        isNeed: false,
+      );
+      repo.failWrites = false;
+      state.addExpense(
+        amount: 7,
+        category: ExpenseCategory.transit,
+        isNeed: true,
+      );
+
+      await pumpEventQueue(times: 100);
+      final amounts = state.recentExpenses(3).map((e) => e.amount);
+      expect(amounts, containsAll([3, 7]));
+      expect(amounts, isNot(contains(40)));
+      expect(problems, [SaveProblem.undone]);
+    });
+  });
+}
+
+/// Saves to a real database, but [failWrites] makes new expenses fail to
+/// save, like a full disk would.
+class _FlakyRepository extends DriftBudgetRepository {
+  _FlakyRepository(super.db, {super.clock});
+
+  bool failWrites = false;
+
+  @override
+  Future<void> addExpense(Expense expense) async {
+    if (failWrites) throw StateError('disk full');
+    await super.addExpense(expense);
+  }
 }

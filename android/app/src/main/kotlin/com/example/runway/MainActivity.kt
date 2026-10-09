@@ -1,5 +1,6 @@
 package com.example.runway
 
-import io.flutter.embedding.android.FlutterActivity
+// local_auth's biometric prompt needs a FragmentActivity.
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity : FlutterFragmentActivity()

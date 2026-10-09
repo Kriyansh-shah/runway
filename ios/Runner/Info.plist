@@ -32,13 +32,15 @@
 			<array>
 				<string>runway</string>
 			</array>
-	-->
 		</dict>
 	</array>
+	-->
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Runway uses Face ID so only you can open your budget.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

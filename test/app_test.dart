@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/app_state.dart';
 import 'package:runway/app/auth.dart';
+import 'package:runway/app/device_auth.dart';
 import 'package:runway/app/models.dart';
 // import 'package:runway/app/purchase_link.dart';
 import 'package:runway/app/repository.dart';
@@ -457,10 +458,12 @@ void main() {
     await settle(tester);
 
     expect(find.text('Saved'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).first, '');
+    // The first field is your name; the term name comes next.
+    final termName = find.byType(TextField).at(1);
+    await tester.enterText(termName, '');
     await settle(tester, const Duration(milliseconds: 300));
     expect(find.text('Give the term a name.'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).first, 'Fall 2026');
+    await tester.enterText(termName, 'Fall 2026');
     await settle(tester, const Duration(milliseconds: 300));
     await tester.tap(find.text('Save changes'));
     await settle(tester);
@@ -576,6 +579,27 @@ void main() {
     expect(find.textContaining('${count - 1} expenses'), findsOneWidget);
   });
 
+  testWidgets('a failed save shows a message', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = AppState(
+      repository: _FailingRepository(now: now),
+      data: MockBudgetRepository.seed(now),
+      user: const UserProfile(name: 'Alex', email: 'alex@uni.edu'),
+      clock: () => now,
+    );
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    state.addExpense(amount: 9, category: ExpenseCategory.fun, isNeed: false);
+    await settle(tester);
+
+    expect(find.text(SaveProblem.undone.message), findsOneWidget);
+    // The failure is still reported for debugging, not swallowed.
+    expect(tester.takeException(), isA<StateError>());
+  });
+
   testWidgets('squad split-a-bill sheet creates IOUs', (tester) async {
     tester.view.physicalSize = const Size(750, 1334); // small phone
     tester.view.devicePixelRatio = 2;
@@ -612,8 +636,8 @@ void main() {
     expect(find.text('Split a bill'), findsOneWidget); // sheet closed
   });
 
-  group('login', () {
-    AppState signedOut() => AppState(
+  group('welcome', () {
+    AppState fresh() => AppState(
       repository: MockBudgetRepository(now: now),
       data: MockBudgetRepository.seed(now),
       clock: () => now,
@@ -627,90 +651,215 @@ void main() {
       await settle(tester);
     }
 
-    testWidgets('signing in reveals home with your name', (tester) async {
-      final state = signedOut();
+    testWidgets('asks only for a name, then reveals home', (tester) async {
+      final state = fresh();
       await boot(tester, state);
       expect(find.byType(LogoMark), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget); // no email, no password
 
-      await tester.enterText(find.byType(TextField).at(0), 'maya.k@uni.edu');
-      await tester.enterText(find.byType(TextField).at(1), 'hunter22');
-      await tester.tap(find.text('Sign in').last);
+      await tester.enterText(find.byType(TextField), '  Maya ');
+      await tester.tap(find.text('Get started'));
       await settle(tester, const Duration(seconds: 3));
 
       expect(tester.takeException(), isNull);
       expect(state.user?.name, 'Maya');
+      expect(state.user?.email, isEmpty);
       expect(find.text('Hey, Maya'), findsOneWidget);
-      expect(find.byType(LogoMark), findsNothing); // login route is gone
+      expect(find.byType(LogoMark), findsNothing); // welcome route is gone
     });
 
-    testWidgets('bad credentials show an error and stay put', (tester) async {
-      final state = signedOut();
+    testWidgets('an empty name shows an error and stays put', (tester) async {
+      final state = fresh();
       await boot(tester, state);
 
-      await tester.enterText(find.byType(TextField).at(0), 'not-an-email');
-      await tester.enterText(find.byType(TextField).at(1), 'hunter22');
-      await tester.tap(find.text('Sign in').last);
+      await tester.tap(find.text('Get started'));
       await settle(tester);
 
-      expect(find.text('That email doesn\'t look right.'), findsOneWidget);
+      expect(find.text('What should we call you?'), findsOneWidget);
       expect(state.user, isNull);
     });
 
-    testWidgets('create account uses the name you type', (tester) async {
-      final state = signedOut();
-      await boot(tester, state);
-
-      await tester.tap(find.text('Create account').first);
-      await settle(tester);
-      await tester.enterText(find.byType(TextField).at(0), 'Sam');
-      await tester.enterText(find.byType(TextField).at(1), 'sam@uni.edu');
-      await tester.enterText(find.byType(TextField).at(2), 'secret1');
-      await tester.tap(find.text('Create account').last);
-      await settle(tester, const Duration(seconds: 3));
-
-      expect(find.text('Hey, Sam'), findsOneWidget);
-    });
-
-    testWidgets('signing out returns to login', (tester) async {
+    testWidgets('your name can be changed in settings', (tester) async {
+      final semantics = tester.ensureSemantics();
       final state = buildState();
       await boot(tester, state);
 
       await tester.tap(find.text('A')); // avatar initial
       await settle(tester);
-      expect(find.text('Settings'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Sign out'),
-        200,
-        scrollable: find
-            .descendant(
-              of: find.byType(SettingsScreen),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      await tester.tap(find.text('Sign out'));
-      await settle(tester, const Duration(seconds: 2));
+      await tester.enterText(find.byType(TextField).first, 'Alexis');
+      await settle(tester, const Duration(milliseconds: 300));
+      await tester.tap(find.bySemanticsLabel('Save name'));
+      await settle(tester);
 
-      expect(state.user, isNull);
-      expect(find.byType(LogoMark), findsOneWidget);
+      expect(state.user?.name, 'Alexis');
+      expect(find.text('Sign out'), findsNothing);
+      semantics.dispose();
     });
   });
 
-  group('validateCredentials', () {
-    test('accepts good input', () {
-      expect(validateCredentials(email: 'a@b.co', password: '123456'), isNull);
-    });
-    test('rejects bad email, short password, empty name', () {
-      expect(validateCredentials(email: 'a@b', password: '123456'), isNotNull);
-      expect(validateCredentials(email: 'a@b.co', password: '123'), isNotNull);
-      expect(
-        validateCredentials(email: 'a@b.co', password: '123456', name: ' '),
-        isNotNull,
+  test('names are required and kept short', () {
+    expect(validateName('Sam'), isNull);
+    expect(validateName('   '), isNotNull);
+    expect(validateName('x' * 31), isNotNull);
+  });
+
+  group('app lock', () {
+    late _FakeDeviceAuth deviceAuth;
+    late DateTime clock;
+
+    AppState lockedState({bool lockOn = true}) {
+      final demo = MockBudgetRepository.seed(now);
+      return AppState(
+        repository: MockBudgetRepository(now: now),
+        data: BudgetData(
+          term: demo.term,
+          expenses: demo.expenses,
+          upcoming: demo.upcoming,
+          friends: demo.friends,
+          splits: demo.splits,
+          challengeStart: demo.challengeStart,
+          appLock: lockOn,
+        ),
+        user: const UserProfile(name: 'Alex'),
+        deviceAuth: deviceAuth,
+        clock: () => clock,
       );
+    }
+
+    Future<void> boot(WidgetTester tester, AppState state) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+    }
+
+    Future<void> goAway(WidgetTester tester, Duration away) async {
+      final binding = tester.binding;
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      clock = clock.add(away);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await settle(tester);
+    }
+
+    setUp(() {
+      deviceAuth = _FakeDeviceAuth();
+      clock = now;
     });
-    test('derives a display name from the email', () {
-      expect(nameFromEmail('alex.kim99@uni.edu'), 'Alex');
-      expect(nameFromEmail('42@uni.edu'), 'Friend');
+
+    testWidgets('opens locked and asks for Face ID right away', (tester) async {
+      deviceAuth.result = DeviceAuthResult.failed; // cancelled
+      await boot(tester, lockedState());
+
+      expect(deviceAuth.prompts, 1);
+      expect(find.text('Runway is locked'), findsOneWidget);
+
+      deviceAuth.result = DeviceAuthResult.success;
+      await tester.tap(find.text('Unlock'));
+      await settle(tester);
+      expect(find.text('Runway is locked'), findsNothing);
+      expect(find.text('Safe to spend today'), findsOneWidget);
+    });
+
+    testWidgets('locks again after a minute away, not after a few seconds', (
+      tester,
+    ) async {
+      await boot(tester, lockedState()); // unlocks: fake says success
+      expect(find.text('Runway is locked'), findsNothing);
+
+      deviceAuth.result = DeviceAuthResult.failed;
+      await goAway(tester, const Duration(seconds: 20));
+      expect(find.text('Runway is locked'), findsNothing);
+
+      await goAway(tester, const Duration(minutes: 2));
+      expect(find.text('Runway is locked'), findsOneWidget);
+      expect(deviceAuth.prompts, 2);
+    });
+
+    testWidgets('balances are covered in the app switcher', (tester) async {
+      await boot(tester, lockedState(lockOn: false));
+      expect(find.byType(LogoMark), findsNothing);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(find.byType(LogoMark), findsOneWidget);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(find.byType(LogoMark), findsNothing);
+      expect(deviceAuth.prompts, 0); // lock is off
+    });
+
+    testWidgets('a phone without a passcode is never locked out', (
+      tester,
+    ) async {
+      deviceAuth.result = DeviceAuthResult.unavailable;
+      await boot(tester, lockedState());
+      expect(find.text('Runway is locked'), findsNothing);
+    });
+
+    testWidgets('setup offers the lock and turns it on after Face ID', (
+      tester,
+    ) async {
+      final demo = MockBudgetRepository.seed(now);
+      final state = AppState(
+        repository: MockBudgetRepository(now: now),
+        data: BudgetData(
+          term: demo.term,
+          expenses: demo.expenses,
+          upcoming: demo.upcoming,
+          friends: demo.friends,
+          splits: demo.splits,
+          challengeStart: demo.challengeStart,
+          needsSetup: true,
+        ),
+        user: const UserProfile(name: 'Alex'),
+        deviceAuth: deviceAuth,
+        clock: () => clock,
+      );
+      await boot(tester, state);
+      expect(find.text('Lock Runway'), findsOneWidget);
+
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), 'Winter term');
+      await tester.enterText(fields.at(1), '1500');
+      await tester.tap(find.text('Pick date').first);
+      await settle(tester);
+      await tester.tap(find.text('20'));
+      await tester.tap(find.text('OK'));
+      await settle(tester);
+      await tester.ensureVisible(find.text('Start my runway'));
+      await tester.tap(find.text('Start my runway'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(deviceAuth.prompts, 1);
+      expect(state.appLockEnabled, isTrue);
+      expect(find.text('Safe to spend today'), findsOneWidget);
+    });
+
+    testWidgets('turning the lock on in settings asks for Face ID first', (
+      tester,
+    ) async {
+      final state = lockedState(lockOn: false);
+      await boot(tester, state);
+      await tester.tap(find.text('A'));
+      await settle(tester);
+
+      deviceAuth.result = DeviceAuthResult.failed;
+      await tester.tap(find.byType(Switch));
+      await settle(tester);
+      expect(state.appLockEnabled, isFalse);
+
+      deviceAuth.result = DeviceAuthResult.success;
+      await tester.tap(find.byType(Switch));
+      await settle(tester);
+      expect(state.appLockEnabled, isTrue);
+      expect(deviceAuth.prompts, 2);
     });
   });
 
@@ -801,4 +950,28 @@ void main() {
       expect(ringPulse.value, pulses + 1);
     });
   });
+}
+
+/// Nothing ever saves.
+class _FailingRepository extends MockBudgetRepository {
+  _FailingRepository({super.now});
+
+  @override
+  Future<void> addExpense(Expense expense) async =>
+      throw StateError('disk full');
+}
+
+/// Face ID that answers whatever the test sets.
+class _FakeDeviceAuth implements DeviceAuth {
+  DeviceAuthResult result = DeviceAuthResult.success;
+  int prompts = 0;
+
+  @override
+  Future<bool> isAvailable() async => result != DeviceAuthResult.unavailable;
+
+  @override
+  Future<DeviceAuthResult> authenticate(String reason) async {
+    prompts++;
+    return result;
+  }
 }

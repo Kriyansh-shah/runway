@@ -80,7 +80,7 @@ void main() {
     );
   });
 
-  testWidgets('first launch: intro plays, then the login card is usable', (
+  testWidgets('first launch: intro plays, then the welcome card is usable', (
     tester,
   ) async {
     final s = state();
@@ -93,9 +93,8 @@ void main() {
     expect(find.byType(MochiTakeoff), findsNothing);
     expect(find.byType(LogoMark), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField).at(0), 'maya@uni.edu');
-    await tester.enterText(find.byType(TextField).at(1), 'hunter22');
-    await tester.tap(find.text('Sign in').last);
+    await tester.enterText(find.byType(TextField), 'Maya');
+    await tester.tap(find.text('Get started'));
     await play(tester, const Duration(seconds: 3));
     expect(find.text('Hey, Maya'), findsOneWidget);
   });

@@ -17,24 +17,25 @@ import '../widgets/transitions.dart';
 import 'setup_screen.dart';
 import '../widgets/ph_icons.dart';
 
-enum _Phase { idle, loading, success }
+enum _Phase { idle, success }
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.playIntro = false});
+/// First screen on a fresh install (or after erasing everything): asks only
+/// for a name. There are no accounts and no passwords; the money data never
+/// leaves the phone, and the optional app lock protects it.
+class WelcomeScreen extends StatefulWidget {
+  const WelcomeScreen({super.key, this.playIntro = false});
 
-  /// Play "Mochi's Takeoff" first (app launch). Skipped when signing out
-  /// or when the phone asks for reduced motion.
+  /// Play "Mochi's Takeoff" first (app launch). Skipped after erasing
+  /// everything or when the phone asks for reduced motion.
   final bool playIntro;
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _WelcomeScreenState extends State<WelcomeScreen>
     with TickerProviderStateMixin {
   final _name = TextEditingController();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
   final _buttonKey = GlobalKey();
   final _logoKey = GlobalKey();
   final _stackKey = GlobalKey();
@@ -45,25 +46,21 @@ class _LoginScreenState extends State<LoginScreen>
   );
   late bool _introRunning = widget.playIntro;
 
-  bool _signUp = false;
-  bool _showPassword = false;
   _Phase _phase = _Phase.idle;
   String? _error;
 
-  /// Horizontal shake when credentials are rejected.
+  /// Horizontal shake when the name is missing.
   late final _shake = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 450),
   );
 
-  /// Pushes the login content back while the next screen is revealed.
+  /// Pushes the welcome content back while the next screen is revealed.
   late final _exit = AnimationController(vsync: this, duration: Motion.slow);
 
   @override
   void dispose() {
     _name.dispose();
-    _email.dispose();
-    _password.dispose();
     _introTime.dispose();
     _shake.dispose();
     _exit.dispose();
@@ -89,50 +86,23 @@ class _LoginScreenState extends State<LoginScreen>
     return stack.globalToLocal(header.localToGlobal(LogoMark.baseline));
   }
 
-  void _setMode(bool signUp) {
-    if (signUp == _signUp || _phase != _Phase.idle) return;
-    HapticFeedback.selectionClick();
-    setState(() {
-      _signUp = signUp;
-      _error = null;
-    });
-  }
-
   Future<void> _submit() async {
     if (_phase != _Phase.idle) return;
-    FocusScope.of(context).unfocus();
-    final state = AppScope.read(context);
-    setState(() {
-      _phase = _Phase.loading;
-      _error = null;
-    });
-
-    final UserProfile user;
-    try {
-      user = _signUp
-          ? await state.auth.signUp(
-              name: _name.text,
-              email: _email.text,
-              password: _password.text,
-            )
-          : await state.auth.signIn(
-              email: _email.text,
-              password: _password.text,
-            );
-    } on AuthException catch (e) {
-      if (!mounted) return;
+    final error = validateName(_name.text);
+    if (error != null) {
       HapticFeedback.heavyImpact();
-      setState(() {
-        _phase = _Phase.idle;
-        _error = e.message;
-      });
+      setState(() => _error = error);
       _shake.forward(from: 0);
       return;
     }
-
-    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    final state = AppScope.read(context);
+    final user = UserProfile(name: _name.text.trim());
     HapticFeedback.mediumImpact();
-    setState(() => _phase = _Phase.success);
+    setState(() {
+      _error = null;
+      _phase = _Phase.success;
+    });
     await Future<void>.delayed(const Duration(milliseconds: 380));
     if (!mounted) return;
 
@@ -184,76 +154,15 @@ class _LoginScreenState extends State<LoginScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ModeToggle(signUp: _signUp, onChanged: _setMode),
-                const SizedBox(height: 16),
-                AnimatedSize(
-                  duration: Motion.med,
-                  curve: Motion.out,
-                  alignment: Alignment.topCenter,
-                  child: AnimatedSwitcher(
-                    duration: Motion.med,
-                    child: _signUp
-                        ? Padding(
-                            key: const ValueKey('name'),
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: GlassTextField(
-                              controller: _name,
-                              hint: 'Your first name',
-                              icon: PhIcons.user,
-                              textCapitalization: TextCapitalization.words,
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.givenName],
-                            ),
-                          )
-                        : const SizedBox(
-                            key: ValueKey('none'),
-                            width: double.infinity,
-                          ),
-                  ),
-                ),
                 GlassTextField(
-                  controller: _email,
-                  hint: 'you@uni.edu',
-                  icon: PhIcons.at,
-                  keyboardType: TextInputType.emailAddress,
-                  textCapitalization: TextCapitalization.none,
-                  textInputAction: TextInputAction.next,
-                  autofillHints: const [AutofillHints.email],
-                  maxLength: 80,
-                ),
-                const SizedBox(height: 12),
-                GlassTextField(
-                  controller: _password,
-                  hint: 'Password',
-                  icon: PhIcons.lock,
-                  obscureText: !_showPassword,
-                  textCapitalization: TextCapitalization.none,
+                  controller: _name,
+                  hint: 'Your first name',
+                  icon: PhIcons.user,
+                  textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.go,
                   onSubmitted: (_) => _submit(),
-                  autofillHints: [
-                    _signUp
-                        ? AutofillHints.newPassword
-                        : AutofillHints.password,
-                  ],
-                  maxLength: 64,
-                  suffix: Pressable(
-                    onTap: () => setState(() => _showPassword = !_showPassword),
-                    semanticLabel: _showPassword
-                        ? 'Hide password'
-                        : 'Show password',
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: AnimatedSwitcher(
-                        duration: Motion.fast,
-                        child: Icon(
-                          _showPassword ? PhIcons.eyeSlash : PhIcons.eye,
-                          key: ValueKey(_showPassword),
-                          size: 20,
-                          color: AppColors.muted,
-                        ),
-                      ),
-                    ),
-                  ),
+                  autofillHints: const [AutofillHints.givenName],
+                  maxLength: 30,
                 ),
                 AnimatedSize(
                   duration: Motion.med,
@@ -288,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen>
                   child: _MorphButton(
                     key: _buttonKey,
                     phase: _phase,
-                    label: _signUp ? 'Create account' : 'Sign in',
+                    label: 'Get started',
                     onTap: busy ? null : _submit,
                   ),
                 ),
@@ -299,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen>
       ),
       const SizedBox(height: 20),
       Text(
-        '🔒 No bank linking. Your money data stays on this device.',
+        '🔒 No account, no bank linking. Your money data stays on this phone.',
         style: AppText.caption.copyWith(fontSize: 12, letterSpacing: 0),
         textAlign: TextAlign.center,
       ),
@@ -364,7 +273,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-/// Rises a login section in with the intro's clock, staggered by [index].
+/// Rises a welcome section in with the intro's clock, staggered by [index].
 class _IntroRise extends StatelessWidget {
   const _IntroRise({
     required this.time,
@@ -398,69 +307,7 @@ class _IntroRise extends StatelessWidget {
   }
 }
 
-/// Sign in / Create account segmented control with a sliding pill.
-class _ModeToggle extends StatelessWidget {
-  const _ModeToggle({required this.signUp, required this.onChanged});
-  final bool signUp;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Stack(
-        children: [
-          AnimatedAlign(
-            alignment: signUp ? Alignment.centerRight : Alignment.centerLeft,
-            duration: Motion.med,
-            curve: Motion.spring,
-            child: FractionallySizedBox(
-              widthFactor: 0.5,
-              heightFactor: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Colors.white.withValues(alpha: 0.12),
-                  border: Border.all(color: AppColors.hairline),
-                ),
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              for (final up in [false, true])
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onChanged(up),
-                    child: Center(
-                      child: AnimatedDefaultTextStyle(
-                        duration: Motion.fast,
-                        style: AppText.label.copyWith(
-                          color: up == signUp
-                              ? AppColors.text
-                              : AppColors.muted,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        child: Text(up ? 'Create account' : 'Sign in'),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Gradient CTA that morphs: full-width label → spinner circle → mint check.
+/// Gradient CTA that morphs: full-width label → mint check.
 class _MorphButton extends StatelessWidget {
   const _MorphButton({
     super.key,
@@ -518,14 +365,6 @@ class _MorphButton extends StatelessWidget {
                 overflow: TextOverflow.clip,
                 softWrap: false,
                 style: AppText.heading.copyWith(color: AppColors.onLime),
-              ),
-              _Phase.loading => const SizedBox.square(
-                key: ValueKey('spin'),
-                dimension: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColors.onLime,
-                ),
               ),
               _Phase.success => const Icon(
                 PhIcons.checkBold,

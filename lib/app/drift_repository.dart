@@ -21,6 +21,7 @@ class DriftBudgetRepository implements BudgetRepository {
   static const _seededAtKey = 'seeded_at';
   static const _challengeStartKey = 'challenge_start';
   static const _setUpAtKey = 'set_up_at';
+  static const _appLockKey = 'app_lock';
   static const _sessionId = 1;
 
   Future<void> close() => _db.close();
@@ -58,6 +59,7 @@ class DriftBudgetRepository implements BudgetRepository {
     )..orderBy([(f) => OrderingTerm.asc(f.position)])).get();
     final challengeStart = await _getMeta(_challengeStartKey);
     final setUpAt = await _getMeta(_setUpAtKey);
+    final appLock = await _getMeta(_appLockKey);
 
     return BudgetData(
       term: Term(
@@ -104,6 +106,7 @@ class DriftBudgetRepository implements BudgetRepository {
           ? dateOnly(_clock())
           : _day(DateTime.parse(challengeStart)),
       needsSetup: setUpAt == null,
+      appLock: appLock == 'on',
     );
   }
 
@@ -143,6 +146,9 @@ class DriftBudgetRepository implements BudgetRepository {
           ),
         );
   }
+
+  @override
+  Future<void> setAppLock(bool on) => _setMeta(_appLockKey, on ? 'on' : 'off');
 
   // ----------------------------------------------------------------- writes
 

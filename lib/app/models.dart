@@ -205,6 +205,7 @@ class BudgetData {
     required this.splits,
     required this.challengeStart,
     this.needsSetup = false,
+    this.appLock = false,
   });
 
   final Term term;
@@ -217,4 +218,7 @@ class BudgetData {
 
   /// True until the user has entered their own term (still on demo data).
   final bool needsSetup;
+
+  /// Face ID / passcode lock is on.
+  final bool appLock;
 }

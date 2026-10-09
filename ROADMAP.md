@@ -25,7 +25,9 @@ Next plans for Runway, in the order we intend to build them. Each item says
 - [x] Money coming in (paychecks, allowance, one-off payments), counted on the day it arrives
 - [x] Settings: edit term, manage big costs, new semester, erase everything, sign out
 - [x] Edit and delete expenses, with Undo; "See all" expenses by day
-- [x] 89 tests (maths, coach, intro, motion, widget flows, small-screen layout, save → reopen, v1 → v2 migration)
+- [x] Failed saves are undone and reported instead of failing silently
+- [x] Name-only welcome (no fake password login), Face ID / passcode app lock, app-switcher cover
+- [x] 96 tests (maths, coach, intro, motion, widget flows, small-screen layout, save → reopen, v1 → v2 migration)
 
 ---
 
@@ -111,20 +113,64 @@ can delete a term or everything at any time.
 
 ## 4. 📋 Real accounts & security
 
-**Why:** Today's login accepts any valid-looking email. Real accounts only matter once
-there's sync or Squad, so this ships together with #5.
+**Why:** Real accounts only matter once there's sync or Squad, so this ships
+together with #5. Until then Runway asks only for a name (no fake password
+screen), and the app lock below protects the data on the phone.
 
 **What:**
-- **"Continue with Google"** and **"Continue with Apple"** buttons on the existing
-  login screen (keeping the circular reveal). Google opens its own secure sign-in
+- **"Continue with Google"** and **"Continue with Apple"** buttons on the
+  welcome screen (keeping the circular reveal). Google opens its own secure sign-in
   sheet / account picker and returns to the app with a signed token.
-- Apple's App Store rules require Sign in with Apple whenever Google login is offered
-  on iOS, so the two ship together. Email login stays as a third option.
+- If Google login is offered, the App Store requires a privacy-focused option
+  too, and Sign in with Apple qualifies, so the two ship together. Email codes
+  (no passwords) are the third option.
+- In-app **account deletion** (App Store requirement) and a privacy policy.
 - Setup: Google Cloud OAuth client IDs (iOS, Android, macOS), URL scheme in
   `Info.plist`, Android signing SHA-1, `google_sign_in` + Apple sign-in packages.
 - Tokens are verified by Supabase Auth (see #5), so no custom auth server.
-- Optional **Face ID / Touch ID / passcode lock** for the app, which works even with no account.
-- Swap `LocalAuthService` for a real `AuthService` implementation (no UI changes).
+- ✅ ~~Optional **Face ID / Touch ID / passcode lock**~~ (shipped, with an
+  app-switcher cover).
+- 📋 Encrypt `runway.sqlite` with SQLCipher, key in Keychain / Keystore.
+- Add a real `AuthService` (Supabase) next to the name-only profile.
+
+### Security plan
+
+**Phase 1: protect the data on the phone (✅ shipped)**
+- Replaced the stand-in email/password login (it accepted anything and
+  protected nothing) with a **name-only welcome screen**. No passwords are
+  asked for or stored.
+- Optional **Face ID / Touch ID / passcode app lock**: offered in setup, toggled
+  in Settings (both ways need Face ID), asks on launch and after 1 minute away,
+  falls back to the passcode, never locks out a phone with no passcode.
+- **App-switcher cover** so balances don't show in the app switcher.
+- Next: **SQLCipher** encryption of `runway.sqlite`; decide on iCloud / Android
+  backups (on = keep data when switching phones, off = data never leaves).
+
+**Phase 2: real accounts (with the Squad backend, #5)**
+
+*Owner to-do (needs your accounts, payments or decisions):*
+- [ ] Apple Developer Program ($99/yr): needed for Sign in with Apple and the App Store.
+- [ ] Supabase project (free tier): share the project URL + anon key. Never share
+      the service role key.
+- [ ] Google Cloud project: OAuth consent screen (name + email only), iOS client
+      ID and web client ID.
+- [ ] Google Play Console ($25 once), only if shipping Android; app signing SHA-1.
+- [ ] Turn on "Sign in with Apple" for `com.kriyanshshah.runway`; enable Apple,
+      Google and Email providers in Supabase.
+- [ ] Email sending service (Resend / Postmark free tier), ideally with your own domain.
+- [ ] Privacy policy at a public URL (can be a GitHub Pages page).
+- [ ] App Store privacy label and Play Data safety form.
+- [ ] Decide: sign-in options (recommended: Apple + Google + email codes, no
+      passwords), what syncs (recommended: Squad only, never money data), and
+      what happens to the money data when a different person signs in on the
+      same phone.
+
+*Build (once the keys exist):*
+- [ ] `supabase_flutter` behind a real `AuthService`; sessions in Keychain / Keystore.
+- [ ] Apple, Google and email-code buttons on the welcome screen.
+- [ ] Squad tables with row-level security on every table.
+- [ ] In-app account deletion (needs a small Edge Function).
+- [ ] URL scheme / universal link so email links open the app; tests.
 
 ---
 
