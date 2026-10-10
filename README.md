@@ -363,7 +363,7 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 | 2 | **Onboarding & setup:** term dates, starting balance, upcoming costs, money coming in, settings | ✅ Done |
 | 3 | **History by semester:** term recaps, undo delete, CSV export, encrypted backup | 📋 Planned |
 | 4 | **Real accounts:** Continue with Google / Apple + email codes (app lock ✅ shipped) | 📋 Planned |
-| 5 | **Squad backend (Supabase):** real friends, challenges and IOUs; never amounts | 📋 Planned |
+| 5 | **Squad backend (Supabase):** invite links + QR codes (no search), small squads, challenges and IOUs; never amounts | 📋 Planned |
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |
 | 7 | **Polish:** notifications, home-screen widget, recurring costs, app icon | 💡 Ideas |
 

@@ -178,14 +178,64 @@ screen), and the app lock below protects the data on the phone.
 
 **Why:** Friends, challenges and shared bills need a server. Personal money data does not.
 
-**What:**
-- [Supabase](https://supabase.com) for auth plus a Postgres database with row-level security.
-- Invite friends and roommates by link or code.
-- Sync **only**: streaks, challenge dots, bill split IOUs and settle-ups.
-- **Never sync** balances, expenses or runway numbers.
-- Push notification when a roommate settles up or a friend breaks a challenge.
+### How friends connect: invites, not search
 
-**Done when:** two phones see the same challenge and IOUs in real time.
+No username search and no friend requests. You connect by handing someone a
+private invite, and accepting it *is* the consent, so nobody waits for approval.
+
+- **Invite link (main way):** "Invite friends" makes a link like
+  `runway.app/join/K7M2QX` to share in iMessage, WhatsApp, Instagram or a group
+  chat. It opens the app straight to "Alex invited you to their squad. Join?",
+  or the App Store first if Runway isn't installed (then shows the invite).
+- **QR code (in person):** the same invite as a QR code; the normal iPhone
+  camera opens it, no in-app scanner needed.
+- **Short code (backup):** e.g. `MOCHI-7K2`, to read out or type.
+- **Invite safety:** expires after 7 days, can be revoked, limited uses, rate
+  limited, so a link posted publicly can't flood a squad.
+- **Why no search:** anyone could find and pester you; wrong default for a
+  student money app. Can be added later if people ask.
+
+### Squads, not one big friends list
+
+- A **squad** is a small group (up to ~8): roommates, a friend group, a study
+  group. You can be in a few.
+- Challenges ("no delivery this week") and leaderboards are per squad; an
+  invite link is for one squad.
+
+### What friends see
+
+- **Can see:** first name, Mochi, streak, challenge progress.
+- **Never see:** balances, expenses, safe-to-spend or any amounts.
+- **Controls:** remove someone, leave a squad, block and report (Apple expects
+  block/report when users can interact).
+
+### Bill splits
+
+- Roommates **don't need the app**: IOUs keep working on your phone as today.
+- If a roommate is in your squad, the IOU syncs to them and "Settle up" notifies
+  you. Only the IOU between you two is shared, never your budget.
+
+### Under the hood
+
+- [Supabase](https://supabase.com): Postgres with **row-level security on every
+  table** (you can only read squads you're in).
+- **Anonymous accounts first:** each phone gets an invisible Supabase account
+  automatically, so Squad works without signing up. "Continue with Apple /
+  Google" (#4) later upgrades that same account so it survives a new phone.
+- Sync **only**: squad membership, names, Mochi, streaks, challenge dots, IOUs
+  and settle-ups. **Never sync** balances, expenses or runway numbers.
+- Universal links (iOS) / app links (Android) on the domain, so invite links
+  open the app; deferred deep link so the invite survives an App Store install.
+- Push notification when a roommate settles up, someone joins your squad, or a
+  friend breaks a challenge.
+
+### Open decision
+
+- [ ] **Domain** for invite links (e.g. runway.app, ~$10–15/yr). Also hosts the
+      privacy policy and sends email (#4).
+
+**Done when:** two phones join the same squad from a link or QR code, see the
+same challenge and IOUs in real time, and neither can see the other's money.
 
 ---
 
