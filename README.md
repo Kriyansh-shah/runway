@@ -431,6 +431,8 @@ single week doesn't.
 
 ## Privacy
 
+The full policy is in [docs/privacy.md](docs/privacy.md); the App Store checklist is in [docs/app-store.md](docs/app-store.md).
+
 - No bank linking, ever.
 - Expenses, balances and history stay **on your device**, encrypted on phones.
 - Friends only ever see **streaks and challenge progress**, never amounts.
