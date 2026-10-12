@@ -313,4 +313,135 @@ void main() {
     expect(s.spentToday, 20);
     expect(s.burnRate, closeTo(120 / 10, 1e-9));
   });
+
+  group('nextMonth', () {
+    Term month(double balance) => Term(
+      name: 'October',
+      start: DateTime(2026, 10, 1),
+      end: DateTime(2026, 10, 31),
+      startingBalance: balance,
+      period: BudgetPeriod.monthly,
+    );
+    Income salary({DateTime? endsOn}) => Income(
+      id: 'salary',
+      name: 'Salary',
+      amount: 2000,
+      frequency: IncomeFrequency.monthly,
+      firstDate: DateTime(2026, 10, 25),
+      endsOn: endsOn,
+    );
+    Expense spent(double amount) => Expense(
+      id: 'e$amount',
+      amount: amount,
+      category: ExpenseCategory.other,
+      isNeed: true,
+      date: DateTime(2026, 10, 12, 9),
+    );
+
+    test('only once a monthly budget\'s month is over', () {
+      expect(
+        nextMonth(
+          term: term,
+          expenses: const [],
+          incomes: const [],
+          today: day(30),
+        ),
+        isNull,
+      );
+      expect(
+        nextMonth(
+          term: month(100),
+          expenses: const [],
+          incomes: const [],
+          today: DateTime(2026, 10, 31),
+        ),
+        isNull,
+      );
+    });
+
+    test('leftover money starts the next calendar month', () {
+      final next = nextMonth(
+        term: month(1000),
+        expenses: [spent(300)],
+        incomes: [salary()],
+        today: DateTime(2026, 11, 3),
+      )!;
+      expect(next.term.name, 'November');
+      expect(next.term.start, DateTime(2026, 11, 1));
+      expect(next.term.end, DateTime(2026, 11, 30));
+      expect(next.term.period, BudgetPeriod.monthly);
+      expect(next.term.startingBalance, 2700); // 1000 + 2000 − 300
+      expect(next.overspent, 0);
+    });
+
+    test('months skipped while the app was closed still get paid', () {
+      final next = nextMonth(
+        term: month(0),
+        expenses: [spent(500)],
+        incomes: [salary()],
+        today: DateTime(2027, 1, 4),
+      )!;
+      expect(next.term.name, 'January');
+      expect(next.term.end, DateTime(2027, 1, 31));
+      // October 1500, plus November's and December's paychecks.
+      expect(next.term.startingBalance, 5500);
+    });
+
+    test('stopped pay and one-off money don\'t carry over', () {
+      final stopped = salary(endsOn: DateTime(2026, 10, 26));
+      final gift = Income(
+        id: 'gift',
+        name: 'Gift',
+        amount: 50,
+        frequency: IncomeFrequency.once,
+        firstDate: DateTime(2026, 10, 3),
+      );
+      final weekly = Income(
+        id: 'job',
+        name: 'Job',
+        amount: 100,
+        frequency: IncomeFrequency.weekly,
+        firstDate: DateTime(2026, 10, 2),
+      );
+      expect(
+        continuingIncomes([stopped, gift, weekly], DateTime(2026, 10, 31)),
+        [weekly],
+      );
+      final next = nextMonth(
+        term: month(0),
+        expenses: const [],
+        incomes: [stopped, gift],
+        today: DateTime(2026, 12, 1),
+      )!;
+      expect(next.term.startingBalance, 2050); // nothing added in November
+    });
+
+    test('overspending starts the month at zero and reports the gap', () {
+      final next = nextMonth(
+        term: month(100),
+        expenses: [spent(150)],
+        incomes: const [],
+        today: DateTime(2026, 11, 1),
+      )!;
+      expect(next.term.startingBalance, 0);
+      expect(next.overspent, 50);
+    });
+
+    test('a month that starts on the 31st runs to the end of the month', () {
+      final next = nextMonth(
+        term: Term(
+          name: 'January',
+          start: DateTime(2027, 1, 14),
+          end: DateTime(2027, 1, 31),
+          startingBalance: 10,
+          period: BudgetPeriod.monthly,
+        ),
+        expenses: const [],
+        incomes: const [],
+        today: DateTime(2027, 2, 1),
+      )!;
+      expect(next.term.start, DateTime(2027, 2, 1));
+      expect(next.term.end, DateTime(2027, 2, 28));
+    });
+  });
 }

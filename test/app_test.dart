@@ -167,6 +167,55 @@ void main() {
     );
   });
 
+  testWidgets('first run: a monthly budget runs to the end of the month', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final demo = MockBudgetRepository.seed(now);
+    final state = AppState(
+      repository: MockBudgetRepository(now: now),
+      data: BudgetData(
+        term: demo.term,
+        expenses: demo.expenses,
+        upcoming: demo.upcoming,
+        friends: demo.friends,
+        splits: demo.splits,
+        challengeStart: demo.challengeStart,
+        needsSetup: true,
+      ),
+      user: const UserProfile(name: 'Alex'),
+      clock: () => now,
+    );
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await tester.tap(find.text('Monthly'));
+    await settle(tester);
+    expect(find.text('Set up your month'), findsOneWidget);
+    expect(find.text('Term name'), findsNothing);
+    expect(find.text('Oct 31, then monthly'), findsOneWidget);
+
+    // No name or end date to fill in: the money is the first field.
+    await tester.enterText(find.byType(TextField).first, '900');
+    await settle(tester);
+    await tester.ensureVisible(find.text('Start my runway'));
+    await tester.tap(find.text('Start my runway'));
+    await settle(tester, const Duration(seconds: 2));
+
+    expect(state.term.name, 'October');
+    expect(state.term.period, BudgetPeriod.monthly);
+    expect(state.term.start, DateTime(2026, 10, 2));
+    expect(state.term.end, DateTime(2026, 10, 31));
+    expect(state.term.startingBalance, 900);
+    expect(
+      find.textContaining('Month ends Oct 31', findRichText: true),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('coach chip produces a verdict after typing', (tester) async {
     final semantics = tester.ensureSemantics();
     tester.view.physicalSize = const Size(1290, 2796);

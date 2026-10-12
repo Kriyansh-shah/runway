@@ -67,6 +67,7 @@ class DriftBudgetRepository implements BudgetRepository {
         start: _day(term.start),
         end: _day(term.end),
         startingBalance: _dollars(term.startingBalanceCents),
+        period: term.period,
       ),
       expenses: [for (final r in expenses) _expense(r)],
       upcoming: [
@@ -217,6 +218,7 @@ class DriftBudgetRepository implements BudgetRepository {
         start: Value(term.start),
         end: Value(term.end),
         startingBalanceCents: Value(_cents(term.startingBalance)),
+        period: Value(term.period),
       ),
     );
   }
@@ -247,20 +249,7 @@ class DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> addIncome(Income income) async {
     final termId = await _currentTermId();
-    await _db
-        .into(_db.incomes)
-        .insert(
-          IncomesCompanion.insert(
-            id: income.id,
-            termId: termId,
-            name: income.name,
-            amountCents: _cents(income.amount),
-            frequency: income.frequency,
-            firstDate: income.firstDate,
-            endsOn: Value(income.endsOn),
-            createdAt: _clock(),
-          ),
-        );
+    await _db.into(_db.incomes).insert(_incomeRow(income, termId, _clock()));
   }
 
   @override
@@ -307,19 +296,7 @@ class DriftBudgetRepository implements BudgetRepository {
     _termId = null;
     final now = _clock();
     return _db.transaction(() async {
-      await (_db.update(_db.terms)..where((t) => t.archivedAt.isNull())).write(
-        TermsCompanion(archivedAt: Value(now)),
-      );
-      final termId = await _db
-          .into(_db.terms)
-          .insert(
-            TermsCompanion.insert(
-              name: term.name,
-              start: term.start,
-              end: term.end,
-              startingBalanceCents: _cents(term.startingBalance),
-            ),
-          );
+      final termId = await _replaceCurrentTerm(term, now);
       await _db.batch((b) {
         b.insertAll(_db.upcomingCosts, [
           for (final c in upcoming) _costRow(c, termId),
@@ -328,6 +305,51 @@ class DriftBudgetRepository implements BudgetRepository {
       await _setMeta(_setUpAtKey, now.toIso8601String());
       _termId = termId;
     });
+  }
+
+  @override
+  Future<void> startNewMonth(
+    Term term, {
+    required List<Income> incomes,
+    required List<UpcomingCost> added,
+  }) {
+    _termId = null;
+    return _db.transaction(() async {
+      final oldId = (await _currentTerm()).id;
+      final termId = await _replaceCurrentTerm(term, _clock());
+      // Still owed, so still reserved: the costs move with the money.
+      await (_db.update(_db.upcomingCosts)
+            ..where((c) => c.termId.equals(oldId) & c.paidAt.isNull()))
+          .write(UpcomingCostsCompanion(termId: Value(termId)));
+      await _db.batch((b) {
+        b.insertAll(_db.upcomingCosts, [
+          for (final c in added) _costRow(c, termId),
+        ]);
+        b.insertAll(_db.incomes, [
+          for (final i in incomes) _incomeRow(i, termId, _clock()),
+        ]);
+      });
+      _termId = termId;
+    });
+  }
+
+  /// Archives the current term and inserts [term] as the new current one.
+  /// Call inside a transaction.
+  Future<int> _replaceCurrentTerm(Term term, DateTime now) async {
+    await (_db.update(_db.terms)..where((t) => t.archivedAt.isNull())).write(
+      TermsCompanion(archivedAt: Value(now)),
+    );
+    return _db
+        .into(_db.terms)
+        .insert(
+          TermsCompanion.insert(
+            name: term.name,
+            start: term.start,
+            end: term.end,
+            startingBalanceCents: _cents(term.startingBalance),
+            period: Value(term.period),
+          ),
+        );
   }
 
   // ---------------------------------------------------------------- seeding
@@ -436,6 +458,21 @@ class DriftBudgetRepository implements BudgetRepository {
         amountCents: _cents(c.amount),
         dueDate: c.dueDate,
       );
+
+  static IncomesCompanion _incomeRow(
+    Income i,
+    int termId,
+    DateTime createdAt,
+  ) => IncomesCompanion.insert(
+    id: i.id,
+    termId: termId,
+    name: i.name,
+    amountCents: _cents(i.amount),
+    frequency: i.frequency,
+    firstDate: i.firstDate,
+    endsOn: Value(i.endsOn),
+    createdAt: createdAt,
+  );
 
   static BillSplitsCompanion _splitRow(BillSplit s, DateTime createdAt) =>
       BillSplitsCompanion.insert(

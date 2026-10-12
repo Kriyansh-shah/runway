@@ -205,6 +205,51 @@ double incomeReceived(
   return next;
 }
 
+/// Repeating pay that is still coming after [after] (not stopped by then).
+List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
+  for (final i in incomes)
+    if (i.repeats && (i.endsOn == null || i.endsOn!.isAfter(after))) i,
+];
+
+/// Once a monthly budget's month is over: the month [today] falls in, and
+/// how much was overspent if the money ran out. Leftover money carries over,
+/// and pay that keeps coming counts in any months skipped in between (the
+/// app wasn't opened). Null for a semester, or while the month is running.
+({Term term, double overspent})? nextMonth({
+  required Term term,
+  required List<Expense> expenses,
+  required List<Income> incomes,
+  required DateTime today,
+}) {
+  final day = dateOnly(today);
+  if (term.period != BudgetPeriod.monthly || !day.isAfter(term.end)) {
+    return null;
+  }
+  var left = computeRunway(
+    term: term,
+    expenses: expenses,
+    upcoming: const [],
+    incomes: incomes,
+    today: term.end,
+  ).balance;
+  final continuing = continuingIncomes(incomes, term.end);
+  var start = DateTime(term.end.year, term.end.month, term.end.day + 1);
+  while (true) {
+    final month = Term(
+      name: monthName(start),
+      start: start,
+      end: endOfMonth(start),
+      startingBalance: math.max(0, left),
+      period: BudgetPeriod.monthly,
+    );
+    if (!day.isAfter(month.end)) {
+      return (term: month, overspent: math.max(0, -left));
+    }
+    left += incomeReceived(continuing, term: month, today: month.end);
+    start = DateTime(month.end.year, month.end.month, month.end.day + 1);
+  }
+}
+
 /// Consecutive days with at least one logged expense. Today not being logged
 /// yet doesn't break the streak — it only counts once you log.
 int computeStreak(List<Expense> expenses, DateTime today) {

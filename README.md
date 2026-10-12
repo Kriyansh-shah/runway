@@ -10,7 +10,7 @@ and tells you how much you can safely spend **today**.
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-96%20passing-C6FF3D)
+![Tests](https://img.shields.io/badge/tests-105%20passing-C6FF3D)
 ![Status](https://img.shields.io/badge/status-prototype-FFB547)
 
 </div>
@@ -69,6 +69,15 @@ as it can be: two taps for most purchases. Your money data never leaves your pho
   expense to **edit** it (amount, note, category, need/want) or **delete** it,
   with an **Undo** bar. **See all** lists every expense this term by day.
 - **Personal greeting** with your 🔥 streak chip and account avatar.
+
+### 🗓️ Semester or monthly
+- Setup asks **how you want to budget**. A **semester** runs between dates you
+  pick. A **monthly** budget runs to the end of this month, with no name or end
+  date to fill in.
+- When a month ends, the next one **starts by itself**: money left over carries
+  into it, along with unpaid costs and pay that repeats. The old month's
+  expenses stay with that month. If you spent more than you had, the gap is
+  reserved as an "Overspent in October" cost on day one.
 
 ### ⚙️ Settings
 - Tap your avatar. Edit the term's name, dates and starting money (with
@@ -317,7 +326,7 @@ flutter run -d android    # needs the Android SDK
 
 ```sh
 flutter analyze   # static analysis, currently clean
-flutter test      # 96 tests
+flutter test      # 105 tests
 ```
 
 After changing a table in `lib/app/database.dart`, regenerate the drift code:
@@ -328,8 +337,8 @@ dart run build_runner build
 
 | Suite | Covers |
 |---|---|
-| `budget_math_test.dart` | Every runway formula, days short, no-spend and overspend cases, last day of term, streaks, pet levels, weekly split, even splits, mock data calibration |
-| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing |
+| `budget_math_test.dart` | Every runway formula, days short, no-spend and overspend cases, last day of term, streaks, pet levels, weekly split, even splits, mock data calibration, starting the next month (leftover, skipped months, stopped pay, overspending) |
+| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over |
 | `coach_test.dart` | All three verdicts, the inclusive 12% boundary, minimum trade, goal suggestion, amount parsing (`$1,299.99`, phrasing, no amount) |
 | `intro_test.dart` | Intro maths (Mochi lands on each letter, the y beat, logo hand-off is pixel-exact), first launch → welcome, tap to skip, signed-in → Home, Reduce Motion |
 | `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout |
@@ -348,6 +357,10 @@ This is an early prototype:
   lock protects the data on the phone. Real sign-in comes with Squad sync.
 - **The database file isn't encrypted yet** (the app lock guards the app, not
   the file). SQLCipher encryption is the next security step.
+- **Monthly budgets follow the calendar month** (1st to last day). A cycle that
+  starts on payday (say the 25th) isn't supported yet. The coach still says
+  "Not this term", and Settings still says "Start a new semester" (from there
+  you can pick either kind).
 - **The coach is rule-based.** It uses no AI and no API keys, and makes no network calls.
 - **Squad friends are mock data.** There's no real friend sync yet.
 

@@ -215,3 +215,28 @@ class _AddCostFormState extends State<AddCostForm> {
     );
   }
 }
+
+/// A monthly budget always ends with the calendar month, so its end date is
+/// shown, not picked.
+class MonthEndField extends StatelessWidget {
+  const MonthEndField({super.key, required this.date});
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const FieldLabel('Ends'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+          child: Text(
+            '${shortDate(date)}, then monthly',
+            style: AppText.body.copyWith(color: AppColors.muted),
+          ),
+        ),
+      ],
+    );
+  }
+}

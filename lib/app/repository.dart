@@ -49,6 +49,15 @@ abstract interface class BudgetRepository {
   /// expenses) is archived and [term] starts empty with [upcoming] reserved.
   Future<void> startTerm(Term term, List<UpcomingCost> upcoming);
 
+  /// A monthly budget moves on to [term]: the old month (and its expenses)
+  /// is archived, its unpaid costs move to [term] along with [added], and
+  /// [incomes] (copies of the pay that keeps coming) start in [term].
+  Future<void> startNewMonth(
+    Term term, {
+    required List<Income> incomes,
+    required List<UpcomingCost> added,
+  });
+
   /// Permanently deletes everything on the device, including the session.
   /// The next [load] starts over as a brand-new install.
   Future<void> eraseEverything();
@@ -114,6 +123,13 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> startTerm(Term term, List<UpcomingCost> upcoming) async {}
+
+  @override
+  Future<void> startNewMonth(
+    Term term, {
+    required List<Income> incomes,
+    required List<UpcomingCost> added,
+  }) async {}
 
   @override
   Future<void> eraseEverything() async => _user = null;

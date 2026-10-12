@@ -319,6 +319,42 @@ class AppState extends ChangeNotifier {
     _persist(_repo.startTerm(term, upcoming));
   }
 
+  /// A monthly budget whose month has ended moves on to the current month.
+  /// Expenses stay with the old month; leftover money, unpaid costs and pay
+  /// that keeps coming carry over. Money overspent is reserved as a cost
+  /// due on day one, so it's covered before anything else.
+  void startNewMonthIfDue() {
+    if (_needsSetup) return;
+    final next = nextMonth(
+      term: _term,
+      expenses: _expenses,
+      incomes: _incomes,
+      today: today,
+    );
+    if (next == null) return;
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final incomes = [
+      for (final (n, i) in continuingIncomes(_incomes, _term.end).indexed)
+        i.copyWith(id: 'i$stamp-$n'),
+    ];
+    final added = [
+      if (next.overspent > 0)
+        UpcomingCost(
+          id: 'u$stamp',
+          emoji: '↩️',
+          name: 'Overspent in ${monthName(_term.start)}',
+          amount: (next.overspent * 100).round() / 100,
+          dueDate: next.term.start,
+        ),
+    ];
+    _term = next.term;
+    _expenses.clear();
+    _upcoming.addAll(added);
+    _replace(_incomes, incomes);
+    _changed();
+    _persist(_repo.startNewMonth(next.term, incomes: incomes, added: added));
+  }
+
   /// Deletes everything on this device and signs out. Unlike other writes
   /// this waits for the database, so nothing is left behind if it fails.
   Future<void> eraseEverything() async {

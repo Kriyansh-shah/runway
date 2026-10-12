@@ -36,6 +36,10 @@ Future<void> main() async {
   final data = await repository.load();
   final user = await repository.currentUser();
   final state = AppState(repository: repository, data: data, user: user);
+  // A monthly budget moves on once its month is over, also when the app
+  // comes back from the background in a new month.
+  state.startNewMonthIfDue();
+  AppLifecycleListener(onResume: state.startNewMonthIfDue);
 
   // Switched off for now. Apple Pay purchases arrive as runway://log links from a Shortcuts
   // automation, both when they launch the app and while it's open.

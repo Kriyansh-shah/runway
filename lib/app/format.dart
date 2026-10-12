@@ -6,6 +6,17 @@ const _months = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
+const _monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June', //
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/// `October`
+String monthName(DateTime d) => _monthNames[d.month - 1];
+
+/// The last day of [d]'s calendar month.
+DateTime endOfMonth(DateTime d) => DateTime(d.year, d.month + 1, 0);
+
 /// `$1,234.56`. Drops cents when [cents] is false.
 String money(double value, {bool cents = true}) {
   final negative = value < 0;

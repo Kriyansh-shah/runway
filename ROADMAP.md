@@ -76,7 +76,12 @@ arrives), mark-paid / delete for upcoming costs, and a Settings screen (edit
 term, new semester, erase everything, sign out). Database schema version 2
 adds the `incomes` table and `expenses.is_planned`.
 
-Still open: editing a cost or income in place (today it's delete + re-add).
+**Semester or monthly** (schema version 3 adds `terms.period`): setup offers
+both, and a monthly budget starts the next month by itself, carrying over the
+leftover money, unpaid costs and repeating pay.
+
+Still open: editing a cost or income in place (today it's delete + re-add);
+custom dates (asked in Professor Questions, #2); payday-based monthly cycles.
 
 **Why:** Term dates, starting balance and upcoming costs are currently hard-coded demo data.
 

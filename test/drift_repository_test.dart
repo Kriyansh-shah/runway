@@ -451,6 +451,7 @@ void main() {
     final db = RunwayDatabase(NativeDatabase(file));
     await db.customStatement('DROP TABLE incomes');
     await db.customStatement('ALTER TABLE expenses DROP COLUMN is_planned');
+    await db.customStatement('ALTER TABLE terms DROP COLUMN period');
     await db.customStatement('PRAGMA user_version = 1');
     await db.close();
 
@@ -469,6 +470,96 @@ void main() {
       ),
     );
     expect((await repo.load()).incomes.single.name, 'Stipend');
+  });
+
+  test('a version 2 database upgrades with every term a semester', () async {
+    var repo = openRepo();
+    await repo.load();
+    await repo.close();
+    open.remove(repo);
+
+    final db = RunwayDatabase(NativeDatabase(file));
+    await db.customStatement('ALTER TABLE terms DROP COLUMN period');
+    await db.customStatement('PRAGMA user_version = 2');
+    await db.close();
+
+    repo = openRepo();
+    final term = (await repo.load()).term;
+    expect(term.name, 'Fall term');
+    expect(term.period, BudgetPeriod.semester);
+  });
+
+  test('a monthly budget starts the next month by itself', () async {
+    var repo = openRepo();
+    var clock = now;
+    final state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      clock: () => clock,
+    );
+    state.startTerm(
+      Term(
+        name: 'October',
+        start: DateTime(2026, 10, 1),
+        end: DateTime(2026, 10, 31),
+        startingBalance: 500,
+        period: BudgetPeriod.monthly,
+      ),
+      [
+        UpcomingCost(
+          id: 'rent',
+          emoji: '🏠',
+          name: 'Rent',
+          amount: 400,
+          dueDate: DateTime(2026, 10, 28),
+        ),
+      ],
+    );
+    state.addIncome(
+      name: 'Job',
+      amount: 100,
+      frequency: IncomeFrequency.weekly,
+      firstDate: DateTime(2026, 10, 2), // 5 paydays in October
+    );
+    state.addIncome(
+      name: 'Gift',
+      amount: 20,
+      frequency: IncomeFrequency.once,
+      firstDate: DateTime(2026, 10, 2),
+    );
+    state.addExpense(
+      amount: 1120,
+      category: ExpenseCategory.groceries,
+      isNeed: true,
+    );
+    state.startNewMonthIfDue(); // still October: nothing happens
+    expect(state.term.name, 'October');
+
+    clock = DateTime(2026, 11, 2, 9);
+    state.startNewMonthIfDue();
+    expect(state.term.name, 'November');
+    expect(state.term.start, DateTime(2026, 11, 1));
+    expect(state.term.end, DateTime(2026, 11, 30));
+    expect(state.term.startingBalance, 0); // 500 + 520 − 1120 = −100
+    expect(state.recentExpenses(), isEmpty);
+    expect(state.comingUp.map((c) => (c.name, c.amount)), [
+      ('Rent', 400.0),
+      ('Overspent in October', 100.0),
+    ]);
+    expect(state.incomes.map((i) => i.name), ['Job']);
+    // October's paydays stay with October; November's first is on the 6th.
+    expect(state.snapshot.received, 0);
+    expect(state.nextIncome?.date, DateTime(2026, 11, 6));
+    await pumpEventQueue(times: 100);
+
+    repo = await reopen(repo);
+    final data = await repo.load();
+    expect(data.term.name, 'November');
+    expect(data.term.period, BudgetPeriod.monthly);
+    expect(data.term.startingBalance, 0);
+    expect(data.expenses, isEmpty);
+    expect(data.upcoming.map((c) => c.name), ['Rent', 'Overspent in October']);
+    expect(data.incomes.single.frequency, IncomeFrequency.weekly);
   });
 
   test('edited, deleted and restored expenses survive reopening', () async {

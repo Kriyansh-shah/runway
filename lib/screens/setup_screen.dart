@@ -21,8 +21,10 @@ import 'shell.dart';
 Widget landingFor(AppState state) =>
     state.needsSetup ? const SetupScreen() : const Shell();
 
-/// First run: term name and dates, money for the term, and big costs coming
-/// up. Replaces the demo data with the user's own semester.
+/// First run: semester or monthly, the dates, money for that stretch, and
+/// big costs coming up. Replaces the demo data with the user's own budget.
+/// A monthly budget runs to the end of this month and has no name or end
+/// date to fill in.
 ///
 /// Also used from Settings to start a new semester; then [cancellable] shows
 /// a way back, and the current term is only archived once you finish.
@@ -39,8 +41,9 @@ class _SetupScreenState extends State<SetupScreen> {
   final _name = TextEditingController();
   final _balance = TextEditingController();
   final _costs = <UpcomingCost>[];
+  var _period = BudgetPeriod.semester;
   late DateTime _start;
-  DateTime? _end;
+  DateTime? _pickedEnd;
   bool _done = false;
 
   /// Offer the app lock (on by default) if the phone supports it and it
@@ -70,15 +73,33 @@ class _SetupScreenState extends State<SetupScreen> {
   DateTime get _today => AppScope.read(context).today;
   double get _startingBalance => parseAmountInput(_balance.text);
 
+  bool get _monthly => _period == BudgetPeriod.monthly;
+
+  DateTime? get _end => _monthly ? endOfMonth(_start) : _pickedEnd;
+
+  String get _termName => _monthly ? monthName(_start) : _name.text.trim();
+
   bool get _ready =>
-      _name.text.trim().isNotEmpty && _end != null && _startingBalance > 0;
+      _termName.isNotEmpty && _end != null && _startingBalance > 0;
+
+  void _setPeriod(BudgetPeriod period) {
+    setState(() {
+      _period = period;
+      // A month can't start before this month did.
+      if (_monthly && _start.isBefore(_firstOfMonth)) _start = _today;
+    });
+  }
+
+  DateTime get _firstOfMonth => DateTime(_today.year, _today.month);
 
   Future<void> _pickStart() async {
     final today = _today;
     final picked = await pickDate(
       context,
       initial: _start,
-      first: DateTime(today.year - 1, today.month, today.day),
+      first: _monthly
+          ? _firstOfMonth
+          : DateTime(today.year - 1, today.month, today.day),
       last: today,
     );
     if (picked != null) setState(() => _start = picked);
@@ -89,11 +110,11 @@ class _SetupScreenState extends State<SetupScreen> {
     final first = DateTime(today.year, today.month, today.day + 1);
     final picked = await pickDate(
       context,
-      initial: _end ?? first,
+      initial: _pickedEnd ?? first,
       first: first,
       last: DateTime(today.year + 2, today.month, today.day),
     );
-    if (picked != null) setState(() => _end = picked);
+    if (picked != null) setState(() => _pickedEnd = picked);
   }
 
   void _addCost(UpcomingCost cost) {
@@ -123,15 +144,17 @@ class _SetupScreenState extends State<SetupScreen> {
       );
       if (result == DeviceAuthResult.success) state.setAppLock(true);
     }
+    final end = _end!;
     state.startTerm(
       Term(
-        name: _name.text.trim(),
+        name: _termName,
         start: _start,
-        end: _end!,
+        end: end,
         startingBalance: _startingBalance,
+        period: _period,
       ),
       // Costs due after the term ends can't be reserved from this term.
-      _costs.where((c) => !c.dueDate.isAfter(_end!)).toList(),
+      _costs.where((c) => !c.dueDate.isAfter(end)).toList(),
     );
     HapticFeedback.mediumImpact();
     await navigator.pushAndRemoveUntil(
@@ -144,13 +167,15 @@ class _SetupScreenState extends State<SetupScreen> {
   Widget build(BuildContext context) {
     final sections = <Widget>[
       Text(
-        'Set up your semester',
+        'Set up your ${_period.noun}',
         style: AppText.title,
         textAlign: TextAlign.center,
       ),
       const SizedBox(height: 4),
       Text(
-        'Runway plans around your term, not the month.',
+        _monthly
+            ? 'A new month starts by itself, with what\'s left carried over.'
+            : 'Runway plans around your term, not the month.',
         style: AppText.label,
         textAlign: TextAlign.center,
       ),
@@ -160,15 +185,34 @@ class _SetupScreenState extends State<SetupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const FieldLabel('Term name'),
-            GlassTextField(
-              controller: _name,
-              hint: 'e.g. Fall term',
-              icon: PhIcons.notePencil,
-              textCapitalization: TextCapitalization.words,
-              onChanged: (_) => setState(() {}),
+            const FieldLabel('How do you want to budget?'),
+            Row(
+              children: [
+                for (final p in BudgetPeriod.values) ...[
+                  if (p != BudgetPeriod.values.first) const SizedBox(width: 10),
+                  Expanded(
+                    child: ChoiceChipPill(
+                      selected: p == _period,
+                      color: AppColors.lime,
+                      onTap: () => _setPeriod(p),
+                      child: Text(p.label, textAlign: TextAlign.center),
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 14),
+            if (!_monthly) ...[
+              const FieldLabel('Term name'),
+              GlassTextField(
+                controller: _name,
+                hint: 'e.g. Fall term',
+                icon: PhIcons.notePencil,
+                textCapitalization: TextCapitalization.words,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 14),
+            ],
             Row(
               children: [
                 Expanded(
@@ -180,7 +224,9 @@ class _SetupScreenState extends State<SetupScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: DateField(label: 'Ends', date: _end, onTap: _pickEnd),
+                  child: _monthly
+                      ? MonthEndField(date: _end!)
+                      : DateField(label: 'Ends', date: _end, onTap: _pickEnd),
                 ),
               ],
             ),
@@ -290,7 +336,10 @@ class _SetupScreenState extends State<SetupScreen> {
         Center(
           child: TextButton(
             onPressed: _cancel,
-            child: Text('Keep my current semester', style: AppText.label),
+            child: Text(
+              'Keep my current ${AppScope.read(context).term.period.noun}',
+              style: AppText.label,
+            ),
           ),
         ),
       ],

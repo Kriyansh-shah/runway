@@ -125,7 +125,11 @@ class SettingsScreen extends StatelessWidget {
                     _ProfileEditor(key: ObjectKey(user), name: user.name),
                   const SectionHeader('Security'),
                   const _AppLockCard(),
-                  const SectionHeader('Semester'),
+                  SectionHeader(
+                    state.term.period == BudgetPeriod.monthly
+                        ? 'This month'
+                        : 'Semester',
+                  ),
                   // Re-created when the term changes elsewhere, so the
                   // fields always start from what's saved.
                   _TermEditor(key: ObjectKey(state.term), term: state.term),
@@ -245,11 +249,16 @@ class _TermEditorState extends State<_TermEditor> {
 
   DateTime get _today => AppScope.read(context).today;
 
+  /// A month's name and end date follow the calendar, so only its start
+  /// and money can be edited.
+  bool get _monthly => widget.term.period == BudgetPeriod.monthly;
+
   Term get _edited => Term(
     name: _name.text.trim(),
     start: _start,
     end: _end,
     startingBalance: parseAmountInput(_balance.text),
+    period: widget.term.period,
   );
 
   bool get _dirty {
@@ -275,7 +284,9 @@ class _TermEditorState extends State<_TermEditor> {
     final picked = await pickDate(
       context,
       initial: _start,
-      first: DateTime(today.year - 1, today.month, today.day),
+      first: _monthly
+          ? DateTime(_end.year, _end.month)
+          : DateTime(today.year - 1, today.month, today.day),
       last: today,
     );
     if (picked != null) setState(() => _start = picked);
@@ -306,15 +317,17 @@ class _TermEditorState extends State<_TermEditor> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const FieldLabel('Term name'),
-          GlassTextField(
-            controller: _name,
-            hint: 'e.g. Fall term',
-            icon: PhIcons.notePencil,
-            textCapitalization: TextCapitalization.words,
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 14),
+          if (!_monthly) ...[
+            const FieldLabel('Term name'),
+            GlassTextField(
+              controller: _name,
+              hint: 'e.g. Fall term',
+              icon: PhIcons.notePencil,
+              textCapitalization: TextCapitalization.words,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 14),
+          ],
           Row(
             children: [
               Expanded(
@@ -326,7 +339,9 @@ class _TermEditorState extends State<_TermEditor> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: DateField(label: 'Ends', date: _end, onTap: _pickEnd),
+                child: _monthly
+                    ? MonthEndField(date: _end)
+                    : DateField(label: 'Ends', date: _end, onTap: _pickEnd),
               ),
             ],
           ),

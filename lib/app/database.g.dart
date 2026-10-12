@@ -58,6 +58,16 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<BudgetPeriod, String> period =
+      GeneratedColumn<String>(
+        'period',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(BudgetPeriod.semester.name),
+      ).withConverter<BudgetPeriod>($TermsTable.$converterperiod);
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -76,6 +86,7 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
     start,
     end,
     startingBalanceCents,
+    period,
     archivedAt,
   ];
   @override
@@ -163,6 +174,12 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
         DriftSqlType.int,
         data['${effectivePrefix}starting_balance_cents'],
       )!,
+      period: $TermsTable.$converterperiod.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}period'],
+        )!,
+      ),
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -174,6 +191,9 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
   $TermsTable createAlias(String alias) {
     return $TermsTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<BudgetPeriod, String, String> $converterperiod =
+      const EnumNameConverter<BudgetPeriod>(BudgetPeriod.values);
 }
 
 class TermRow extends DataClass implements Insertable<TermRow> {
@@ -183,6 +203,9 @@ class TermRow extends DataClass implements Insertable<TermRow> {
   final DateTime end;
   final int startingBalanceCents;
 
+  /// Stored by enum *name* (added in schema 3; older terms are semesters).
+  final BudgetPeriod period;
+
   /// Set when a term is finished; the current term has this null.
   final DateTime? archivedAt;
   const TermRow({
@@ -191,6 +214,7 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     required this.start,
     required this.end,
     required this.startingBalanceCents,
+    required this.period,
     this.archivedAt,
   });
   @override
@@ -201,6 +225,11 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     map['start'] = Variable<DateTime>(start);
     map['end'] = Variable<DateTime>(end);
     map['starting_balance_cents'] = Variable<int>(startingBalanceCents);
+    {
+      map['period'] = Variable<String>(
+        $TermsTable.$converterperiod.toSql(period),
+      );
+    }
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -214,6 +243,7 @@ class TermRow extends DataClass implements Insertable<TermRow> {
       start: Value(start),
       end: Value(end),
       startingBalanceCents: Value(startingBalanceCents),
+      period: Value(period),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -233,6 +263,9 @@ class TermRow extends DataClass implements Insertable<TermRow> {
       startingBalanceCents: serializer.fromJson<int>(
         json['startingBalanceCents'],
       ),
+      period: $TermsTable.$converterperiod.fromJson(
+        serializer.fromJson<String>(json['period']),
+      ),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
@@ -245,6 +278,9 @@ class TermRow extends DataClass implements Insertable<TermRow> {
       'start': serializer.toJson<DateTime>(start),
       'end': serializer.toJson<DateTime>(end),
       'startingBalanceCents': serializer.toJson<int>(startingBalanceCents),
+      'period': serializer.toJson<String>(
+        $TermsTable.$converterperiod.toJson(period),
+      ),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
@@ -255,6 +291,7 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     DateTime? start,
     DateTime? end,
     int? startingBalanceCents,
+    BudgetPeriod? period,
     Value<DateTime?> archivedAt = const Value.absent(),
   }) => TermRow(
     id: id ?? this.id,
@@ -262,6 +299,7 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     start: start ?? this.start,
     end: end ?? this.end,
     startingBalanceCents: startingBalanceCents ?? this.startingBalanceCents,
+    period: period ?? this.period,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   TermRow copyWithCompanion(TermsCompanion data) {
@@ -273,6 +311,7 @@ class TermRow extends DataClass implements Insertable<TermRow> {
       startingBalanceCents: data.startingBalanceCents.present
           ? data.startingBalanceCents.value
           : this.startingBalanceCents,
+      period: data.period.present ? data.period.value : this.period,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -287,14 +326,22 @@ class TermRow extends DataClass implements Insertable<TermRow> {
           ..write('start: $start, ')
           ..write('end: $end, ')
           ..write('startingBalanceCents: $startingBalanceCents, ')
+          ..write('period: $period, ')
           ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, start, end, startingBalanceCents, archivedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    start,
+    end,
+    startingBalanceCents,
+    period,
+    archivedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -304,6 +351,7 @@ class TermRow extends DataClass implements Insertable<TermRow> {
           other.start == this.start &&
           other.end == this.end &&
           other.startingBalanceCents == this.startingBalanceCents &&
+          other.period == this.period &&
           other.archivedAt == this.archivedAt);
 }
 
@@ -313,6 +361,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
   final Value<DateTime> start;
   final Value<DateTime> end;
   final Value<int> startingBalanceCents;
+  final Value<BudgetPeriod> period;
   final Value<DateTime?> archivedAt;
   const TermsCompanion({
     this.id = const Value.absent(),
@@ -320,6 +369,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     this.start = const Value.absent(),
     this.end = const Value.absent(),
     this.startingBalanceCents = const Value.absent(),
+    this.period = const Value.absent(),
     this.archivedAt = const Value.absent(),
   });
   TermsCompanion.insert({
@@ -328,6 +378,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     required DateTime start,
     required DateTime end,
     required int startingBalanceCents,
+    this.period = const Value.absent(),
     this.archivedAt = const Value.absent(),
   }) : name = Value(name),
        start = Value(start),
@@ -339,6 +390,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     Expression<DateTime>? start,
     Expression<DateTime>? end,
     Expression<int>? startingBalanceCents,
+    Expression<String>? period,
     Expression<DateTime>? archivedAt,
   }) {
     return RawValuesInsertable({
@@ -348,6 +400,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
       if (end != null) 'end': end,
       if (startingBalanceCents != null)
         'starting_balance_cents': startingBalanceCents,
+      if (period != null) 'period': period,
       if (archivedAt != null) 'archived_at': archivedAt,
     });
   }
@@ -358,6 +411,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     Value<DateTime>? start,
     Value<DateTime>? end,
     Value<int>? startingBalanceCents,
+    Value<BudgetPeriod>? period,
     Value<DateTime?>? archivedAt,
   }) {
     return TermsCompanion(
@@ -366,6 +420,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
       start: start ?? this.start,
       end: end ?? this.end,
       startingBalanceCents: startingBalanceCents ?? this.startingBalanceCents,
+      period: period ?? this.period,
       archivedAt: archivedAt ?? this.archivedAt,
     );
   }
@@ -388,6 +443,11 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     if (startingBalanceCents.present) {
       map['starting_balance_cents'] = Variable<int>(startingBalanceCents.value);
     }
+    if (period.present) {
+      map['period'] = Variable<String>(
+        $TermsTable.$converterperiod.toSql(period.value),
+      );
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -402,6 +462,7 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
           ..write('start: $start, ')
           ..write('end: $end, ')
           ..write('startingBalanceCents: $startingBalanceCents, ')
+          ..write('period: $period, ')
           ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
@@ -3445,6 +3506,7 @@ typedef $$TermsTableCreateCompanionBuilder = TermsCompanion Function({
   required DateTime start,
   required DateTime end,
   required int startingBalanceCents,
+  Value<BudgetPeriod> period,
   Value<DateTime?> archivedAt,
 });
 typedef $$TermsTableUpdateCompanionBuilder = TermsCompanion Function({
@@ -3453,6 +3515,7 @@ typedef $$TermsTableUpdateCompanionBuilder = TermsCompanion Function({
   Value<DateTime> start,
   Value<DateTime> end,
   Value<int> startingBalanceCents,
+  Value<BudgetPeriod> period,
   Value<DateTime?> archivedAt,
 });
 
@@ -3548,6 +3611,12 @@ class $$TermsTableFilterComposer
   ColumnFilters<int> get startingBalanceCents => $composableBuilder(
     column: $table.startingBalanceCents,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<BudgetPeriod, BudgetPeriod, String>
+  get period => $composableBuilder(
+    column: $table.period,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<DateTime> get archivedAt => $composableBuilder(
@@ -3665,6 +3734,11 @@ class $$TermsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get period => $composableBuilder(
+    column: $table.period,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3696,6 +3770,9 @@ class $$TermsTableAnnotationComposer
     column: $table.startingBalanceCents,
     builder: (column) => column,
   );
+
+  GeneratedColumnWithTypeConverter<BudgetPeriod, String> get period =>
+      $composableBuilder(column: $table.period, builder: (column) => column);
 
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
@@ -3815,6 +3892,7 @@ class $$TermsTableTableManager
                 Value<DateTime> start = const Value.absent(),
                 Value<DateTime> end = const Value.absent(),
                 Value<int> startingBalanceCents = const Value.absent(),
+                Value<BudgetPeriod> period = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
               }) => TermsCompanion(
                 id: id,
@@ -3822,6 +3900,7 @@ class $$TermsTableTableManager
                 start: start,
                 end: end,
                 startingBalanceCents: startingBalanceCents,
+                period: period,
                 archivedAt: archivedAt,
               ),
           createCompanionCallback:
@@ -3831,6 +3910,7 @@ class $$TermsTableTableManager
                 required DateTime start,
                 required DateTime end,
                 required int startingBalanceCents,
+                Value<BudgetPeriod> period = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
               }) => TermsCompanion.insert(
                 id: id,
@@ -3838,6 +3918,7 @@ class $$TermsTableTableManager
                 start: start,
                 end: end,
                 startingBalanceCents: startingBalanceCents,
+                period: period,
                 archivedAt: archivedAt,
               ),
           withReferenceMapper: (p0) => p0

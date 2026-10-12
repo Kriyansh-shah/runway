@@ -136,8 +136,8 @@ class Income {
 
   bool get repeats => frequency != IncomeFrequency.once;
 
-  Income copyWith({DateTime? endsOn}) => Income(
-    id: id,
+  Income copyWith({String? id, DateTime? endsOn}) => Income(
+    id: id ?? this.id,
     name: name,
     amount: amount,
     frequency: frequency,
@@ -146,18 +146,34 @@ class Income {
   );
 }
 
+/// How the user budgets. A semester runs between dates they pick; a
+/// monthly budget runs to the end of the calendar month and then starts the
+/// next month by itself.
+enum BudgetPeriod {
+  semester('Semester', 'semester'),
+  monthly('Monthly', 'month');
+
+  const BudgetPeriod(this.label, this.noun);
+  final String label;
+
+  /// Lowercase, for sentences: "Money lasts the whole month".
+  final String noun;
+}
+
 class Term {
   const Term({
     required this.name,
     required this.start,
     required this.end,
     required this.startingBalance,
+    this.period = BudgetPeriod.semester,
   });
 
   final String name;
   final DateTime start;
   final DateTime end;
   final double startingBalance;
+  final BudgetPeriod period;
 }
 
 class Friend {

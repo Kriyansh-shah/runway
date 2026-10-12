@@ -88,7 +88,7 @@ class AllExpensesScreen extends StatelessWidget {
                       hasScrollBody: false,
                       child: Center(
                         child: Text(
-                          'Nothing logged this term yet.',
+                          'Nothing logged this ${state.term.period.noun} yet.',
                           style: AppText.label,
                         ),
                       ),

@@ -462,8 +462,9 @@ class _RunwayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = s.runwayDate;
+    final period = AppScope.of(context).term.period;
     final lasts = date == null || s.covered
-        ? 'Money lasts the whole term'
+        ? 'Money lasts the whole ${period.noun}'
         : 'Money lasts until ${shortDate(date)}';
     return GlassCard(
       child: Column(
@@ -495,7 +496,9 @@ class _RunwayCard extends StatelessWidget {
               children: [
                 TextSpan(text: lasts, style: AppText.body),
                 TextSpan(
-                  text: ' · Term ends ${shortDate(s.termEnd)}',
+                  text:
+                      ' · ${period == BudgetPeriod.monthly ? 'Month' : 'Term'}'
+                      ' ends ${shortDate(s.termEnd)}',
                   style: AppText.body.copyWith(color: AppColors.muted),
                 ),
               ],

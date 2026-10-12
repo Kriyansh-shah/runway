@@ -23,6 +23,11 @@ class Terms extends Table {
   DateTimeColumn get end => dateTime()();
   IntColumn get startingBalanceCents => integer()();
 
+  /// Stored by enum *name* (added in schema 3; older terms are semesters).
+  TextColumn get period => textEnum<BudgetPeriod>().withDefault(
+    Constant(BudgetPeriod.semester.name),
+  )();
+
   /// Set when a term is finished; the current term has this null.
   DateTimeColumn get archivedAt => dateTime().nullable()();
 }
@@ -172,7 +177,7 @@ class RunwayDatabase extends _$RunwayDatabase {
   );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -182,6 +187,9 @@ class RunwayDatabase extends _$RunwayDatabase {
       if (from < 2) {
         await m.createTable(incomes);
         await m.addColumn(expenses, expenses.isPlanned);
+      }
+      if (from < 3) {
+        await m.addColumn(terms, terms.period);
       }
     },
     beforeOpen: (details) async {
