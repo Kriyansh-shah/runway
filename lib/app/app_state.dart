@@ -58,6 +58,13 @@ class AppState extends ChangeNotifier {
   /// `runway://log` link arrives; Home picks it up once it's on screen.
   final pendingPurchase = ValueNotifier<ApplePayPurchase?>(null);
 
+  /// A term or month that just ended, waiting for its recap. Set by
+  /// [checkForRecap]; the shell shows it once Home is on screen.
+  final pendingRecap = ValueNotifier<Recap?>(null);
+
+  /// When the last offered recap's term ended, so it's offered only once.
+  DateTime? _recapOffered;
+
   UserProfile? _user;
   bool _needsSetup;
   bool _appLock;
@@ -451,6 +458,8 @@ class AppState extends ChangeNotifier {
   /// Swaps the demo term for the user's own, starting with no expenses.
   /// Repeating bills stop; add them again with [addUpcomingCost].
   void startTerm(Term term, List<UpcomingCost> upcoming) {
+    // The demo term ending is no achievement; a real one gets a recap.
+    final endsRealTerm = !_needsSetup;
     _term = term;
     _bills.clear();
     _expenses.clear();
@@ -461,7 +470,46 @@ class AppState extends ChangeNotifier {
     _needsSetup = false;
     _changed();
     _persist(() => _repo.startTerm(term, upcoming));
+    if (endsRealTerm) unawaited(checkForRecap());
   }
+
+  /// Offers a recap ([pendingRecap]) for the latest term or month if it
+  /// ended after the last one shown. The very first time, it only notes
+  /// where history stands, so terms that ended before recaps existed don't
+  /// pop up all at once.
+  Future<void> checkForRecap() async {
+    try {
+      final past = await history();
+      final seen = await _repo.recapSeenUntil();
+      final latest = past.firstOrNull;
+      if (seen == null) {
+        final until = latest?.endedOn ?? now;
+        _persist(() => _repo.setRecapSeenUntil(until));
+        return;
+      }
+      if (latest == null ||
+          !latest.endedOn.isAfter(seen) ||
+          latest.endedOn == _recapOffered ||
+          _disposed) {
+        return;
+      }
+      _recapOffered = latest.endedOn;
+      pendingRecap.value = (
+        ended: latest,
+        before: past
+            .skip(1)
+            .where((p) => p.term.period == latest.term.period)
+            .firstOrNull,
+      );
+    } on Object catch (error, stack) {
+      // A missing recap isn't worth bothering anyone about.
+      _report(error, stack, 'while looking for a recap');
+    }
+  }
+
+  /// The recap for [past] was shown; it won't be offered again.
+  void recapShown(PastTerm past) =>
+      _persist(() => _repo.setRecapSeenUntil(past.endedOn));
 
   /// A monthly budget whose month has ended moves on to the current month.
   /// Expenses stay with the old month; leftover money, unpaid costs and pay
@@ -502,6 +550,7 @@ class AppState extends ChangeNotifier {
     _persist(
       () => _repo.startNewMonth(next.term, incomes: incomes, added: added),
     );
+    unawaited(checkForRecap());
   }
 
   /// Finished terms and months, newest first, read from storage once the
@@ -646,6 +695,10 @@ class AppState extends ChangeNotifier {
     _streak = computeStreak(_expenses, now);
   }
 }
+
+/// A finished term or month, and the one of the same kind before it (if
+/// any) to compare with.
+typedef Recap = ({PastTerm ended, PastTerm? before});
 
 /// What went wrong when saving, worded for the person using the app.
 enum SaveProblem {

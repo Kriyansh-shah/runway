@@ -566,4 +566,73 @@ void main() {
       expect(s.left, -150);
     });
   });
+
+  group('biggestChange', () {
+    Expense spend(String id, double amount, ExpenseCategory c, int month) =>
+        Expense(
+          id: id,
+          amount: amount,
+          category: c,
+          isNeed: c == ExpenseCategory.groceries,
+          date: DateTime(2026, month, 10, 12),
+        );
+    PastTerm month(int m, String name, List<Expense> expenses) => PastTerm(
+      term: Term(
+        name: name,
+        start: DateTime(2026, m, 1),
+        end: DateTime(2026, m + 1, 0),
+        startingBalance: 1000,
+        period: BudgetPeriod.monthly,
+      ),
+      endedOn: DateTime(2026, m + 1, 1, 9),
+      expenses: expenses,
+      incomes: const [],
+    );
+
+    test('the biggest drop wins, per day so month lengths are fair', () {
+      final september = month(9, 'September', [
+        spend('a', 300, ExpenseCategory.delivery, 9), // $10/day over 30
+        spend('b', 150, ExpenseCategory.groceries, 9),
+      ]);
+      final october = month(10, 'October', [
+        spend('c', 217, ExpenseCategory.delivery, 10), // $7/day over 31
+        spend('d', 310, ExpenseCategory.groceries, 10),
+      ]);
+      final c = biggestChange(october, september)!;
+      expect(c.category, ExpenseCategory.delivery);
+      expect(c.change, closeTo(-0.3, 1e-9));
+    });
+
+    test('if nothing fell, the biggest rise', () {
+      final september = month(9, 'September', [
+        spend('a', 300, ExpenseCategory.eatingOut, 9),
+      ]);
+      final october = month(10, 'October', [
+        spend('b', 465, ExpenseCategory.eatingOut, 10), // $15/day vs $10
+      ]);
+      expect(biggestChange(october, september)!.change, closeTo(0.5, 1e-9));
+    });
+
+    test('small moves and small categories aren\'t news', () {
+      final september = month(9, 'September', [
+        spend('a', 300, ExpenseCategory.groceries, 9),
+        spend('b', 9, ExpenseCategory.coffee, 9), // under $10 before
+      ]);
+      final october = month(10, 'October', [
+        spend('c', 300, ExpenseCategory.groceries, 10), // −3% per day
+        spend('d', 90, ExpenseCategory.coffee, 10),
+      ]);
+      expect(biggestChange(october, september), isNull);
+    });
+
+    test('needs share of what was spent', () {
+      final s = summarize(
+        month(10, 'October', [
+          spend('a', 75, ExpenseCategory.groceries, 10),
+          spend('b', 25, ExpenseCategory.fun, 10),
+        ]),
+      );
+      expect(s.needShare, 0.75);
+    });
+  });
 }

@@ -39,6 +39,8 @@ Future<void> main() async {
   // A monthly budget moves on once its month is over, also when the app
   // comes back from the background in a new month.
   state.startNewMonthIfDue();
+  // Offers a recap for a month that just ended (or one never shown).
+  unawaited(state.checkForRecap());
   AppLifecycleListener(onResume: state.startNewMonthIfDue);
 
   // Switched off for now. Apple Pay purchases arrive as runway://log links from a Shortcuts

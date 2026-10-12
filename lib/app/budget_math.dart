@@ -300,6 +300,7 @@ class TermSummary {
     required this.startedWith,
     required this.moneyIn,
     required this.spent,
+    required this.needSpent,
     required this.topCategories,
   });
 
@@ -309,6 +310,12 @@ class TermSummary {
   final double moneyIn;
   final double spent;
 
+  /// The part of [spent] marked as a need.
+  final double needSpent;
+
+  /// 0..1; half and half when nothing was spent.
+  double get needShare => spent == 0 ? 0.5 : needSpent / spent;
+
   /// Biggest spending categories first, at most three.
   final List<({ExpenseCategory category, double amount})> topCategories;
 
@@ -316,15 +323,28 @@ class TermSummary {
   double get left => startedWith + moneyIn - spent;
 }
 
+/// The last day [past] ran: its end, or earlier if it was ended early.
+DateTime _lastDay(PastTerm past) {
+  final ended = dateOnly(past.endedOn);
+  return ended.isBefore(past.term.end) ? ended : past.term.end;
+}
+
+Map<ExpenseCategory, double> _byCategory(List<Expense> expenses) {
+  final totals = <ExpenseCategory, double>{};
+  for (final e in expenses) {
+    totals[e.category] = (totals[e.category] ?? 0) + e.amount;
+  }
+  return totals;
+}
+
 TermSummary summarize(PastTerm past) {
   final term = past.term;
-  final ended = dateOnly(past.endedOn);
-  final last = ended.isBefore(term.end) ? ended : term.end;
-  final byCategory = <ExpenseCategory, double>{};
+  final byCategory = _byCategory(past.expenses);
   var spent = 0.0;
+  var need = 0.0;
   for (final e in past.expenses) {
     spent += e.amount;
-    byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount;
+    if (e.isNeed) need += e.amount;
   }
   final top = [
     for (final MapEntry(:key, :value) in byCategory.entries)
@@ -332,10 +352,54 @@ TermSummary summarize(PastTerm past) {
   ]..sort((a, b) => b.amount.compareTo(a.amount));
   return TermSummary(
     startedWith: term.startingBalance,
-    moneyIn: incomeReceived(past.incomes, term: term, today: last),
+    moneyIn: incomeReceived(past.incomes, term: term, today: _lastDay(past)),
     spent: spent,
+    needSpent: need,
     topCategories: top.take(3).toList(),
   );
+}
+
+/// How much one category's spending per day moved from the term before.
+/// Per day, so a 30-day month compares fairly with a 31-day one.
+class CategoryChange {
+  const CategoryChange(
+    this.category, {
+    required this.perDayNow,
+    required this.perDayBefore,
+  });
+
+  final ExpenseCategory category;
+  final double perDayNow;
+  final double perDayBefore;
+
+  /// −0.3 is 30% less, 0.25 is 25% more.
+  double get change => perDayNow / perDayBefore - 1;
+}
+
+/// The category whose spending fell the most since [before], or if none
+/// fell, the one that rose the most. Only moves of 10% or more count, in
+/// categories with at least $10 spent before, so small change isn't news.
+CategoryChange? biggestChange(PastTerm now, PastTerm before) {
+  int days(PastTerm p) =>
+      math.max(1, daysBetween(p.term.start, _lastDay(p)) + 1);
+  final nowDays = days(now);
+  final beforeDays = days(before);
+  final nowTotals = _byCategory(now.expenses);
+  final changes = [
+    for (final MapEntry(key: category, value: total) in _byCategory(
+      before.expenses,
+    ).entries)
+      if (total >= 10)
+        CategoryChange(
+          category,
+          perDayNow: (nowTotals[category] ?? 0) / nowDays,
+          perDayBefore: total / beforeDays,
+        ),
+  ]..sort((a, b) => a.change.compareTo(b.change));
+  if (changes.isEmpty) return null;
+  if (changes.first.change <= -0.1) return changes.first;
+  if (changes.last.change >= 0.1) return changes.last;
+  return null;
 }
 
 /// Consecutive days with at least one logged expense. Today not being logged

@@ -82,6 +82,11 @@ abstract interface class BudgetRepository {
   /// setup isn't included.
   Future<List<PastTerm>> history();
 
+  /// The end of the latest term or month whose recap was shown, or null if
+  /// recaps have never run.
+  Future<DateTime?> recapSeenUntil();
+  Future<void> setRecapSeenUntil(DateTime endedOn);
+
   /// Permanently deletes everything on the device, including the session.
   /// The next [load] starts over as a brand-new install.
   Future<void> eraseEverything();
@@ -175,6 +180,15 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<List<PastTerm>> history() async => const [];
+
+  DateTime? _recapSeenUntil;
+
+  @override
+  Future<DateTime?> recapSeenUntil() async => _recapSeenUntil;
+
+  @override
+  Future<void> setRecapSeenUntil(DateTime endedOn) async =>
+      _recapSeenUntil = endedOn;
 
   @override
   Future<void> eraseEverything() async => _user = null;

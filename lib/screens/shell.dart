@@ -11,6 +11,7 @@ import '../widgets/pressable.dart';
 import 'coach_screen.dart';
 import 'home_screen.dart';
 import 'quick_add_sheet.dart';
+import 'recap_sheet.dart';
 import 'squad_screen.dart';
 import '../widgets/ph_icons.dart';
 
@@ -35,21 +36,37 @@ class _ShellState extends State<Shell> {
   static const _screens = [HomeScreen(), CoachScreen(), SquadScreen()];
 
   late final ValueNotifier<ApplePayPurchase?> _purchases;
+  late final ValueNotifier<Recap?> _recaps;
 
   @override
   void initState() {
     super.initState();
-    // A purchase may have arrived during login, setup or the intro; open it
-    // once Home is on screen, and any later ones as they come in.
-    _purchases = AppScope.read(context).pendingPurchase
-      ..addListener(_openPurchase);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openPurchase());
+    // A purchase or recap may have arrived during login, setup or the
+    // intro; open it once Home is on screen, and any later ones as they
+    // come in.
+    final state = AppScope.read(context);
+    _purchases = state.pendingPurchase..addListener(_openPurchase);
+    _recaps = state.pendingRecap..addListener(_openRecap);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _openPurchase();
+      _openRecap();
+    });
   }
 
   @override
   void dispose() {
     _purchases.removeListener(_openPurchase);
+    _recaps.removeListener(_openRecap);
     super.dispose();
+  }
+
+  void _openRecap() {
+    final recap = _recaps.value;
+    if (recap == null || !mounted) return;
+    _recaps.value = null;
+    _select(0, haptic: false);
+    AppScope.read(context).recapShown(recap.ended);
+    showRecapSheet(context, recap);
   }
 
   void _openPurchase() {

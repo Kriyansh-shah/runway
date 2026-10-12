@@ -22,6 +22,7 @@ class DriftBudgetRepository implements BudgetRepository {
   static const _challengeStartKey = 'challenge_start';
   static const _setUpAtKey = 'set_up_at';
   static const _appLockKey = 'app_lock';
+  static const _recapSeenKey = 'recap_seen_until';
   static const _sessionId = 1;
 
   Future<void> close() => _db.close();
@@ -161,6 +162,16 @@ class DriftBudgetRepository implements BudgetRepository {
         ),
     ];
   }
+
+  @override
+  Future<DateTime?> recapSeenUntil() async {
+    final value = await _getMeta(_recapSeenKey);
+    return value == null ? null : DateTime.parse(value);
+  }
+
+  @override
+  Future<void> setRecapSeenUntil(DateTime endedOn) =>
+      _setMeta(_recapSeenKey, endedOn.toUtc().toIso8601String());
 
   Future<TermRow> _currentTerm() =>
       (_db.select(_db.terms)

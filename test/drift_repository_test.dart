@@ -960,6 +960,120 @@ void main() {
     });
   });
 
+  test('a recap is offered once when a month ends', () async {
+    var clock = DateTime(2026, 9, 1, 9);
+    var repo = DriftBudgetRepository(
+      RunwayDatabase(NativeDatabase(file)),
+      clock: () => clock,
+    );
+    open.add(repo);
+    var state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      clock: () => clock,
+    );
+    // First run ever: nothing to recap, and the starting point is noted.
+    await state.checkForRecap();
+    expect(state.pendingRecap.value, isNull);
+
+    // Setting up replaces the demo: that's not worth a recap.
+    clock = DateTime(2026, 9, 2, 10);
+    state.startTerm(
+      Term(
+        name: 'September',
+        start: DateTime(2026, 9, 1),
+        end: DateTime(2026, 9, 30),
+        startingBalance: 800,
+        period: BudgetPeriod.monthly,
+      ),
+      const [],
+    );
+    await pumpEventQueue(times: 100);
+    expect(state.pendingRecap.value, isNull);
+
+    state.addExpense(amount: 50, category: ExpenseCategory.fun, isNeed: false);
+    clock = DateTime(2026, 10, 1, 8);
+    state.startNewMonthIfDue();
+    await pumpEventQueue(times: 100);
+    final september = state.pendingRecap.value!;
+    expect(september.ended.term.name, 'September');
+    expect(september.before, isNull); // nothing earlier to compare with
+
+    // Shown: it's not offered again, even after relaunching.
+    state.pendingRecap.value = null;
+    state.recapShown(september.ended);
+    await state.checkForRecap();
+    expect(state.pendingRecap.value, isNull);
+    await pumpEventQueue(times: 100);
+    repo = await reopen(repo);
+    state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      clock: () => clock,
+    );
+    await state.checkForRecap();
+    expect(state.pendingRecap.value, isNull);
+
+    // October ends: compared with September.
+    clock = DateTime(2026, 11, 2, 8);
+    state.startNewMonthIfDue();
+    await pumpEventQueue(times: 100);
+    final october = state.pendingRecap.value!;
+    expect(october.ended.term.name, 'October');
+    expect(october.before?.term.name, 'September');
+  });
+
+  test(
+    'recaps never pop up for terms that ended before they existed',
+    () async {
+      var repo = openRepo();
+      final state = AppState(
+        repository: repo,
+        data: await repo.load(),
+        clock: () => now,
+      );
+      state.startTerm(
+        Term(
+          name: 'Summer',
+          start: DateTime(2026, 6, 1),
+          end: DateTime(2026, 8, 31),
+          startingBalance: 100,
+        ),
+        const [],
+      );
+      state.startTerm(
+        Term(
+          name: 'Fall',
+          start: DateTime(2026, 9, 1),
+          end: DateTime(2026, 12, 20),
+          startingBalance: 100,
+        ),
+        const [],
+      );
+      await pumpEventQueue(times: 100);
+      // An older install: history exists, but recaps have never run.
+      await repo.setRecapSeenUntil(DateTime(2000));
+      await repo.close();
+      open.remove(repo);
+      final db = RunwayDatabase(NativeDatabase(file));
+      await db.customStatement(
+        "DELETE FROM meta WHERE key = 'recap_seen_until'",
+      );
+      await db.close();
+
+      repo = openRepo();
+      final updated = AppState(
+        repository: repo,
+        data: await repo.load(),
+        clock: () => now,
+      );
+      await updated.checkForRecap();
+      expect(updated.pendingRecap.value, isNull);
+      await pumpEventQueue(times: 100); // the starting point saves in line
+      expect(await repo.recapSeenUntil(), isNotNull);
+    },
+  );
+
   test('edited, deleted and restored expenses survive reopening', () async {
     var repo = openRepo();
     await repo.load();

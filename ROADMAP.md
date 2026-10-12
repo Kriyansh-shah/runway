@@ -107,8 +107,8 @@ than last fall"). Expense data is tiny, so we keep everything.
 - ✅ ~~**History screen**~~ (shipped, Settings → History): every finished
   month and semester with what you started with, money in, spent, left or
   over, and top categories; tap one for its expenses, read-only.
-- Still to do: a **recap moment** when a term ends (need vs want, best streak,
-  "you spent 30% less on delivery than last fall").
+- ✅ ~~**Recap moment** when a term ends~~ (shipped): shown once on Home, with
+  needs vs wants, the biggest spend and one comparison with the term before.
 - ✅ ~~**Undo** toast after deleting an expense~~ (shipped). Still to do: permanently
   remove soft-deleted expenses after 30 days.
 - Search and filter expenses by category, note and date.

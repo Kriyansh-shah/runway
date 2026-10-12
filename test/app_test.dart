@@ -733,6 +733,68 @@ void main() {
     expect(find.text('Delete expense'), findsNothing);
   });
 
+  testWidgets('a recap pops up on Home when a month ends', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    PastTerm month(int m, String name, double start, List<Expense> spent) =>
+        PastTerm(
+          term: Term(
+            name: name,
+            start: DateTime(2026, m, 1),
+            end: DateTime(2026, m + 1, 0),
+            startingBalance: start,
+            period: BudgetPeriod.monthly,
+          ),
+          endedOn: DateTime(2026, m + 1, 1, 9),
+          expenses: spent,
+          incomes: const [],
+        );
+    Expense spend(String id, double amount, ExpenseCategory c) => Expense(
+      id: id,
+      amount: amount,
+      category: c,
+      isNeed: c == ExpenseCategory.groceries,
+      date: DateTime(2026, 9, 10),
+    );
+    final repo = MockBudgetRepository(now: now);
+    final state = AppState(
+      repository: repo,
+      data: MockBudgetRepository.seed(now),
+      user: const UserProfile(name: 'Alex'),
+      clock: () => now,
+    );
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    final october = month(10, 'October', 500, [
+      spend('a', 217, ExpenseCategory.delivery), // $7/day
+      spend('b', 163, ExpenseCategory.groceries),
+    ]);
+    state.pendingRecap.value = (
+      ended: october,
+      before: month(9, 'September', 500, [
+        spend('c', 300, ExpenseCategory.delivery), // $10/day
+      ]),
+    );
+    await settle(tester, const Duration(seconds: 1));
+
+    expect(find.text('That\'s a wrap on October'), findsOneWidget);
+    expect(find.text('\$120.00'), findsOneWidget);
+    expect(find.text('left over, carried into this month'), findsOneWidget);
+    expect(find.text('43% · 57%'), findsOneWidget);
+    expect(find.text('📦 Delivery \$217'), findsOneWidget);
+    expect(
+      find.text('30% less on 📦 Delivery than in September 🎉'),
+      findsOneWidget,
+    );
+    expect(await repo.recapSeenUntil(), october.endedOn);
+
+    await tester.tap(find.text('Nice'));
+    await settle(tester);
+    expect(find.text('That\'s a wrap on October'), findsNothing);
+  });
+
   testWidgets('history is empty until something ends', (tester) async {
     final state = buildState();
     await tester.pumpWidget(
