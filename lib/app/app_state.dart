@@ -27,6 +27,7 @@ class AppState extends ChangeNotifier {
        _term = data.term,
        _expenses = [...data.expenses],
        _upcoming = [...data.upcoming],
+       _bills = [...data.bills],
        _incomes = [...data.incomes],
        _friends = [...data.friends],
        _splits = [...data.splits],
@@ -47,6 +48,7 @@ class AppState extends ChangeNotifier {
   Term _term;
   final List<Expense> _expenses;
   final List<UpcomingCost> _upcoming;
+  final List<RepeatingBill> _bills;
   final List<Income> _incomes;
   final List<Friend> _friends;
   final List<BillSplit> _splits;
@@ -62,6 +64,9 @@ class AppState extends ChangeNotifier {
 
   final _problems = StreamController<SaveProblem>.broadcast();
   int _pendingWrites = 0;
+
+  /// The end of the line of saves; see [_persist].
+  Future<void> _lastWrite = Future.value();
   bool _resyncNeeded = false;
   bool _disposed = false;
 
@@ -106,6 +111,9 @@ class AppState extends ChangeNotifier {
   List<Expense> get allExpenses =>
       [..._expenses]..sort((a, b) => b.date.compareTo(a.date));
 
+  /// Repeating bills that are still going.
+  List<RepeatingBill> get bills => List.unmodifiable(_bills);
+
   /// Every unpaid cost, soonest (or most overdue) first.
   List<UpcomingCost> get comingUp =>
       [..._upcoming]..sort((a, b) => a.dueDate.compareTo(b.dueDate));
@@ -122,7 +130,8 @@ class AppState extends ChangeNotifier {
       ),
   ];
 
-  CoachGrounding get grounding => CoachGrounding.fromSnapshot(_snapshot);
+  CoachGrounding get grounding =>
+      CoachGrounding.fromSnapshot(_snapshot, period: _term.period);
 
   /// Updates the screen immediately, then saves in the background.
   void addExpense({
@@ -135,7 +144,7 @@ class AppState extends ChangeNotifier {
     final expense = _newExpense(amount, category, isNeed, note);
     _expenses.add(expense);
     _changed();
-    _persist(_repo.addExpense(expense));
+    _persist(() => _repo.addExpense(expense));
   }
 
   /// Replaces the expense with the same id (amount, category, need, note).
@@ -145,7 +154,7 @@ class AppState extends ChangeNotifier {
     if (index < 0) return;
     _expenses[index] = expense;
     _changed();
-    _persist(_repo.updateExpense(expense));
+    _persist(() => _repo.updateExpense(expense));
   }
 
   /// Removes the expense and returns it, so the caller can offer Undo
@@ -155,7 +164,7 @@ class AppState extends ChangeNotifier {
     if (index < 0) return null;
     final removed = _expenses.removeAt(index);
     _changed();
-    _persist(_repo.deleteExpense(id));
+    _persist(() => _repo.deleteExpense(id));
     return removed;
   }
 
@@ -163,7 +172,7 @@ class AppState extends ChangeNotifier {
     if (_expenses.any((e) => e.id == expense.id)) return;
     _expenses.add(expense);
     _changed();
-    _persist(_repo.restoreExpense(expense.id));
+    _persist(() => _repo.restoreExpense(expense.id));
   }
 
   /// You paid [total] for something shared with [roommates]. Each roommate
@@ -192,19 +201,19 @@ class AppState extends ChangeNotifier {
     _splits.insertAll(0, added);
     _expenses.add(myShare);
     _changed();
-    _persist(_repo.splitBill(added, myShare));
+    _persist(() => _repo.splitBill(added, myShare));
   }
 
   void settleSplit(String id) {
     _splits.removeWhere((s) => s.id == id);
     notifyListeners();
-    _persist(_repo.settleSplit(id));
+    _persist(() => _repo.settleSplit(id));
   }
 
   void signedIn(UserProfile user) {
     _user = user;
     notifyListeners();
-    _persist(_repo.setCurrentUser(user));
+    _persist(() => _repo.setCurrentUser(user));
   }
 
   /// Changes the name shown in the greeting.
@@ -214,7 +223,7 @@ class AppState extends ChangeNotifier {
     if (user == null || validateName(trimmed) != null) return;
     _user = UserProfile(name: trimmed, email: user.email);
     notifyListeners();
-    _persist(_repo.setCurrentUser(_user));
+    _persist(() => _repo.setCurrentUser(_user));
   }
 
   /// Turns the Face ID / passcode lock on or off. Callers verify the owner
@@ -223,7 +232,7 @@ class AppState extends ChangeNotifier {
     if (on == _appLock) return;
     _appLock = on;
     notifyListeners();
-    _persist(_repo.setAppLock(on));
+    _persist(() => _repo.setAppLock(on));
   }
 
   void updateTerm(Term term) {
@@ -233,23 +242,67 @@ class AppState extends ChangeNotifier {
         term.startingBalance < 0) {
       throw ArgumentError.value(term, 'term', 'invalid name, dates or balance');
     }
+    // A longer term reserves the repeating bills for the days it gained.
+    final added = term.end.isAfter(_term.end)
+        ? _billsDue(from: _dayAfter(_term.end), to: term.end)
+        : <UpcomingCost>[];
     _term = term;
+    _upcoming.addAll(added);
     _changed();
-    _persist(_repo.saveTerm(term));
+    _persist(() => _repo.saveTerm(term, added: added));
   }
 
-  void addUpcomingCost(UpcomingCost cost) {
+  /// With [monthly], [cost] is the first month of a repeating bill, and
+  /// every month of it due before the term ends is reserved.
+  void addUpcomingCost(UpcomingCost cost, {bool monthly = false}) {
     _checkAmount(cost.amount);
-    _upcoming.add(cost);
+    if (!monthly) {
+      _upcoming.add(cost);
+      _changed();
+      _persist(() => _repo.addUpcomingCost(cost));
+      return;
+    }
+    final bill = RepeatingBill(
+      id: 'b${DateTime.now().microsecondsSinceEpoch}',
+      emoji: cost.emoji,
+      name: cost.name,
+      amount: cost.amount,
+      firstDue: dateOnly(cost.dueDate),
+    );
+    final due = billsDue(bill, from: bill.firstDue, to: _term.end);
+    _bills.add(bill);
+    _upcoming.addAll(due);
     _changed();
-    _persist(_repo.addUpcomingCost(cost));
+    _persist(() => _repo.addBill(bill, due));
   }
 
-  void deleteUpcomingCost(String id) {
-    _upcoming.removeWhere((c) => c.id == id);
+  /// With [andLater], a repeating bill stops: this month and every later
+  /// one is removed, and no new months are reserved.
+  void deleteUpcomingCost(String id, {bool andLater = false}) {
+    final cost = _upcoming.where((c) => c.id == id).firstOrNull;
+    if (cost == null) return;
+    final billId = cost.billId;
+    if (andLater && billId != null) {
+      _bills.removeWhere((b) => b.id == billId);
+      _upcoming.removeWhere(
+        (c) => c.billId == billId && !c.dueDate.isBefore(cost.dueDate),
+      );
+      _changed();
+      _persist(() => _repo.stopBill(billId, from: cost.dueDate));
+      return;
+    }
+    _upcoming.remove(cost);
     _changed();
-    _persist(_repo.deleteUpcomingCost(id));
+    _persist(() => _repo.deleteUpcomingCost(id));
   }
+
+  /// Every month of the repeating bills due from [from] to [to].
+  List<UpcomingCost> _billsDue({
+    required DateTime from,
+    required DateTime to,
+  }) => [for (final b in _bills) ...billsDue(b, from: from, to: to)];
+
+  static DateTime _dayAfter(DateTime d) => DateTime(d.year, d.month, d.day + 1);
 
   /// The reserved money is now actually spent: the cost leaves "Coming up"
   /// and is logged as a planned need under Bills, so today's budget and the
@@ -267,7 +320,7 @@ class AppState extends ChangeNotifier {
     );
     _expenses.add(expense);
     _changed();
-    _persist(_repo.payUpcomingCost(id, expense));
+    _persist(() => _repo.payUpcomingCost(id, expense));
   }
 
   void addIncome({
@@ -286,7 +339,7 @@ class AppState extends ChangeNotifier {
     );
     _incomes.add(income);
     _changed();
-    _persist(_repo.addIncome(income));
+    _persist(() => _repo.addIncome(income));
   }
 
   /// No more paydays after today; the ones already received still count.
@@ -296,19 +349,21 @@ class AppState extends ChangeNotifier {
     final endsOn = today;
     _incomes[index] = _incomes[index].copyWith(endsOn: endsOn);
     _changed();
-    _persist(_repo.stopIncome(id, endsOn));
+    _persist(() => _repo.stopIncome(id, endsOn));
   }
 
   /// Removes the income and every payment it brought in.
   void deleteIncome(String id) {
     _incomes.removeWhere((i) => i.id == id);
     _changed();
-    _persist(_repo.deleteIncome(id));
+    _persist(() => _repo.deleteIncome(id));
   }
 
   /// Swaps the demo term for the user's own, starting with no expenses.
+  /// Repeating bills stop; add them again with [addUpcomingCost].
   void startTerm(Term term, List<UpcomingCost> upcoming) {
     _term = term;
+    _bills.clear();
     _expenses.clear();
     _upcoming
       ..clear()
@@ -316,13 +371,14 @@ class AppState extends ChangeNotifier {
     _incomes.clear();
     _needsSetup = false;
     _changed();
-    _persist(_repo.startTerm(term, upcoming));
+    _persist(() => _repo.startTerm(term, upcoming));
   }
 
   /// A monthly budget whose month has ended moves on to the current month.
   /// Expenses stay with the old month; leftover money, unpaid costs and pay
-  /// that keeps coming carry over. Money overspent is reserved as a cost
-  /// due on day one, so it's covered before anything else.
+  /// that keeps coming carry over, and the new month's repeating bills are
+  /// reserved. Money overspent is reserved as a cost due on day one, so it's
+  /// covered before anything else.
   void startNewMonthIfDue() {
     if (_needsSetup) return;
     final next = nextMonth(
@@ -343,16 +399,20 @@ class AppState extends ChangeNotifier {
           id: 'u$stamp',
           emoji: '↩️',
           name: 'Overspent in ${monthName(_term.start)}',
-          amount: (next.overspent * 100).round() / 100,
+          amount: next.overspent,
           dueDate: next.term.start,
         ),
+      // Months skipped while the app was closed too: unpaid until marked.
+      ..._billsDue(from: _dayAfter(_term.end), to: next.term.end),
     ];
     _term = next.term;
     _expenses.clear();
     _upcoming.addAll(added);
     _replace(_incomes, incomes);
     _changed();
-    _persist(_repo.startNewMonth(next.term, incomes: incomes, added: added));
+    _persist(
+      () => _repo.startNewMonth(next.term, incomes: incomes, added: added),
+    );
   }
 
   /// Deletes everything on this device and signs out. Unlike other writes
@@ -369,6 +429,7 @@ class AppState extends ChangeNotifier {
     _term = data.term;
     _replace(_expenses, data.expenses);
     _replace(_upcoming, data.upcoming);
+    _replace(_bills, data.bills);
     _replace(_incomes, data.incomes);
     _replace(_friends, data.friends);
     _replace(_splits, data.splits);
@@ -416,22 +477,25 @@ class AppState extends ChangeNotifier {
   /// stored. So once every save in flight has finished, everything is
   /// reloaded from the database (the source of truth) and [problems] tells
   /// the user their change didn't stick.
-  void _persist(Future<void> write) {
+  ///
+  /// Saves run one at a time, in the order they were made: a save that
+  /// looks something up first (like adding a bill right after setup) can't
+  /// be overtaken by the next one.
+  void _persist(Future<void> Function() write) {
     _pendingWrites++;
-    unawaited(
-      write
-          .then<void>(
-            (_) {},
-            onError: (Object error, StackTrace stack) {
-              _report(error, stack, 'while saving to the database');
-              _resyncNeeded = true;
-            },
-          )
-          .whenComplete(() {
-            _pendingWrites--;
-            if (_pendingWrites == 0 && _resyncNeeded) unawaited(_resync());
-          }),
-    );
+    _lastWrite = _lastWrite
+        .then((_) => write())
+        .then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stack) {
+            _report(error, stack, 'while saving to the database');
+            _resyncNeeded = true;
+          },
+        )
+        .whenComplete(() {
+          _pendingWrites--;
+          if (_pendingWrites == 0 && _resyncNeeded) unawaited(_resync());
+        });
   }
 
   Future<void> _resync() async {

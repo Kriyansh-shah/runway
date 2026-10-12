@@ -30,8 +30,16 @@ abstract interface class BudgetRepository {
   Future<void> splitBill(List<BillSplit> splits, Expense myShare);
   Future<void> settleSplit(String splitId);
 
-  Future<void> saveTerm(Term term);
+  /// Saves the edited term; [added] are bills reserved for days it gained.
+  Future<void> saveTerm(Term term, {List<UpcomingCost> added = const []});
   Future<void> addUpcomingCost(UpcomingCost cost);
+
+  /// Saves a new repeating bill and the months of it reserved so far.
+  Future<void> addBill(RepeatingBill bill, List<UpcomingCost> due);
+
+  /// No more months of the bill after [from]: its unpaid ones due on or
+  /// after [from] are removed. Months already paid stay in history.
+  Future<void> stopBill(String billId, {required DateTime from});
   Future<void> deleteUpcomingCost(String costId);
 
   /// Marks the cost paid and logs [expense] for it together — all or nothing.
@@ -46,7 +54,8 @@ abstract interface class BudgetRepository {
   Future<void> deleteIncome(String incomeId);
 
   /// Replaces the current term with the user's own: the old term (and its
-  /// expenses) is archived and [term] starts empty with [upcoming] reserved.
+  /// expenses) is archived, repeating bills are stopped, and [term] starts
+  /// empty with [upcoming] reserved.
   Future<void> startTerm(Term term, List<UpcomingCost> upcoming);
 
   /// A monthly budget moves on to [term]: the old month (and its expenses)
@@ -101,10 +110,19 @@ class MockBudgetRepository implements BudgetRepository {
   Future<void> settleSplit(String splitId) async {}
 
   @override
-  Future<void> saveTerm(Term term) async {}
+  Future<void> saveTerm(
+    Term term, {
+    List<UpcomingCost> added = const [],
+  }) async {}
 
   @override
   Future<void> addUpcomingCost(UpcomingCost cost) async {}
+
+  @override
+  Future<void> addBill(RepeatingBill bill, List<UpcomingCost> due) async {}
+
+  @override
+  Future<void> stopBill(String billId, {required DateTime from}) async {}
 
   @override
   Future<void> deleteUpcomingCost(String costId) async {}

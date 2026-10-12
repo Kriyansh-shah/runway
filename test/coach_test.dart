@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/coach.dart';
+import 'package:runway/app/models.dart';
 
 void main() {
   // available $1,000 → trade ceiling $120; safe today $20.
@@ -45,6 +46,21 @@ void main() {
       expect(a.headline, 'Not this term');
       expect(a.message, contains('/week'));
       expect(a.runwayDaysLost, closeTo(20, 1e-9));
+    });
+
+    test('a monthly budget says "not this month"', () {
+      const monthly = CoachGrounding(
+        available: 1000,
+        safeToSpendToday: 20,
+        dailyAllowance: 25,
+        spentToday: 5,
+        daysLeft: 20,
+        burnRate: 30,
+        daysShort: 0,
+        period: BudgetPeriod.monthly,
+      );
+      expect(assess(600, 'trip', monthly).headline, 'Not this month');
+      expect(monthly.toJson()['period'], 'month');
     });
 
     test('nothing is affordable when already over budget', () {

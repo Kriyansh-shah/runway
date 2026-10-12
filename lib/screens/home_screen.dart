@@ -768,7 +768,7 @@ class _ComingUp extends StatelessWidget {
 
   String _when(UpcomingCost c) {
     final days = daysBetween(today, c.dueDate);
-    final due = shortDate(c.dueDate);
+    final due = '${shortDate(c.dueDate)}${c.repeats ? ' · monthly' : ''}';
     if (days < 0) return '$due · overdue';
     if (days == 0) return '$due · today';
     return '$due · in ${plural(days, 'day')}';

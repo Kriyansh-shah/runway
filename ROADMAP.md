@@ -135,7 +135,8 @@ screen), and the app lock below protects the data on the phone.
 - Tokens are verified by Supabase Auth (see #5), so no custom auth server.
 - ✅ ~~Optional **Face ID / Touch ID / passcode lock**~~ (shipped, with an
   app-switcher cover).
-- 📋 Encrypt `runway.sqlite` with SQLCipher, key in Keychain / Keystore.
+- ✅ ~~Encrypt `runway.sqlite`, key in Keychain / Keystore~~ (shipped with
+  SQLite3MultipleCiphers, which can encrypt an existing file in place).
 - Add a real `AuthService` (Supabase) next to the name-only profile.
 
 ### Security plan
@@ -148,8 +149,12 @@ screen), and the app lock below protects the data on the phone.
   in Settings (both ways need Face ID), asks on launch and after 1 minute away,
   falls back to the passcode, never locks out a phone with no passcode.
 - **App-switcher cover** so balances don't show in the app switcher.
-- Next: **SQLCipher** encryption of `runway.sqlite`; decide on iCloud / Android
-  backups (on = keep data when switching phones, off = data never leaves).
+- **Encrypted database** (✅ shipped): `runway.sqlite` is encrypted with a
+  random 256-bit key in the Keychain / Keystore. Existing data is encrypted in
+  place on first launch. On iOS the key moves with encrypted backups, so a new
+  iPhone keeps the data.
+- Still to decide: Android backups (the Keystore key doesn't move with them;
+  either exclude the file from backups or accept a fresh start on restore).
 
 **Phase 2: real accounts (with the Squad backend, #5)**
 
@@ -266,7 +271,7 @@ spring break?") on top of the existing rules.
 
 - [ ] Daily reminder notification to log expenses (keeps the streak alive)
 - [ ] Home-screen widget showing "Safe to spend today"
-- [ ] Recurring costs (phone bill, subscriptions) that auto-reserve
+- [x] Recurring costs (phone bill, subscriptions) that auto-reserve
 - [ ] Savings goals from "Not this term" coach verdicts
 - [ ] Custom categories and custom quick picks
 - [ ] Uneven bill splits and "they paid, I owe"

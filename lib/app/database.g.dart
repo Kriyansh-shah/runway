@@ -1048,6 +1048,468 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
   }
 }
 
+class $RepeatingBillsTable extends RepeatingBills
+    with TableInfo<$RepeatingBillsTable, RepeatingBillRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RepeatingBillsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _emojiMeta = const VerificationMeta('emoji');
+  @override
+  late final GeneratedColumn<String> emoji = GeneratedColumn<String>(
+    'emoji',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountCentsMeta = const VerificationMeta(
+    'amountCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountCents = GeneratedColumn<int>(
+    'amount_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _firstDueMeta = const VerificationMeta(
+    'firstDue',
+  );
+  @override
+  late final GeneratedColumn<DateTime> firstDue = GeneratedColumn<DateTime>(
+    'first_due',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    emoji,
+    name,
+    amountCents,
+    firstDue,
+    createdAt,
+    endedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'repeating_bills';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RepeatingBillRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('emoji')) {
+      context.handle(
+        _emojiMeta,
+        emoji.isAcceptableOrUnknown(data['emoji']!, _emojiMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_emojiMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('amount_cents')) {
+      context.handle(
+        _amountCentsMeta,
+        amountCents.isAcceptableOrUnknown(
+          data['amount_cents']!,
+          _amountCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountCentsMeta);
+    }
+    if (data.containsKey('first_due')) {
+      context.handle(
+        _firstDueMeta,
+        firstDue.isAcceptableOrUnknown(data['first_due']!, _firstDueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_firstDueMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RepeatingBillRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RepeatingBillRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      emoji: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}emoji'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      amountCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_cents'],
+      )!,
+      firstDue: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}first_due'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+    );
+  }
+
+  @override
+  $RepeatingBillsTable createAlias(String alias) {
+    return $RepeatingBillsTable(attachedDatabase, alias);
+  }
+}
+
+class RepeatingBillRow extends DataClass
+    implements Insertable<RepeatingBillRow> {
+  final String id;
+  final String emoji;
+  final String name;
+  final int amountCents;
+  final DateTime firstDue;
+  final DateTime createdAt;
+
+  /// Set when the bill is stopped; no more months are reserved after it.
+  final DateTime? endedAt;
+  const RepeatingBillRow({
+    required this.id,
+    required this.emoji,
+    required this.name,
+    required this.amountCents,
+    required this.firstDue,
+    required this.createdAt,
+    this.endedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['emoji'] = Variable<String>(emoji);
+    map['name'] = Variable<String>(name);
+    map['amount_cents'] = Variable<int>(amountCents);
+    map['first_due'] = Variable<DateTime>(firstDue);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    return map;
+  }
+
+  RepeatingBillsCompanion toCompanion(bool nullToAbsent) {
+    return RepeatingBillsCompanion(
+      id: Value(id),
+      emoji: Value(emoji),
+      name: Value(name),
+      amountCents: Value(amountCents),
+      firstDue: Value(firstDue),
+      createdAt: Value(createdAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+    );
+  }
+
+  factory RepeatingBillRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RepeatingBillRow(
+      id: serializer.fromJson<String>(json['id']),
+      emoji: serializer.fromJson<String>(json['emoji']),
+      name: serializer.fromJson<String>(json['name']),
+      amountCents: serializer.fromJson<int>(json['amountCents']),
+      firstDue: serializer.fromJson<DateTime>(json['firstDue']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'emoji': serializer.toJson<String>(emoji),
+      'name': serializer.toJson<String>(name),
+      'amountCents': serializer.toJson<int>(amountCents),
+      'firstDue': serializer.toJson<DateTime>(firstDue),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+    };
+  }
+
+  RepeatingBillRow copyWith({
+    String? id,
+    String? emoji,
+    String? name,
+    int? amountCents,
+    DateTime? firstDue,
+    DateTime? createdAt,
+    Value<DateTime?> endedAt = const Value.absent(),
+  }) => RepeatingBillRow(
+    id: id ?? this.id,
+    emoji: emoji ?? this.emoji,
+    name: name ?? this.name,
+    amountCents: amountCents ?? this.amountCents,
+    firstDue: firstDue ?? this.firstDue,
+    createdAt: createdAt ?? this.createdAt,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+  );
+  RepeatingBillRow copyWithCompanion(RepeatingBillsCompanion data) {
+    return RepeatingBillRow(
+      id: data.id.present ? data.id.value : this.id,
+      emoji: data.emoji.present ? data.emoji.value : this.emoji,
+      name: data.name.present ? data.name.value : this.name,
+      amountCents: data.amountCents.present
+          ? data.amountCents.value
+          : this.amountCents,
+      firstDue: data.firstDue.present ? data.firstDue.value : this.firstDue,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RepeatingBillRow(')
+          ..write('id: $id, ')
+          ..write('emoji: $emoji, ')
+          ..write('name: $name, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('firstDue: $firstDue, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('endedAt: $endedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, emoji, name, amountCents, firstDue, createdAt, endedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RepeatingBillRow &&
+          other.id == this.id &&
+          other.emoji == this.emoji &&
+          other.name == this.name &&
+          other.amountCents == this.amountCents &&
+          other.firstDue == this.firstDue &&
+          other.createdAt == this.createdAt &&
+          other.endedAt == this.endedAt);
+}
+
+class RepeatingBillsCompanion extends UpdateCompanion<RepeatingBillRow> {
+  final Value<String> id;
+  final Value<String> emoji;
+  final Value<String> name;
+  final Value<int> amountCents;
+  final Value<DateTime> firstDue;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> endedAt;
+  final Value<int> rowid;
+  const RepeatingBillsCompanion({
+    this.id = const Value.absent(),
+    this.emoji = const Value.absent(),
+    this.name = const Value.absent(),
+    this.amountCents = const Value.absent(),
+    this.firstDue = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RepeatingBillsCompanion.insert({
+    required String id,
+    required String emoji,
+    required String name,
+    required int amountCents,
+    required DateTime firstDue,
+    required DateTime createdAt,
+    this.endedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       emoji = Value(emoji),
+       name = Value(name),
+       amountCents = Value(amountCents),
+       firstDue = Value(firstDue),
+       createdAt = Value(createdAt);
+  static Insertable<RepeatingBillRow> custom({
+    Expression<String>? id,
+    Expression<String>? emoji,
+    Expression<String>? name,
+    Expression<int>? amountCents,
+    Expression<DateTime>? firstDue,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? endedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (emoji != null) 'emoji': emoji,
+      if (name != null) 'name': name,
+      if (amountCents != null) 'amount_cents': amountCents,
+      if (firstDue != null) 'first_due': firstDue,
+      if (createdAt != null) 'created_at': createdAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RepeatingBillsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? emoji,
+    Value<String>? name,
+    Value<int>? amountCents,
+    Value<DateTime>? firstDue,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? endedAt,
+    Value<int>? rowid,
+  }) {
+    return RepeatingBillsCompanion(
+      id: id ?? this.id,
+      emoji: emoji ?? this.emoji,
+      name: name ?? this.name,
+      amountCents: amountCents ?? this.amountCents,
+      firstDue: firstDue ?? this.firstDue,
+      createdAt: createdAt ?? this.createdAt,
+      endedAt: endedAt ?? this.endedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (emoji.present) {
+      map['emoji'] = Variable<String>(emoji.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (amountCents.present) {
+      map['amount_cents'] = Variable<int>(amountCents.value);
+    }
+    if (firstDue.present) {
+      map['first_due'] = Variable<DateTime>(firstDue.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RepeatingBillsCompanion(')
+          ..write('id: $id, ')
+          ..write('emoji: $emoji, ')
+          ..write('name: $name, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('firstDue: $firstDue, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $UpcomingCostsTable extends UpcomingCosts
     with TableInfo<$UpcomingCostsTable, UpcomingCostRow> {
   @override
@@ -1124,6 +1586,18 @@ class $UpcomingCostsTable extends UpcomingCosts
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _billIdMeta = const VerificationMeta('billId');
+  @override
+  late final GeneratedColumn<String> billId = GeneratedColumn<String>(
+    'bill_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES repeating_bills (id)',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1133,6 +1607,7 @@ class $UpcomingCostsTable extends UpcomingCosts
     amountCents,
     dueDate,
     paidAt,
+    billId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1200,6 +1675,12 @@ class $UpcomingCostsTable extends UpcomingCosts
         paidAt.isAcceptableOrUnknown(data['paid_at']!, _paidAtMeta),
       );
     }
+    if (data.containsKey('bill_id')) {
+      context.handle(
+        _billIdMeta,
+        billId.isAcceptableOrUnknown(data['bill_id']!, _billIdMeta),
+      );
+    }
     return context;
   }
 
@@ -1237,6 +1718,10 @@ class $UpcomingCostsTable extends UpcomingCosts
         DriftSqlType.dateTime,
         data['${effectivePrefix}paid_at'],
       ),
+      billId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bill_id'],
+      ),
     );
   }
 
@@ -1254,6 +1739,9 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
   final int amountCents;
   final DateTime dueDate;
   final DateTime? paidAt;
+
+  /// One month of a repeating bill (added in schema 4); null for one-offs.
+  final String? billId;
   const UpcomingCostRow({
     required this.id,
     required this.termId,
@@ -1262,6 +1750,7 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
     required this.amountCents,
     required this.dueDate,
     this.paidAt,
+    this.billId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1274,6 +1763,9 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
     map['due_date'] = Variable<DateTime>(dueDate);
     if (!nullToAbsent || paidAt != null) {
       map['paid_at'] = Variable<DateTime>(paidAt);
+    }
+    if (!nullToAbsent || billId != null) {
+      map['bill_id'] = Variable<String>(billId);
     }
     return map;
   }
@@ -1289,6 +1781,9 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
       paidAt: paidAt == null && nullToAbsent
           ? const Value.absent()
           : Value(paidAt),
+      billId: billId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(billId),
     );
   }
 
@@ -1305,6 +1800,7 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
       amountCents: serializer.fromJson<int>(json['amountCents']),
       dueDate: serializer.fromJson<DateTime>(json['dueDate']),
       paidAt: serializer.fromJson<DateTime?>(json['paidAt']),
+      billId: serializer.fromJson<String?>(json['billId']),
     );
   }
   @override
@@ -1318,6 +1814,7 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
       'amountCents': serializer.toJson<int>(amountCents),
       'dueDate': serializer.toJson<DateTime>(dueDate),
       'paidAt': serializer.toJson<DateTime?>(paidAt),
+      'billId': serializer.toJson<String?>(billId),
     };
   }
 
@@ -1329,6 +1826,7 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
     int? amountCents,
     DateTime? dueDate,
     Value<DateTime?> paidAt = const Value.absent(),
+    Value<String?> billId = const Value.absent(),
   }) => UpcomingCostRow(
     id: id ?? this.id,
     termId: termId ?? this.termId,
@@ -1337,6 +1835,7 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
     amountCents: amountCents ?? this.amountCents,
     dueDate: dueDate ?? this.dueDate,
     paidAt: paidAt.present ? paidAt.value : this.paidAt,
+    billId: billId.present ? billId.value : this.billId,
   );
   UpcomingCostRow copyWithCompanion(UpcomingCostsCompanion data) {
     return UpcomingCostRow(
@@ -1349,6 +1848,7 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
           : this.amountCents,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       paidAt: data.paidAt.present ? data.paidAt.value : this.paidAt,
+      billId: data.billId.present ? data.billId.value : this.billId,
     );
   }
 
@@ -1361,14 +1861,23 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
           ..write('name: $name, ')
           ..write('amountCents: $amountCents, ')
           ..write('dueDate: $dueDate, ')
-          ..write('paidAt: $paidAt')
+          ..write('paidAt: $paidAt, ')
+          ..write('billId: $billId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, termId, emoji, name, amountCents, dueDate, paidAt);
+  int get hashCode => Object.hash(
+    id,
+    termId,
+    emoji,
+    name,
+    amountCents,
+    dueDate,
+    paidAt,
+    billId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1379,7 +1888,8 @@ class UpcomingCostRow extends DataClass implements Insertable<UpcomingCostRow> {
           other.name == this.name &&
           other.amountCents == this.amountCents &&
           other.dueDate == this.dueDate &&
-          other.paidAt == this.paidAt);
+          other.paidAt == this.paidAt &&
+          other.billId == this.billId);
 }
 
 class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
@@ -1390,6 +1900,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
   final Value<int> amountCents;
   final Value<DateTime> dueDate;
   final Value<DateTime?> paidAt;
+  final Value<String?> billId;
   final Value<int> rowid;
   const UpcomingCostsCompanion({
     this.id = const Value.absent(),
@@ -1399,6 +1910,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
     this.amountCents = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.paidAt = const Value.absent(),
+    this.billId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   UpcomingCostsCompanion.insert({
@@ -1409,6 +1921,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
     required int amountCents,
     required DateTime dueDate,
     this.paidAt = const Value.absent(),
+    this.billId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        termId = Value(termId),
@@ -1424,6 +1937,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
     Expression<int>? amountCents,
     Expression<DateTime>? dueDate,
     Expression<DateTime>? paidAt,
+    Expression<String>? billId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1434,6 +1948,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
       if (amountCents != null) 'amount_cents': amountCents,
       if (dueDate != null) 'due_date': dueDate,
       if (paidAt != null) 'paid_at': paidAt,
+      if (billId != null) 'bill_id': billId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1446,6 +1961,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
     Value<int>? amountCents,
     Value<DateTime>? dueDate,
     Value<DateTime?>? paidAt,
+    Value<String?>? billId,
     Value<int>? rowid,
   }) {
     return UpcomingCostsCompanion(
@@ -1456,6 +1972,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
       amountCents: amountCents ?? this.amountCents,
       dueDate: dueDate ?? this.dueDate,
       paidAt: paidAt ?? this.paidAt,
+      billId: billId ?? this.billId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1484,6 +2001,9 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
     if (paidAt.present) {
       map['paid_at'] = Variable<DateTime>(paidAt.value);
     }
+    if (billId.present) {
+      map['bill_id'] = Variable<String>(billId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1500,6 +2020,7 @@ class UpcomingCostsCompanion extends UpdateCompanion<UpcomingCostRow> {
           ..write('amountCents: $amountCents, ')
           ..write('dueDate: $dueDate, ')
           ..write('paidAt: $paidAt, ')
+          ..write('billId: $billId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3475,6 +3996,7 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
   $RunwayDatabaseManager get managers => $RunwayDatabaseManager(this);
   late final $TermsTable terms = $TermsTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
+  late final $RepeatingBillsTable repeatingBills = $RepeatingBillsTable(this);
   late final $UpcomingCostsTable upcomingCosts = $UpcomingCostsTable(this);
   late final $IncomesTable incomes = $IncomesTable(this);
   late final $BillSplitsTable billSplits = $BillSplitsTable(this);
@@ -3488,6 +4010,7 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     terms,
     expenses,
+    repeatingBills,
     upcomingCosts,
     incomes,
     billSplits,
@@ -4423,6 +4946,360 @@ typedef $$ExpensesTableProcessedTableManager =
       ExpenseRow,
       PrefetchHooks Function({bool termId})
     >;
+typedef $$RepeatingBillsTableCreateCompanionBuilder =
+    RepeatingBillsCompanion Function({
+      required String id,
+      required String emoji,
+      required String name,
+      required int amountCents,
+      required DateTime firstDue,
+      required DateTime createdAt,
+      Value<DateTime?> endedAt,
+      Value<int> rowid,
+    });
+typedef $$RepeatingBillsTableUpdateCompanionBuilder =
+    RepeatingBillsCompanion Function({
+      Value<String> id,
+      Value<String> emoji,
+      Value<String> name,
+      Value<int> amountCents,
+      Value<DateTime> firstDue,
+      Value<DateTime> createdAt,
+      Value<DateTime?> endedAt,
+      Value<int> rowid,
+    });
+
+final class $$RepeatingBillsTableReferences
+    extends
+        BaseReferences<
+          _$RunwayDatabase,
+          $RepeatingBillsTable,
+          RepeatingBillRow
+        > {
+  $$RepeatingBillsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$UpcomingCostsTable, List<UpcomingCostRow>>
+  _upcomingCostsRefsTable(_$RunwayDatabase db) => MultiTypedResultKey.fromTable(
+    db.upcomingCosts,
+    aliasName: 'repeating_bills__id__upcoming_costs__bill_id',
+  );
+
+  $$UpcomingCostsTableProcessedTableManager get upcomingCostsRefs {
+    final manager = $$UpcomingCostsTableTableManager(
+      $_db,
+      $_db.upcomingCosts,
+    ).filter((f) => f.billId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_upcomingCostsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$RepeatingBillsTableFilterComposer
+    extends Composer<_$RunwayDatabase, $RepeatingBillsTable> {
+  $$RepeatingBillsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get emoji => $composableBuilder(
+    column: $table.emoji,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get firstDue => $composableBuilder(
+    column: $table.firstDue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> upcomingCostsRefs(
+    Expression<bool> Function($$UpcomingCostsTableFilterComposer f) f,
+  ) {
+    final $$UpcomingCostsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.upcomingCosts,
+      getReferencedColumn: (t) => t.billId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UpcomingCostsTableFilterComposer(
+            $db: $db,
+            $table: $db.upcomingCosts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$RepeatingBillsTableOrderingComposer
+    extends Composer<_$RunwayDatabase, $RepeatingBillsTable> {
+  $$RepeatingBillsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get emoji => $composableBuilder(
+    column: $table.emoji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get firstDue => $composableBuilder(
+    column: $table.firstDue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RepeatingBillsTableAnnotationComposer
+    extends Composer<_$RunwayDatabase, $RepeatingBillsTable> {
+  $$RepeatingBillsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get emoji =>
+      $composableBuilder(column: $table.emoji, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get firstDue =>
+      $composableBuilder(column: $table.firstDue, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  Expression<T> upcomingCostsRefs<T extends Object>(
+    Expression<T> Function($$UpcomingCostsTableAnnotationComposer a) f,
+  ) {
+    final $$UpcomingCostsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.upcomingCosts,
+      getReferencedColumn: (t) => t.billId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UpcomingCostsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.upcomingCosts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$RepeatingBillsTableTableManager
+    extends
+        RootTableManager<
+          _$RunwayDatabase,
+          $RepeatingBillsTable,
+          RepeatingBillRow,
+          $$RepeatingBillsTableFilterComposer,
+          $$RepeatingBillsTableOrderingComposer,
+          $$RepeatingBillsTableAnnotationComposer,
+          $$RepeatingBillsTableCreateCompanionBuilder,
+          $$RepeatingBillsTableUpdateCompanionBuilder,
+          (RepeatingBillRow, $$RepeatingBillsTableReferences),
+          RepeatingBillRow,
+          PrefetchHooks Function({bool upcomingCostsRefs})
+        > {
+  $$RepeatingBillsTableTableManager(
+    _$RunwayDatabase db,
+    $RepeatingBillsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RepeatingBillsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RepeatingBillsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RepeatingBillsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> emoji = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> amountCents = const Value.absent(),
+                Value<DateTime> firstDue = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RepeatingBillsCompanion(
+                id: id,
+                emoji: emoji,
+                name: name,
+                amountCents: amountCents,
+                firstDue: firstDue,
+                createdAt: createdAt,
+                endedAt: endedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String emoji,
+                required String name,
+                required int amountCents,
+                required DateTime firstDue,
+                required DateTime createdAt,
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RepeatingBillsCompanion.insert(
+                id: id,
+                emoji: emoji,
+                name: name,
+                amountCents: amountCents,
+                firstDue: firstDue,
+                createdAt: createdAt,
+                endedAt: endedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RepeatingBillsTable, RepeatingBillRow>(table),
+                  $$RepeatingBillsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({upcomingCostsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (upcomingCostsRefs) db.upcomingCosts,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (upcomingCostsRefs)
+                    await $_getPrefetchedData<
+                      RepeatingBillRow,
+                      $RepeatingBillsTable,
+                      UpcomingCostRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$RepeatingBillsTableReferences
+                          ._upcomingCostsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$RepeatingBillsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).upcomingCostsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.billId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$RepeatingBillsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RunwayDatabase,
+      $RepeatingBillsTable,
+      RepeatingBillRow,
+      $$RepeatingBillsTableFilterComposer,
+      $$RepeatingBillsTableOrderingComposer,
+      $$RepeatingBillsTableAnnotationComposer,
+      $$RepeatingBillsTableCreateCompanionBuilder,
+      $$RepeatingBillsTableUpdateCompanionBuilder,
+      (RepeatingBillRow, $$RepeatingBillsTableReferences),
+      RepeatingBillRow,
+      PrefetchHooks Function({bool upcomingCostsRefs})
+    >;
 typedef $$UpcomingCostsTableCreateCompanionBuilder =
     UpcomingCostsCompanion Function({
       required String id,
@@ -4432,6 +5309,7 @@ typedef $$UpcomingCostsTableCreateCompanionBuilder =
       required int amountCents,
       required DateTime dueDate,
       Value<DateTime?> paidAt,
+      Value<String?> billId,
       Value<int> rowid,
     });
 typedef $$UpcomingCostsTableUpdateCompanionBuilder =
@@ -4443,6 +5321,7 @@ typedef $$UpcomingCostsTableUpdateCompanionBuilder =
       Value<int> amountCents,
       Value<DateTime> dueDate,
       Value<DateTime?> paidAt,
+      Value<String?> billId,
       Value<int> rowid,
     });
 
@@ -4466,6 +5345,24 @@ final class $$UpcomingCostsTableReferences
       $_db.terms,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_termIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $RepeatingBillsTable _billIdTable(_$RunwayDatabase db) => db
+      .repeatingBills
+      .createAlias('upcoming_costs__bill_id__repeating_bills__id');
+
+  $$RepeatingBillsTableProcessedTableManager? get billId {
+    final $_column = $_itemColumn<String>('bill_id');
+    if ($_column == null) return null;
+    final manager = $$RepeatingBillsTableTableManager(
+      $_db,
+      $_db.repeatingBills,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_billIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -4526,6 +5423,29 @@ class $$UpcomingCostsTableFilterComposer
           }) => $$TermsTableFilterComposer(
             $db: $db,
             $table: $db.terms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$RepeatingBillsTableFilterComposer get billId {
+    final $$RepeatingBillsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.billId,
+      referencedTable: $db.repeatingBills,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RepeatingBillsTableFilterComposer(
+            $db: $db,
+            $table: $db.repeatingBills,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4597,6 +5517,29 @@ class $$UpcomingCostsTableOrderingComposer
     );
     return composer;
   }
+
+  $$RepeatingBillsTableOrderingComposer get billId {
+    final $$RepeatingBillsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.billId,
+      referencedTable: $db.repeatingBills,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RepeatingBillsTableOrderingComposer(
+            $db: $db,
+            $table: $db.repeatingBills,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$UpcomingCostsTableAnnotationComposer
@@ -4650,6 +5593,29 @@ class $$UpcomingCostsTableAnnotationComposer
     );
     return composer;
   }
+
+  $$RepeatingBillsTableAnnotationComposer get billId {
+    final $$RepeatingBillsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.billId,
+      referencedTable: $db.repeatingBills,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RepeatingBillsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.repeatingBills,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$UpcomingCostsTableTableManager
@@ -4665,7 +5631,7 @@ class $$UpcomingCostsTableTableManager
           $$UpcomingCostsTableUpdateCompanionBuilder,
           (UpcomingCostRow, $$UpcomingCostsTableReferences),
           UpcomingCostRow,
-          PrefetchHooks Function({bool termId})
+          PrefetchHooks Function({bool termId, bool billId})
         > {
   $$UpcomingCostsTableTableManager(
     _$RunwayDatabase db,
@@ -4689,6 +5655,7 @@ class $$UpcomingCostsTableTableManager
                 Value<int> amountCents = const Value.absent(),
                 Value<DateTime> dueDate = const Value.absent(),
                 Value<DateTime?> paidAt = const Value.absent(),
+                Value<String?> billId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UpcomingCostsCompanion(
                 id: id,
@@ -4698,6 +5665,7 @@ class $$UpcomingCostsTableTableManager
                 amountCents: amountCents,
                 dueDate: dueDate,
                 paidAt: paidAt,
+                billId: billId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4709,6 +5677,7 @@ class $$UpcomingCostsTableTableManager
                 required int amountCents,
                 required DateTime dueDate,
                 Value<DateTime?> paidAt = const Value.absent(),
+                Value<String?> billId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UpcomingCostsCompanion.insert(
                 id: id,
@@ -4718,6 +5687,7 @@ class $$UpcomingCostsTableTableManager
                 amountCents: amountCents,
                 dueDate: dueDate,
                 paidAt: paidAt,
+                billId: billId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4728,7 +5698,7 @@ class $$UpcomingCostsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({termId = false}) {
+          prefetchHooksCallback: ({termId = false, billId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -4759,6 +5729,17 @@ class $$UpcomingCostsTableTableManager
                             .id,
                       ) as T;
                     }
+                    if (billId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.billId,
+                        referencedTable: $$UpcomingCostsTableReferences
+                            ._billIdTable(db),
+                        referencedColumn: $$UpcomingCostsTableReferences
+                            ._billIdTable(db)
+                            .id,
+                      ) as T;
+                    }
 
                     return state;
                   },
@@ -4783,7 +5764,7 @@ typedef $$UpcomingCostsTableProcessedTableManager =
       $$UpcomingCostsTableUpdateCompanionBuilder,
       (UpcomingCostRow, $$UpcomingCostsTableReferences),
       UpcomingCostRow,
-      PrefetchHooks Function({bool termId})
+      PrefetchHooks Function({bool termId, bool billId})
     >;
 typedef $$IncomesTableCreateCompanionBuilder = IncomesCompanion Function({
   required String id,
@@ -5977,6 +6958,8 @@ class $RunwayDatabaseManager {
       $$TermsTableTableManager(_db, _db.terms);
   $$ExpensesTableTableManager get expenses =>
       $$ExpensesTableTableManager(_db, _db.expenses);
+  $$RepeatingBillsTableTableManager get repeatingBills =>
+      $$RepeatingBillsTableTableManager(_db, _db.repeatingBills);
   $$UpcomingCostsTableTableManager get upcomingCosts =>
       $$UpcomingCostsTableTableManager(_db, _db.upcomingCosts);
   $$IncomesTableTableManager get incomes =>

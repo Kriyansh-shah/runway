@@ -104,8 +104,9 @@ class DateField extends StatelessWidget {
   }
 }
 
-/// Name, amount and due date for a big upcoming cost, plus an "Add cost"
-/// chip that lights up once all three are filled in.
+/// Name, amount and due date for a big upcoming cost, an "Every month"
+/// toggle for repeating bills, and an "Add cost" chip that lights up once
+/// the first three are filled in.
 class AddCostForm extends StatefulWidget {
   const AddCostForm({
     super.key,
@@ -117,7 +118,9 @@ class AddCostForm extends StatefulWidget {
   /// Due dates can be picked from [firstDate] to [lastDate].
   final DateTime firstDate;
   final DateTime lastDate;
-  final ValueChanged<UpcomingCost> onAdd;
+
+  /// [monthly]: the cost is the first month of a repeating bill.
+  final void Function(UpcomingCost cost, {required bool monthly}) onAdd;
 
   @override
   State<AddCostForm> createState() => _AddCostFormState();
@@ -127,6 +130,7 @@ class _AddCostFormState extends State<AddCostForm> {
   final _name = TextEditingController();
   final _amount = TextEditingController();
   DateTime? _due;
+  bool _monthly = false;
 
   @override
   void dispose() {
@@ -160,11 +164,13 @@ class _AddCostFormState extends State<AddCostForm> {
         amount: _value,
         dueDate: _due!,
       ),
+      monthly: _monthly,
     );
     setState(() {
       _name.clear();
       _amount.clear();
       _due = null;
+      _monthly = false;
     });
   }
 
@@ -195,21 +201,28 @@ class _AddCostFormState extends State<AddCostForm> {
           ],
         ),
         const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ChoiceChipPill(
-            selected: _ready,
-            color: AppColors.lime,
-            onTap: _add,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(PhIcons.plusBold, size: 16),
-                SizedBox(width: 6),
-                Text('Add cost'),
-              ],
+        Row(
+          children: [
+            ChoiceChipPill(
+              selected: _ready,
+              color: AppColors.lime,
+              onTap: _add,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(PhIcons.plusBold, size: 16),
+                  SizedBox(width: 6),
+                  Text('Add cost'),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            ChoiceChipPill(
+              selected: _monthly,
+              onTap: () => setState(() => _monthly = !_monthly),
+              child: const Text('Every month'),
+            ),
+          ],
         ),
       ],
     );

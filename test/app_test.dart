@@ -13,6 +13,7 @@ import 'package:runway/screens/quick_add_sheet.dart';
 import 'package:runway/screens/settings_screen.dart';
 import 'package:runway/widgets/celebrations.dart';
 import 'package:runway/widgets/expense_inputs.dart';
+import 'package:runway/widgets/form_fields.dart';
 import 'package:runway/widgets/mochi_takeoff.dart';
 import 'package:runway/widgets/ph_icons.dart';
 
@@ -540,6 +541,62 @@ void main() {
 
     expect(state.user, isNull);
     expect(find.byType(LogoMark), findsOneWidget);
+  });
+
+  testWidgets('settings adds a monthly bill and can stop it', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    final available = state.snapshot.available;
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await tester.tap(find.text('A'));
+    await settle(tester);
+    await tester.scrollUntilVisible(
+      find.text('Every month'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(SettingsScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await settle(tester, const Duration(milliseconds: 300));
+
+    final fields = find.descendant(
+      of: find.byType(AddCostForm),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.at(0), 'Gym');
+    await tester.enterText(fields.at(1), '30');
+    await tester.tap(find.text('Pick date'));
+    await settle(tester);
+    await tester.tap(find.text('10'));
+    await tester.tap(find.text('OK'));
+    await settle(tester);
+    await tester.tap(find.text('Every month'));
+    await tester.tap(find.text('Add cost'));
+    await settle(tester);
+
+    // Oct 10, Nov 10 and Dec 10 fall before the term ends on Dec 11.
+    expect(state.bills.single.name, 'Gym');
+    expect(state.comingUp.where((c) => c.repeats), hasLength(3));
+    expect(state.snapshot.available, closeTo(available - 90, 1e-9));
+
+    final row = find.text('📌 Gym · Oct 10 · monthly');
+    await tester.ensureVisible(row);
+    await tester.tap(row);
+    await settle(tester);
+    expect(find.text('Skip just this month'), findsOneWidget);
+    await tester.tap(find.text('Stop this bill'));
+    await settle(tester);
+
+    expect(state.bills, isEmpty);
+    expect(state.comingUp.where((c) => c.repeats), isEmpty);
+    expect(state.snapshot.available, closeTo(available, 1e-9));
   });
 
   test('editing and deleting an expense updates the numbers', () {

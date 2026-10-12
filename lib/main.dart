@@ -32,7 +32,7 @@ Future<void> main() async {
 
   // Everything is saved in runway.sqlite on this device. On first launch it
   // is filled with demo data once; after that it's your real data.
-  final repository = DriftBudgetRepository(RunwayDatabase.onDevice());
+  final repository = DriftBudgetRepository(await RunwayDatabase.onDevice());
   final data = await repository.load();
   final user = await repository.currentUser();
   final state = AppState(repository: repository, data: data, user: user);

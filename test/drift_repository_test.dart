@@ -451,6 +451,8 @@ void main() {
     final db = RunwayDatabase(NativeDatabase(file));
     await db.customStatement('DROP TABLE incomes');
     await db.customStatement('ALTER TABLE expenses DROP COLUMN is_planned');
+    await db.customStatement('ALTER TABLE upcoming_costs DROP COLUMN bill_id');
+    await db.customStatement('DROP TABLE repeating_bills');
     await db.customStatement('ALTER TABLE terms DROP COLUMN period');
     await db.customStatement('PRAGMA user_version = 1');
     await db.close();
@@ -479,6 +481,8 @@ void main() {
     open.remove(repo);
 
     final db = RunwayDatabase(NativeDatabase(file));
+    await db.customStatement('ALTER TABLE upcoming_costs DROP COLUMN bill_id');
+    await db.customStatement('DROP TABLE repeating_bills');
     await db.customStatement('ALTER TABLE terms DROP COLUMN period');
     await db.customStatement('PRAGMA user_version = 2');
     await db.close();
@@ -560,6 +564,146 @@ void main() {
     expect(data.expenses, isEmpty);
     expect(data.upcoming.map((c) => c.name), ['Rent', 'Overspent in October']);
     expect(data.incomes.single.frequency, IncomeFrequency.weekly);
+  });
+
+  group('repeating bills', () {
+    late DriftBudgetRepository repo;
+    late AppState state;
+    var clock = now;
+    final rent = UpcomingCost(
+      id: 'rent',
+      emoji: '🏠',
+      name: 'Rent',
+      amount: 800,
+      dueDate: DateTime(2026, 10, 5),
+    );
+
+    Future<void> start(Term term) async {
+      clock = now;
+      repo = openRepo();
+      state = AppState(
+        repository: repo,
+        data: await repo.load(),
+        clock: () => clock,
+      );
+      state.startTerm(term, const []);
+      state.addUpcomingCost(rent, monthly: true);
+    }
+
+    Future<BudgetData> reload() async {
+      await pumpEventQueue(times: 100);
+      repo = await reopen(repo);
+      return repo.load();
+    }
+
+    final semester = Term(
+      name: 'Fall term',
+      start: DateTime(2026, 9, 1),
+      end: DateTime(2026, 12, 20),
+      startingBalance: 5000,
+    );
+
+    test('a semester reserves every month of it up front', () async {
+      await start(semester);
+      expect(state.comingUp.map((c) => c.dueDate), [
+        DateTime(2026, 10, 5),
+        DateTime(2026, 11, 5),
+        DateTime(2026, 12, 5),
+      ]);
+      expect(state.snapshot.available, 2600);
+
+      final data = await reload();
+      expect(data.upcoming.map((c) => c.billId).toSet(), {
+        data.bills.single.id,
+      });
+      expect(data.bills.single.name, 'Rent');
+      expect(data.bills.single.firstDue, DateTime(2026, 10, 5));
+    });
+
+    test('each month is paid or skipped on its own', () async {
+      await start(semester);
+      final months = state.comingUp;
+      state.payUpcomingCost(months[0].id);
+      state.deleteUpcomingCost(months[1].id); // skip November
+      expect(state.comingUp.map((c) => c.id), [months[2].id]);
+      expect(state.bills, hasLength(1));
+
+      final data = await reload();
+      expect(data.upcoming.map((c) => c.id), [months[2].id]);
+      expect(data.bills, hasLength(1));
+    });
+
+    test('stopping it removes this month and later ones', () async {
+      await start(semester);
+      final months = state.comingUp;
+      state.payUpcomingCost(months[0].id);
+      state.deleteUpcomingCost(months[1].id, andLater: true);
+      expect(state.comingUp, isEmpty);
+      expect(state.bills, isEmpty);
+
+      final data = await reload();
+      expect(data.upcoming, isEmpty);
+      expect(data.bills, isEmpty);
+      expect(data.expenses.single.note, 'Rent'); // October's payment stays
+    });
+
+    test('a longer term reserves the months it gained', () async {
+      await start(semester);
+      state.updateTerm(
+        Term(
+          name: semester.name,
+          start: semester.start,
+          end: DateTime(2027, 1, 15),
+          startingBalance: semester.startingBalance,
+        ),
+      );
+      expect(state.comingUp.last.dueDate, DateTime(2027, 1, 5));
+      expect((await reload()).upcoming, hasLength(4));
+    });
+
+    test('a monthly budget reserves it again each new month', () async {
+      await start(
+        Term(
+          name: 'October',
+          start: DateTime(2026, 10, 1),
+          end: DateTime(2026, 10, 31),
+          startingBalance: 2000,
+          period: BudgetPeriod.monthly,
+        ),
+      );
+      expect(state.comingUp.single.dueDate, DateTime(2026, 10, 5));
+      state.payUpcomingCost(state.comingUp.single.id);
+
+      clock = DateTime(2026, 12, 2, 9); // November skipped
+      state.startNewMonthIfDue();
+      expect(state.term.name, 'December');
+      // November's rent wasn't marked paid, so it's still reserved.
+      expect(state.comingUp.map((c) => c.dueDate), [
+        DateTime(2026, 11, 5),
+        DateTime(2026, 12, 5),
+      ]);
+
+      final data = await reload();
+      expect(data.upcoming, hasLength(2));
+      expect(data.bills, hasLength(1));
+    });
+
+    test('a new semester stops repeating bills', () async {
+      await start(semester);
+      state.startTerm(
+        Term(
+          name: 'Spring term',
+          start: DateTime(2026, 10, 2),
+          end: DateTime(2027, 5, 1),
+          startingBalance: 100,
+        ),
+        const [],
+      );
+      expect(state.bills, isEmpty);
+      final data = await reload();
+      expect(data.bills, isEmpty);
+      expect(data.upcoming, isEmpty);
+    });
   });
 
   test('edited, deleted and restored expenses survive reopening', () async {
@@ -659,13 +803,13 @@ void main() {
         category: ExpenseCategory.coffee,
         isNeed: false,
       );
-      repo.failWrites = true;
+      // Saves run in order after the call, so pick the failure by amount.
+      repo.failAmount = 40;
       state.addExpense(
         amount: 40,
         category: ExpenseCategory.fun,
         isNeed: false,
       );
-      repo.failWrites = false;
       state.addExpense(
         amount: 7,
         category: ExpenseCategory.transit,
@@ -682,15 +826,18 @@ void main() {
 }
 
 /// Saves to a real database, but [failWrites] makes new expenses fail to
-/// save, like a full disk would.
+/// save, like a full disk would; [failAmount] fails only that amount.
 class _FlakyRepository extends DriftBudgetRepository {
   _FlakyRepository(super.db, {super.clock});
 
   bool failWrites = false;
+  double? failAmount;
 
   @override
   Future<void> addExpense(Expense expense) async {
-    if (failWrites) throw StateError('disk full');
+    if (failWrites || expense.amount == failAmount) {
+      throw StateError('disk full');
+    }
     await super.addExpense(expense);
   }
 }

@@ -427,6 +427,17 @@ void main() {
       expect(next.overspent, 50);
     });
 
+    test('spending exactly everything isn\'t a \$0.00 overspend', () {
+      final next = nextMonth(
+        term: month(0.30),
+        expenses: [spent(0.10), spent(0.20)], // 0.1 + 0.2 != 0.3 in floats
+        incomes: const [],
+        today: DateTime(2026, 11, 1),
+      )!;
+      expect(next.overspent, 0);
+      expect(next.term.startingBalance, 0);
+    });
+
     test('a month that starts on the 31st runs to the end of the month', () {
       final next = nextMonth(
         term: Term(
@@ -442,6 +453,42 @@ void main() {
       )!;
       expect(next.term.start, DateTime(2027, 2, 1));
       expect(next.term.end, DateTime(2027, 2, 28));
+    });
+  });
+
+  group('billsDue', () {
+    final rent = RepeatingBill(
+      id: 'rent',
+      emoji: '🏠',
+      name: 'Rent',
+      amount: 800,
+      firstDue: DateTime(2026, 10, 31),
+    );
+
+    test('one per month, on the day or the last day of short months', () {
+      final due = billsDue(
+        rent,
+        from: DateTime(2026, 10, 1),
+        to: DateTime(2027, 3, 1),
+      );
+      expect(due.map((c) => c.dueDate), [
+        DateTime(2026, 10, 31),
+        DateTime(2026, 11, 30),
+        DateTime(2026, 12, 31),
+        DateTime(2027, 1, 31),
+        DateTime(2027, 2, 28),
+      ]);
+      expect(due.map((c) => c.id).toSet(), hasLength(5));
+      expect(due.every((c) => c.billId == 'rent' && c.amount == 800), isTrue);
+    });
+
+    test('only the months from [from] on', () {
+      final due = billsDue(
+        rent,
+        from: DateTime(2026, 12, 1),
+        to: DateTime(2026, 12, 31),
+      );
+      expect(due.single.id, 'rent@2026-12');
     });
   });
 }

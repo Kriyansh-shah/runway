@@ -49,6 +49,9 @@ class DriftBudgetRepository implements BudgetRepository {
               ..where((i) => i.termId.equals(term.id) & i.deletedAt.isNull())
               ..orderBy([(i) => OrderingTerm.asc(i.createdAt)]))
             .get();
+    final bills = await (_db.select(
+      _db.repeatingBills,
+    )..where((b) => b.endedAt.isNull())).get();
     final splits =
         await (_db.select(_db.billSplits)
               ..where((s) => s.settledAt.isNull())
@@ -78,6 +81,17 @@ class DriftBudgetRepository implements BudgetRepository {
             name: r.name,
             amount: _dollars(r.amountCents),
             dueDate: _day(r.dueDate),
+            billId: r.billId,
+          ),
+      ],
+      bills: [
+        for (final r in bills)
+          RepeatingBill(
+            id: r.id,
+            emoji: r.emoji,
+            name: r.name,
+            amount: _dollars(r.amountCents),
+            firstDue: _day(r.firstDue),
           ),
       ],
       incomes: [for (final r in incomes) _income(r)],
@@ -210,23 +224,72 @@ class DriftBudgetRepository implements BudgetRepository {
   }
 
   @override
-  Future<void> saveTerm(Term term) async {
+  Future<void> saveTerm(
+    Term term, {
+    List<UpcomingCost> added = const [],
+  }) async {
     final id = await _currentTermId();
-    await (_db.update(_db.terms)..where((t) => t.id.equals(id))).write(
-      TermsCompanion(
-        name: Value(term.name),
-        start: Value(term.start),
-        end: Value(term.end),
-        startingBalanceCents: Value(_cents(term.startingBalance)),
-        period: Value(term.period),
-      ),
-    );
+    await _db.transaction(() async {
+      await (_db.update(_db.terms)..where((t) => t.id.equals(id))).write(
+        TermsCompanion(
+          name: Value(term.name),
+          start: Value(term.start),
+          end: Value(term.end),
+          startingBalanceCents: Value(_cents(term.startingBalance)),
+          period: Value(term.period),
+        ),
+      );
+      await _db.batch((b) {
+        b.insertAll(_db.upcomingCosts, [
+          for (final c in added) _costRow(c, id),
+        ]);
+      });
+    });
   }
 
   @override
   Future<void> addUpcomingCost(UpcomingCost cost) async {
     final termId = await _currentTermId();
     await _db.into(_db.upcomingCosts).insert(_costRow(cost, termId));
+  }
+
+  @override
+  Future<void> addBill(RepeatingBill bill, List<UpcomingCost> due) async {
+    final termId = await _currentTermId();
+    await _db.transaction(() async {
+      await _db
+          .into(_db.repeatingBills)
+          .insert(
+            RepeatingBillsCompanion.insert(
+              id: bill.id,
+              emoji: bill.emoji,
+              name: bill.name,
+              amountCents: _cents(bill.amount),
+              firstDue: bill.firstDue,
+              createdAt: _clock(),
+            ),
+          );
+      await _db.batch((b) {
+        b.insertAll(_db.upcomingCosts, [
+          for (final c in due) _costRow(c, termId),
+        ]);
+      });
+    });
+  }
+
+  @override
+  Future<void> stopBill(String billId, {required DateTime from}) {
+    return _db.transaction(() async {
+      await (_db.update(_db.repeatingBills)..where((b) => b.id.equals(billId)))
+          .write(RepeatingBillsCompanion(endedAt: Value(_clock())));
+      await (_db.delete(_db.upcomingCosts)..where(
+            (c) =>
+                c.billId.equals(billId) &
+                c.paidAt.isNull() &
+                c.dueDate.isBiggerOrEqualValue(from),
+          ))
+          .go();
+    });
   }
 
   @override
@@ -274,6 +337,7 @@ class DriftBudgetRepository implements BudgetRepository {
       for (final table in <TableInfo<Table, Object?>>[
         _db.expenses,
         _db.upcomingCosts,
+        _db.repeatingBills,
         _db.incomes,
         _db.billSplits,
         _db.friends,
@@ -297,6 +361,8 @@ class DriftBudgetRepository implements BudgetRepository {
     final now = _clock();
     return _db.transaction(() async {
       final termId = await _replaceCurrentTerm(term, now);
+      await (_db.update(_db.repeatingBills)..where((b) => b.endedAt.isNull()))
+          .write(RepeatingBillsCompanion(endedAt: Value(now)));
       await _db.batch((b) {
         b.insertAll(_db.upcomingCosts, [
           for (final c in upcoming) _costRow(c, termId),
@@ -457,6 +523,7 @@ class DriftBudgetRepository implements BudgetRepository {
         name: c.name,
         amountCents: _cents(c.amount),
         dueDate: c.dueDate,
+        billId: Value(c.billId),
       );
 
   static IncomesCompanion _incomeRow(

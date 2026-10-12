@@ -10,7 +10,7 @@ and tells you how much you can safely spend **today**.
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-105%20passing-C6FF3D)
+![Tests](https://img.shields.io/badge/tests-120%20passing-C6FF3D)
 ![Status](https://img.shields.io/badge/status-prototype-FFB547)
 
 </div>
@@ -61,6 +61,10 @@ as it can be: two taps for most purchases. Your money data never leaves your pho
   are **reserved ahead of time** so they can't be spent by accident. Tap one to
   mark it paid (your daily budget doesn't move) or delete it. Overdue costs stay
   reserved until you do.
+- **Monthly bills:** tick **Every month** when adding a cost (rent, phone,
+  subscriptions). Every month of it due before the term ends is reserved, each
+  paid on its own; a monthly budget reserves it again each new month. Skip
+  just one month, or stop the bill.
 - **Money in:** paychecks (weekly, every 2 weeks, monthly), allowance or a
   one-off payment like a scholarship. Each payment counts **on the day it
   arrives, never before**, and shows what's coming next. Repeating pay can be
@@ -130,6 +134,10 @@ It's drawn in code (one `CustomPainter`, no video), with haptic ticks on the
 lights and landings.
 
 ### 🔐 Welcome & privacy
+- **Encrypted on your phone.** On iPhone and Android, `runway.sqlite` is
+  encrypted with a random 256-bit key kept in the Keychain / Keystore
+  (SQLite3MultipleCiphers). Data from before encryption is encrypted in place
+  on the first launch of this version.
 - **No account, no password.** The first screen only asks for your first name
   (it shakes if you leave it empty). The button morphs to ✓, then Home is
   revealed through a **circle that grows out of the button**.
@@ -326,7 +334,7 @@ flutter run -d android    # needs the Android SDK
 
 ```sh
 flutter analyze   # static analysis, currently clean
-flutter test      # 105 tests
+flutter test      # 120 tests
 ```
 
 After changing a table in `lib/app/database.dart`, regenerate the drift code:
@@ -338,7 +346,8 @@ dart run build_runner build
 | Suite | Covers |
 |---|---|
 | `budget_math_test.dart` | Every runway formula, days short, no-spend and overspend cases, last day of term, streaks, pet levels, weekly split, even splits, mock data calibration, starting the next month (leftover, skipped months, stopped pay, overspending) |
-| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over |
+| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over, monthly bills (reserve, pay, skip, stop, longer term, new month, new semester) |
+| `device_database_test.dart` | Encryption with the real SQLite3MultipleCiphers build: an old plain file is encrypted in place, app data is unreadable on disk without the key, a file the key can't open is moved aside (never deleted), the key is made once |
 | `coach_test.dart` | All three verdicts, the inclusive 12% boundary, minimum trade, goal suggestion, amount parsing (`$1,299.99`, phrasing, no amount) |
 | `intro_test.dart` | Intro maths (Mochi lands on each letter, the y beat, logo hand-off is pixel-exact), first launch → welcome, tap to skip, signed-in → Home, Reduce Motion |
 | `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout |
@@ -355,12 +364,13 @@ This is an early prototype:
   with no paychecks; add them again in the new term.
 - **No accounts yet.** Runway only asks for a name; there's no server. The app
   lock protects the data on the phone. Real sign-in comes with Squad sync.
-- **The database file isn't encrypted yet** (the app lock guards the app, not
-  the file). SQLCipher encryption is the next security step.
+- **Encryption is phones only.** The macOS build (for development) and the web
+  build store the database unencrypted. An encrypted Android backup restored
+  without its Keystore key can't be read: Runway keeps the file aside and starts
+  fresh.
 - **Monthly budgets follow the calendar month** (1st to last day). A cycle that
-  starts on payday (say the 25th) isn't supported yet. The coach still says
-  "Not this term", and Settings still says "Start a new semester" (from there
-  you can pick either kind).
+  starts on payday (say the 25th) isn't supported yet.
+- **Starting a new semester stops monthly bills.** Add them again during setup.
 - **The coach is rule-based.** It uses no AI and no API keys, and makes no network calls.
 - **Squad friends are mock data.** There's no real friend sync yet.
 
@@ -378,7 +388,7 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 | 4 | **Real accounts:** Continue with Google / Apple + email codes (app lock ✅ shipped) | 📋 Planned |
 | 5 | **Squad backend (Supabase):** invite links + QR codes (no search), small squads, challenges and IOUs; never amounts | 📋 Planned |
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |
-| 7 | **Polish:** notifications, home-screen widget, recurring costs, app icon | 💡 Ideas |
+| 7 | **Polish:** notifications, home-screen widget, ~~recurring costs~~ ✅, app icon | 💡 Ideas |
 
 ### ✅ Decided: money coming in during the term
 
@@ -411,7 +421,7 @@ single week doesn't.
 ## Privacy
 
 - No bank linking, ever.
-- Expenses, balances and history stay **on your device**.
+- Expenses, balances and history stay **on your device**, encrypted on phones.
 - Friends only ever see **streaks and challenge progress**, never amounts.
 - When the AI coach arrives, it will receive only summary numbers (available,
   daily allowance, days left), never your expense list, and the API key will stay on a server.

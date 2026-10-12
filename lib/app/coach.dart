@@ -22,9 +22,13 @@ class CoachGrounding {
     required this.daysLeft,
     required this.burnRate,
     required this.daysShort,
+    this.period = BudgetPeriod.semester,
   });
 
-  factory CoachGrounding.fromSnapshot(RunwaySnapshot s) => CoachGrounding(
+  factory CoachGrounding.fromSnapshot(
+    RunwaySnapshot s, {
+    BudgetPeriod period = BudgetPeriod.semester,
+  }) => CoachGrounding(
     available: s.available,
     safeToSpendToday: s.safeToSpendToday,
     dailyAllowance: s.dailyAllowance,
@@ -32,6 +36,7 @@ class CoachGrounding {
     daysLeft: s.daysLeft,
     burnRate: s.burnRate,
     daysShort: s.daysShort,
+    period: period,
   );
 
   final double available;
@@ -42,7 +47,11 @@ class CoachGrounding {
   final double burnRate;
   final int daysShort;
 
+  /// What [daysLeft] counts down to: the end of the semester or the month.
+  final BudgetPeriod period;
+
   Map<String, Object> toJson() => {
+    'period': period.noun,
     'available': available,
     'safeToSpendToday': safeToSpendToday,
     'dailyAllowance': dailyAllowance,
@@ -62,6 +71,7 @@ class Assessment {
     required this.dailyAfter,
     required this.runwayDaysLost,
     required this.message,
+    this.period = BudgetPeriod.semester,
   });
 
   final Verdict verdict;
@@ -71,11 +81,15 @@ class Assessment {
   final double dailyAfter;
   final double runwayDaysLost;
   final String message;
+  final BudgetPeriod period;
 
   String get headline => switch (verdict) {
     Verdict.yes => 'Yes',
     Verdict.trade => 'Yes, if you trade for it',
-    Verdict.no => 'Not this term',
+    Verdict.no => switch (period) {
+      BudgetPeriod.semester => 'Not this term',
+      BudgetPeriod.monthly => 'Not this month',
+    },
   };
 }
 
@@ -130,6 +144,7 @@ Assessment assess(double amount, String item, CoachGrounding g) {
 
   if (amount <= g.safeToSpendToday) {
     return Assessment(
+      period: g.period,
       verdict: Verdict.yes,
       item: item,
       amount: amount,
@@ -146,6 +161,7 @@ Assessment assess(double amount, String item, CoachGrounding g) {
   if (amount <= g.available * tradeThreshold) {
     final orders = math.max(1, (amount / deliveryOrderCost).ceil());
     return Assessment(
+      period: g.period,
       verdict: Verdict.trade,
       item: item,
       amount: amount,
@@ -161,6 +177,7 @@ Assessment assess(double amount, String item, CoachGrounding g) {
   final perWeek = math.max(10.0, (g.dailyAllowance * 7 * 0.2).roundToDouble());
   final weeks = (amount / perWeek).ceil();
   return Assessment(
+    period: g.period,
     verdict: Verdict.no,
     item: item,
     amount: amount,

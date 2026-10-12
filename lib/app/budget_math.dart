@@ -161,15 +161,44 @@ Iterable<DateTime> paydays(
       case IncomeFrequency.biweekly:
         date = DateTime(first.year, first.month, first.day + 14 * n);
       case IncomeFrequency.monthly:
-        final lastDay = DateTime(first.year, first.month + n + 1, 0).day;
-        date = DateTime(
-          first.year,
-          first.month + n,
-          math.min(first.day, lastDay),
-        );
+        date = _monthsAfter(first, n);
     }
     if (date.isAfter(last)) return;
     if (!date.isBefore(start)) yield date;
+  }
+}
+
+/// [first] moved on [n] months, keeping its day of the month where it can:
+/// the 31st lands on the last day of shorter months.
+DateTime _monthsAfter(DateTime first, int n) {
+  final lastDay = DateTime(first.year, first.month + n + 1, 0).day;
+  return DateTime(first.year, first.month + n, math.min(first.day, lastDay));
+}
+
+/// Each month's [bill] due from [from] to [to], inclusive, ready to reserve.
+/// Ids are one per bill per month, so the same month is never added twice.
+List<UpcomingCost> billsDue(
+  RepeatingBill bill, {
+  required DateTime from,
+  required DateTime to,
+}) {
+  final first = dateOnly(bill.firstDue);
+  final start = dateOnly(from);
+  final due = <UpcomingCost>[];
+  for (var n = 0; ; n++) {
+    final date = _monthsAfter(first, n);
+    if (date.isAfter(to)) return due;
+    if (date.isBefore(start)) continue;
+    due.add(
+      UpcomingCost(
+        id: '${bill.id}@${date.year}-${date.month}',
+        emoji: bill.emoji,
+        name: bill.name,
+        amount: bill.amount,
+        dueDate: date,
+        billId: bill.id,
+      ),
+    );
   }
 }
 
@@ -225,13 +254,18 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
   if (term.period != BudgetPeriod.monthly || !day.isAfter(term.end)) {
     return null;
   }
-  var left = computeRunway(
-    term: term,
-    expenses: expenses,
-    upcoming: const [],
-    incomes: incomes,
-    today: term.end,
-  ).balance;
+  // Whole cents: summing amounts like 0.10 + 0.20 leaves float dust that
+  // would otherwise show up as a $0.00 overspend.
+  double cents(double v) => (v * 100).round() / 100;
+  var left = cents(
+    computeRunway(
+      term: term,
+      expenses: expenses,
+      upcoming: const [],
+      incomes: incomes,
+      today: term.end,
+    ).balance,
+  );
   final continuing = continuingIncomes(incomes, term.end);
   var start = DateTime(term.end.year, term.end.month, term.end.day + 1);
   while (true) {
@@ -245,7 +279,9 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
     if (!day.isAfter(month.end)) {
       return (term: month, overspent: math.max(0, -left));
     }
-    left += incomeReceived(continuing, term: month, today: month.end);
+    left = cents(
+      left + incomeReceived(continuing, term: month, today: month.end),
+    );
     start = DateTime(month.end.year, month.end.month, month.end.day + 1);
   }
 }

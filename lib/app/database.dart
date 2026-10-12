@@ -7,9 +7,9 @@
 library;
 
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
-import 'package:path_provider/path_provider.dart';
 
+import 'device_database.dart'
+    if (dart.library.js_interop) 'device_database_web.dart';
 import 'models.dart';
 
 part 'database.g.dart';
@@ -63,6 +63,27 @@ class UpcomingCosts extends Table {
   IntColumn get amountCents => integer()();
   DateTimeColumn get dueDate => dateTime()();
   DateTimeColumn get paidAt => dateTime().nullable()();
+
+  /// One month of a repeating bill (added in schema 4); null for one-offs.
+  TextColumn get billId => text().nullable().references(RepeatingBills, #id)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// A bill due every month. Each month's bill is an [UpcomingCosts] row
+/// pointing back here; this row is how next month's gets made.
+@DataClassName('RepeatingBillRow')
+class RepeatingBills extends Table {
+  TextColumn get id => text()();
+  TextColumn get emoji => text()();
+  TextColumn get name => text()();
+  IntColumn get amountCents => integer()();
+  DateTimeColumn get firstDue => dateTime()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// Set when the bill is stopped; no more months are reserved after it.
+  DateTimeColumn get endedAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -151,6 +172,7 @@ class Meta extends Table {
     Terms,
     Expenses,
     UpcomingCosts,
+    RepeatingBills,
     Incomes,
     BillSplits,
     Friends,
@@ -161,23 +183,14 @@ class Meta extends Table {
 class RunwayDatabase extends _$RunwayDatabase {
   RunwayDatabase(super.executor);
 
-  /// The app's real database file: `runway.sqlite` in the app's private
-  /// support directory. Queries run on a background isolate.
-  factory RunwayDatabase.onDevice() => RunwayDatabase(
-    driftDatabase(
-      name: 'runway',
-      native: const DriftNativeOptions(
-        databaseDirectory: getApplicationSupportDirectory,
-      ),
-      web: DriftWebOptions(
-        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
-        driftWorker: Uri.parse('drift_worker.js'),
-      ),
-    ),
-  );
+  /// The app's real database: `runway.sqlite` in the app's private support
+  /// directory, encrypted on phones (see `device_database.dart`). Queries
+  /// run on a background isolate.
+  static Future<RunwayDatabase> onDevice() async =>
+      RunwayDatabase(await openDeviceDatabase());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -190,6 +203,10 @@ class RunwayDatabase extends _$RunwayDatabase {
       }
       if (from < 3) {
         await m.addColumn(terms, terms.period);
+      }
+      if (from < 4) {
+        await m.createTable(repeatingBills);
+        await m.addColumn(upcomingCosts, upcomingCosts.billId);
       }
     },
     beforeOpen: (details) async {

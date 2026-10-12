@@ -88,6 +88,7 @@ class UpcomingCost {
     required this.name,
     required this.amount,
     required this.dueDate,
+    this.billId,
   });
 
   final String id;
@@ -95,6 +96,30 @@ class UpcomingCost {
   final String name;
   final double amount;
   final DateTime dueDate;
+
+  /// Set when this is one month of a [RepeatingBill].
+  final String? billId;
+
+  bool get repeats => billId != null;
+}
+
+/// A bill due every month (rent, phone, subscriptions) on [firstDue]'s day
+/// of the month, or the last day of shorter months. Each month's bill is
+/// reserved as its own [UpcomingCost], so it can be paid on its own.
+class RepeatingBill {
+  const RepeatingBill({
+    required this.id,
+    required this.emoji,
+    required this.name,
+    required this.amount,
+    required this.firstDue,
+  });
+
+  final String id;
+  final String emoji;
+  final String name;
+  final double amount;
+  final DateTime firstDue;
 }
 
 /// How often money comes in. [once] is a single payment (scholarship,
@@ -216,6 +241,7 @@ class BudgetData {
     required this.term,
     required this.expenses,
     required this.upcoming,
+    this.bills = const [],
     this.incomes = const [],
     required this.friends,
     required this.splits,
@@ -227,6 +253,9 @@ class BudgetData {
   final Term term;
   final List<Expense> expenses;
   final List<UpcomingCost> upcoming;
+
+  /// Repeating bills that haven't been stopped.
+  final List<RepeatingBill> bills;
   final List<Income> incomes;
   final List<Friend> friends;
   final List<BillSplit> splits;

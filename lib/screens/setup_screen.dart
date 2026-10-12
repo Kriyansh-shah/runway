@@ -41,6 +41,9 @@ class _SetupScreenState extends State<SetupScreen> {
   final _name = TextEditingController();
   final _balance = TextEditingController();
   final _costs = <UpcomingCost>[];
+
+  /// Ids of the [_costs] that repeat every month.
+  final _monthlyCosts = <String>{};
   var _period = BudgetPeriod.semester;
   late DateTime _start;
   DateTime? _pickedEnd;
@@ -117,8 +120,9 @@ class _SetupScreenState extends State<SetupScreen> {
     if (picked != null) setState(() => _pickedEnd = picked);
   }
 
-  void _addCost(UpcomingCost cost) {
+  void _addCost(UpcomingCost cost, {required bool monthly}) {
     setState(() {
+      if (monthly) _monthlyCosts.add(cost.id);
       _costs.add(cost);
       _costs.sort((a, b) => a.dueDate.compareTo(b.dueDate));
     });
@@ -145,6 +149,8 @@ class _SetupScreenState extends State<SetupScreen> {
       if (result == DeviceAuthResult.success) state.setAppLock(true);
     }
     final end = _end!;
+    // Costs due after the term ends can't be reserved from this term.
+    final costs = _costs.where((c) => !c.dueDate.isAfter(end));
     state.startTerm(
       Term(
         name: _termName,
@@ -153,9 +159,11 @@ class _SetupScreenState extends State<SetupScreen> {
         startingBalance: _startingBalance,
         period: _period,
       ),
-      // Costs due after the term ends can't be reserved from this term.
-      _costs.where((c) => !c.dueDate.isAfter(end)).toList(),
+      costs.where((c) => !_monthlyCosts.contains(c.id)).toList(),
     );
+    for (final c in costs.where((c) => _monthlyCosts.contains(c.id))) {
+      state.addUpcomingCost(c, monthly: true);
+    }
     HapticFeedback.mediumImpact();
     await navigator.pushAndRemoveUntil(
       FadeScaleRoute<void>(builder: (_) => const Shell()),
@@ -259,7 +267,8 @@ class _SetupScreenState extends State<SetupScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        '${c.emoji} ${c.name} · ${shortDate(c.dueDate)}',
+                        '${c.emoji} ${c.name} · ${shortDate(c.dueDate)}'
+                        '${_monthlyCosts.contains(c.id) ? ' · monthly' : ''}',
                         style: AppText.body,
                       ),
                     ),
@@ -269,7 +278,10 @@ class _SetupScreenState extends State<SetupScreen> {
                     ),
                     const SizedBox(width: 6),
                     Pressable(
-                      onTap: () => setState(() => _costs.remove(c)),
+                      onTap: () => setState(() {
+                        _costs.remove(c);
+                        _monthlyCosts.remove(c.id);
+                      }),
                       semanticLabel: 'Remove ${c.name}',
                       child: const Padding(
                         padding: EdgeInsets.all(6),

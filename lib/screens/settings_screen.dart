@@ -24,18 +24,25 @@ import 'setup_screen.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  /// "Semester" for semesters; a monthly budget moves on by itself, so
+  /// starting over there means a new budget of either kind.
+  static String _newWhat(Term term) =>
+      term.period == BudgetPeriod.monthly ? 'budget' : 'semester';
+
   Future<void> _newSemester(BuildContext context) async {
     final navigator = Navigator.of(context);
+    final what = _newWhat(AppScope.read(context).term);
     final ok = await showActionSheet<bool>(
       context,
-      title: 'Start a new semester?',
+      title: 'Start a new $what?',
       message:
-          'You\'ll set up the new term next. This one is archived only once '
-          'you finish, and its history stays on your phone.',
-      actions: const [
+          'You\'ll set up the new $what next. This one is archived only once '
+          'you finish, and its history stays on your phone. Repeating bills '
+          'stop; add them again during setup.',
+      actions: [
         SheetAction(
           value: true,
-          label: 'Set up a new semester',
+          label: 'Set up a new $what',
           icon: PhIcons.arrowRightBold,
         ),
       ],
@@ -150,7 +157,8 @@ class SettingsScreen extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      '${c.emoji} ${c.name} · ${shortDate(c.dueDate)}',
+                                      '${c.emoji} ${c.name} · ${shortDate(c.dueDate)}'
+                                      '${c.repeats ? ' · monthly' : ''}',
                                       style: AppText.body,
                                     ),
                                   ),
@@ -190,7 +198,7 @@ class SettingsScreen extends StatelessWidget {
                       children: [
                         _LinkRow(
                           icon: PhIcons.calendarBlank,
-                          label: 'Start a new semester',
+                          label: 'Start a new ${_newWhat(state.term)}',
                           onTap: () => _newSemester(context),
                         ),
                         Divider(height: 1, color: AppColors.hairline),

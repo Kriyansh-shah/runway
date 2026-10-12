@@ -7,7 +7,7 @@ import '../widgets/action_sheet.dart';
 import '../widgets/ph_icons.dart';
 import 'quick_add_sheet.dart';
 
-enum _CostAction { pay, delete }
+enum _CostAction { pay, delete, stop }
 
 enum _IncomeAction { stop, delete }
 
@@ -64,7 +64,8 @@ Future<void> showExpenseActions(
   }
 }
 
-/// Mark an upcoming cost paid, or delete it.
+/// Mark an upcoming cost paid, or delete it. A monthly bill can also be
+/// stopped, which removes this month and every later one.
 Future<void> showCostActions(BuildContext context, UpcomingCost cost) async {
   final state = AppScope.read(context);
   final choice = await showActionSheet<_CostAction>(
@@ -73,18 +74,25 @@ Future<void> showCostActions(BuildContext context, UpcomingCost cost) async {
     message:
         'Marking it paid logs it as a bill. Your daily budget stays '
         'the same: this money was already set aside.',
-    actions: const [
-      SheetAction(
+    actions: [
+      const SheetAction(
         value: _CostAction.pay,
         label: 'Mark as paid',
         icon: PhIcons.checkCircle,
       ),
       SheetAction(
         value: _CostAction.delete,
-        label: 'Delete cost',
+        label: cost.repeats ? 'Skip just this month' : 'Delete cost',
         icon: PhIcons.trash,
-        destructive: true,
+        destructive: !cost.repeats,
       ),
+      if (cost.repeats)
+        const SheetAction(
+          value: _CostAction.stop,
+          label: 'Stop this bill',
+          icon: PhIcons.stopCircle,
+          destructive: true,
+        ),
     ],
   );
   switch (choice) {
@@ -92,6 +100,8 @@ Future<void> showCostActions(BuildContext context, UpcomingCost cost) async {
       state.payUpcomingCost(cost.id);
     case _CostAction.delete:
       state.deleteUpcomingCost(cost.id);
+    case _CostAction.stop:
+      state.deleteUpcomingCost(cost.id, andLater: true);
     case null:
   }
 }
