@@ -9,6 +9,7 @@ import 'package:runway/app/models.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
 import 'package:runway/screens/add_income_sheet.dart';
+import 'package:runway/screens/history_screen.dart';
 import 'package:runway/screens/quick_add_sheet.dart';
 import 'package:runway/screens/settings_screen.dart';
 import 'package:runway/widgets/celebrations.dart';
@@ -599,6 +600,91 @@ void main() {
     expect(state.snapshot.available, closeTo(available, 1e-9));
   });
 
+  testWidgets('history lists past months and opens one read-only', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final september = PastTerm(
+      term: Term(
+        name: 'September',
+        start: DateTime(2026, 9, 1),
+        end: DateTime(2026, 9, 30),
+        startingBalance: 500,
+        period: BudgetPeriod.monthly,
+      ),
+      endedOn: DateTime(2026, 10, 1),
+      expenses: [
+        Expense(
+          id: 'old-pizza',
+          amount: 18,
+          category: ExpenseCategory.lateNight,
+          isNeed: false,
+          date: DateTime(2026, 9, 12, 23),
+          note: 'Pizza with Sam',
+        ),
+      ],
+      incomes: const [],
+    );
+    final state = AppState(
+      repository: _HistoryRepository(now, [september]),
+      data: MockBudgetRepository.seed(now),
+      user: const UserProfile(name: 'Alex'),
+      clock: () => now,
+    );
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await tester.tap(find.text('A'));
+    await settle(tester);
+    await tester.scrollUntilVisible(
+      find.text('History'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(SettingsScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.ensureVisible(find.text('History'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('History'));
+    await settle(tester);
+
+    expect(find.text('September'), findsOneWidget);
+    expect(find.text('\$482 left'), findsOneWidget);
+    expect(find.text('Monthly · Sep 1 – Sep 30, 2026'), findsOneWidget);
+    expect(find.text('🍕 Late-night food \$18'), findsOneWidget);
+
+    await tester.tap(find.text('September'));
+    await settle(tester);
+    expect(find.text('Pizza with Sam'), findsOneWidget);
+    expect(find.text('Sep 12'), findsOneWidget);
+    // Read-only: tapping an old expense doesn't offer edit or delete.
+    await tester.tap(find.text('Pizza with Sam'));
+    await settle(tester);
+    expect(find.text('Delete expense'), findsNothing);
+  });
+
+  testWidgets('history is empty until something ends', (tester) async {
+    final state = buildState();
+    await tester.pumpWidget(
+      AppScope(
+        state: state,
+        child: const MaterialApp(home: HistoryScreen()),
+      ),
+    );
+    await settle(tester);
+    expect(
+      find.text(
+        'Nothing here yet. When a month or semester ends, it shows up here.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   test('editing and deleting an expense updates the numbers', () {
     final state = buildState();
     final safe = state.snapshot.safeToSpendToday;
@@ -1080,4 +1166,13 @@ class _FakeDeviceAuth implements DeviceAuth {
     prompts++;
     return result;
   }
+}
+
+/// Demo data plus a fixed history.
+class _HistoryRepository extends MockBudgetRepository {
+  _HistoryRepository(DateTime now, this._past) : super(now: now);
+  final List<PastTerm> _past;
+
+  @override
+  Future<List<PastTerm>> history() async => _past;
 }

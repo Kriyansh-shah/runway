@@ -25,6 +25,10 @@ abstract final class PhIcons {
   static const repeat = IconData(0xe3f6, fontFamily: 'PhosphorRegular');
   static const stopCircle = IconData(0xe46e, fontFamily: 'PhosphorRegular');
   static const calendarBlank = IconData(0xe10a, fontFamily: 'PhosphorRegular');
+  static const clockCounterClockwise = IconData(
+    0xe1a0,
+    fontFamily: 'PhosphorRegular',
+  );
   static const houseFill = IconData(0xe2c2, fontFamily: 'PhosphorFill');
   static const sparkleFill = IconData(0xe6a2, fontFamily: 'PhosphorFill');
   static const usersThreeFill = IconData(0xe68e, fontFamily: 'PhosphorFill');

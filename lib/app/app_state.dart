@@ -415,6 +415,13 @@ class AppState extends ChangeNotifier {
     );
   }
 
+  /// Finished terms and months, newest first, read from storage once the
+  /// saves already in line are done (so a month that just ended is there).
+  Future<List<PastTerm>> history() async {
+    await _lastWrite;
+    return _repo.history();
+  }
+
   /// Deletes everything on this device and signs out. Unlike other writes
   /// this waits for the database, so nothing is left behind if it fails.
   Future<void> eraseEverything() async {

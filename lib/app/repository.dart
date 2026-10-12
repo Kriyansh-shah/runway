@@ -67,6 +67,10 @@ abstract interface class BudgetRepository {
     required List<UpcomingCost> added,
   });
 
+  /// Finished terms and months, newest first. The demo term shown before
+  /// setup isn't included.
+  Future<List<PastTerm>> history();
+
   /// Permanently deletes everything on the device, including the session.
   /// The next [load] starts over as a brand-new install.
   Future<void> eraseEverything();
@@ -148,6 +152,9 @@ class MockBudgetRepository implements BudgetRepository {
     required List<Income> incomes,
     required List<UpcomingCost> added,
   }) async {}
+
+  @override
+  Future<List<PastTerm>> history() async => const [];
 
   @override
   Future<void> eraseEverything() async => _user = null;

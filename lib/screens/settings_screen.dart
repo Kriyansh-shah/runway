@@ -17,6 +17,7 @@ import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
 import 'welcome_screen.dart';
+import 'history_screen.dart';
 import 'money_actions.dart';
 import 'setup_screen.dart';
 
@@ -196,6 +197,16 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
+                        _LinkRow(
+                          icon: PhIcons.clockCounterClockwise,
+                          label: 'History',
+                          onTap: () => Navigator.of(context).push(
+                            FadeScaleRoute<void>(
+                              builder: (_) => const HistoryScreen(),
+                            ),
+                          ),
+                        ),
+                        Divider(height: 1, color: AppColors.hairline),
                         _LinkRow(
                           icon: PhIcons.calendarBlank,
                           label: 'Start a new ${_newWhat(state.term)}',

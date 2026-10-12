@@ -201,6 +201,24 @@ class Term {
   final BudgetPeriod period;
 }
 
+/// A finished semester or month, kept on the phone for History.
+class PastTerm {
+  const PastTerm({
+    required this.term,
+    required this.endedOn,
+    required this.expenses,
+    required this.incomes,
+  });
+
+  final Term term;
+
+  /// When it was put away: after its last day, or earlier if a new
+  /// semester was started before it ended.
+  final DateTime endedOn;
+  final List<Expense> expenses;
+  final List<Income> incomes;
+}
+
 class Friend {
   const Friend({
     required this.id,

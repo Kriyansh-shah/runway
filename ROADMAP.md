@@ -96,15 +96,17 @@ custom dates (asked in Professor Questions, #2); payday-based monthly cycles.
 
 ---
 
-## 3. 📋 History by semester
+## 3. 🚧 History by semester
 
 **Why:** The best insight is comparing semesters ("I spent 30% less on delivery
 than last fall"). Expense data is tiny, so we keep everything.
 
 **What:**
-- **Term recap** when a term ends: total spent, need vs want, top categories,
-  best streak, and whether the money lasted.
-- Past terms become read-only and browsable.
+- ✅ ~~**History screen**~~ (shipped, Settings → History): every finished
+  month and semester with what you started with, money in, spent, left or
+  over, and top categories; tap one for its expenses, read-only.
+- Still to do: a **recap moment** when a term ends (need vs want, best streak,
+  "you spent 30% less on delivery than last fall").
 - ✅ ~~**Undo** toast after deleting an expense~~ (shipped). Still to do: permanently
   remove soft-deleted expenses after 30 days.
 - Search and filter expenses by category, note and date.

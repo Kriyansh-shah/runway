@@ -491,4 +491,79 @@ void main() {
       expect(due.single.id, 'rent@2026-12');
     });
   });
+
+  group('summarize', () {
+    Expense bought(double amount, ExpenseCategory c) => Expense(
+      id: '$c$amount',
+      amount: amount,
+      category: c,
+      isNeed: false,
+      date: DateTime(2026, 9, 10, 12),
+    );
+    final job = Income(
+      id: 'job',
+      name: 'Job',
+      amount: 100,
+      frequency: IncomeFrequency.weekly,
+      firstDate: DateTime(2026, 9, 4), // Fridays
+    );
+    final september = Term(
+      name: 'September',
+      start: DateTime(2026, 9, 1),
+      end: DateTime(2026, 9, 30),
+      startingBalance: 500,
+      period: BudgetPeriod.monthly,
+    );
+
+    test('started with, money in, spent, left, top categories', () {
+      final s = summarize(
+        PastTerm(
+          term: september,
+          endedOn: DateTime(2026, 10, 1, 8),
+          expenses: [
+            bought(40, ExpenseCategory.coffee),
+            bought(120, ExpenseCategory.eatingOut),
+            bought(15, ExpenseCategory.coffee),
+            bought(60, ExpenseCategory.groceries),
+            bought(5, ExpenseCategory.transit),
+          ],
+          incomes: [job],
+        ),
+      );
+      expect(s.startedWith, 500);
+      expect(s.moneyIn, 400); // Sep 4, 11, 18, 25
+      expect(s.spent, 240);
+      expect(s.left, 660);
+      expect(s.topCategories.map((c) => (c.category, c.amount)), [
+        (ExpenseCategory.eatingOut, 120.0),
+        (ExpenseCategory.groceries, 60.0),
+        (ExpenseCategory.coffee, 55.0),
+      ]);
+    });
+
+    test('ended early: pay after that day never arrived', () {
+      final s = summarize(
+        PastTerm(
+          term: september,
+          endedOn: DateTime(2026, 9, 12, 18),
+          expenses: [bought(700, ExpenseCategory.travel)],
+          incomes: [job],
+        ),
+      );
+      expect(s.moneyIn, 200); // Sep 4 and 11 only
+      expect(s.left, 0); // 500 + 200 − 700
+    });
+
+    test('overspending shows as a negative amount left', () {
+      final s = summarize(
+        PastTerm(
+          term: september,
+          endedOn: DateTime(2026, 10, 1),
+          expenses: [bought(650, ExpenseCategory.shopping)],
+          incomes: const [],
+        ),
+      );
+      expect(s.left, -150);
+    });
+  });
 }

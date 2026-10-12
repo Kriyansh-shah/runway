@@ -10,7 +10,7 @@ and tells you how much you can safely spend **today**.
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-120%20passing-C6FF3D)
+![Tests](https://img.shields.io/badge/tests-127%20passing-C6FF3D)
 ![Status](https://img.shields.io/badge/status-prototype-FFB547)
 
 </div>
@@ -88,6 +88,12 @@ as it can be: two taps for most purchases. Your money data never leaves your pho
   validation), add or manage big costs, start a new semester, or **erase
   everything on this phone** (the database file is rewritten so deleted data
   doesn't linger).
+
+### 🕘 History
+- **Settings → History** lists every finished month and semester, newest
+  first: what you started with, money that came in, what you spent, what was
+  left (or how much you went over), and your top three categories.
+- Tap one to see its expenses by day, read-only.
 
 ### ➕ Quick Add: log an expense in two taps
 - Big amount display with a **custom keypad and haptics**.
@@ -334,7 +340,7 @@ flutter run -d android    # needs the Android SDK
 
 ```sh
 flutter analyze   # static analysis, currently clean
-flutter test      # 120 tests
+flutter test      # 127 tests
 ```
 
 After changing a table in `lib/app/database.dart`, regenerate the drift code:
@@ -346,11 +352,11 @@ dart run build_runner build
 | Suite | Covers |
 |---|---|
 | `budget_math_test.dart` | Every runway formula, days short, no-spend and overspend cases, last day of term, streaks, pet levels, weekly split, even splits, mock data calibration, starting the next month (leftover, skipped months, stopped pay, overspending) |
-| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over, monthly bills (reserve, pay, skip, stop, longer term, new month, new semester) |
+| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over, monthly bills (reserve, pay, skip, stop, longer term, new month, new semester), history (never the demo, newest first, deleted expenses left out) |
 | `device_database_test.dart` | Encryption with the real SQLite3MultipleCiphers build: an old plain file is encrypted in place, app data is unreadable on disk without the key, a file the key can't open is moved aside (never deleted), the key is made once |
 | `coach_test.dart` | All three verdicts, the inclusive 12% boundary, minimum trade, goal suggestion, amount parsing (`$1,299.99`, phrasing, no amount) |
 | `intro_test.dart` | Intro maths (Mochi lands on each letter, the y beat, logo hand-off is pixel-exact), first launch → welcome, tap to skip, signed-in → Home, Reduce Motion |
-| `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout |
+| `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout, History (cards, read-only past month, empty state) |
 
 ---
 
@@ -384,7 +390,7 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 |---|---|---|
 | 1 | **Local database (drift / SQLite):** save expenses, splits, streaks and session | ✅ Done |
 | 2 | **Onboarding & setup:** term dates, starting balance, upcoming costs, money coming in, settings | ✅ Done |
-| 3 | **History by semester:** term recaps, undo delete, CSV export, encrypted backup | 📋 Planned |
+| 3 | **History by semester:** past terms and months ✅, undo delete ✅; CSV export, encrypted backup | 🚧 In progress |
 | 4 | **Real accounts:** Continue with Google / Apple + email codes (app lock ✅ shipped) | 📋 Planned |
 | 5 | **Squad backend (Supabase):** invite links + QR codes (no search), small squads, challenges and IOUs; never amounts | 📋 Planned |
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |

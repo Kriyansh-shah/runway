@@ -65,13 +65,7 @@ class DriftBudgetRepository implements BudgetRepository {
     final appLock = await _getMeta(_appLockKey);
 
     return BudgetData(
-      term: Term(
-        name: term.name,
-        start: _day(term.start),
-        end: _day(term.end),
-        startingBalance: _dollars(term.startingBalanceCents),
-        period: term.period,
-      ),
+      term: _term(term),
       expenses: [for (final r in expenses) _expense(r)],
       upcoming: [
         for (final r in upcoming)
@@ -123,6 +117,49 @@ class DriftBudgetRepository implements BudgetRepository {
       needsSetup: setUpAt == null,
       appLock: appLock == 'on',
     );
+  }
+
+  @override
+  Future<List<PastTerm>> history() async {
+    // The demo term is always the first row: it's seeded into an empty
+    // database before any term of the user's own exists.
+    final demo =
+        await (_db.select(_db.terms)
+              ..orderBy([(t) => OrderingTerm.asc(t.id)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (demo == null) return const [];
+    final terms =
+        await (_db.select(_db.terms)
+              ..where(
+                (t) => t.archivedAt.isNotNull() & t.id.isNotValue(demo.id),
+              )
+              ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+            .get();
+    final ids = [for (final t in terms) t.id];
+    final expenses =
+        await (_db.select(_db.expenses)
+              ..where((e) => e.termId.isIn(ids) & e.deletedAt.isNull())
+              ..orderBy([(e) => OrderingTerm.asc(e.createdAt)]))
+            .get();
+    final incomes = await (_db.select(
+      _db.incomes,
+    )..where((i) => i.termId.isIn(ids) & i.deletedAt.isNull())).get();
+    return [
+      for (final t in terms)
+        PastTerm(
+          term: _term(t),
+          endedOn: t.archivedAt!.toLocal(),
+          expenses: [
+            for (final r in expenses)
+              if (r.termId == t.id) _expense(r),
+          ],
+          incomes: [
+            for (final r in incomes)
+              if (r.termId == t.id) _income(r),
+          ],
+        ),
+    ];
   }
 
   Future<TermRow> _currentTerm() =>
@@ -483,6 +520,14 @@ class DriftBudgetRepository implements BudgetRepository {
 
   /// Calendar dates (term start, due dates) come back as local midnight.
   static DateTime _day(DateTime d) => dateOnly(d.toLocal());
+
+  static Term _term(TermRow r) => Term(
+    name: r.name,
+    start: _day(r.start),
+    end: _day(r.end),
+    startingBalance: _dollars(r.startingBalanceCents),
+    period: r.period,
+  );
 
   static Expense _expense(ExpenseRow r) => Expense(
     id: r.id,

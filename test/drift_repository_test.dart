@@ -706,6 +706,81 @@ void main() {
     });
   });
 
+  test('history lists finished terms and months, never the demo', () async {
+    var clock = now;
+    // The database stamps when a term ends, so it shares the app's clock.
+    var repo = DriftBudgetRepository(
+      RunwayDatabase(NativeDatabase(file)),
+      clock: () => clock,
+    );
+    open.add(repo);
+    final state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      clock: () => clock,
+    );
+    expect(await state.history(), isEmpty); // only the demo so far
+
+    state.startTerm(
+      Term(
+        name: 'Summer',
+        start: DateTime(2026, 9, 1),
+        end: DateTime(2026, 9, 30),
+        startingBalance: 300,
+      ),
+      const [],
+    );
+    state.addExpense(amount: 20, category: ExpenseCategory.fun, isNeed: false);
+    state.addExpense(
+      amount: 5,
+      category: ExpenseCategory.coffee,
+      isNeed: false,
+    );
+    // Deleted, so not part of history.
+    state.deleteExpense(state.allExpenses.singleWhere((e) => e.amount == 5).id);
+    expect(await state.history(), isEmpty); // Summer is still current
+
+    state.startTerm(
+      Term(
+        name: 'October',
+        start: DateTime(2026, 10, 1),
+        end: DateTime(2026, 10, 31),
+        startingBalance: 900,
+        period: BudgetPeriod.monthly,
+      ),
+      const [],
+    );
+    state.addIncome(
+      name: 'Job',
+      amount: 100,
+      frequency: IncomeFrequency.weekly,
+      firstDate: DateTime(2026, 10, 2),
+    );
+    state.addExpense(
+      amount: 40,
+      category: ExpenseCategory.groceries,
+      isNeed: true,
+    );
+    clock = DateTime(2026, 11, 3, 9);
+    state.startNewMonthIfDue();
+
+    // Read right away: history waits for the saves already in line.
+    final past = await state.history();
+    expect(past.map((p) => p.term.name), ['October', 'Summer']);
+    final october = past.first;
+    expect(october.term.period, BudgetPeriod.monthly);
+    expect(october.expenses.map((e) => e.amount), [40]);
+    expect(october.incomes.single.name, 'Job');
+    expect(summarize(october).left, 1360); // 900 + 5 paydays − 40
+    expect(past.last.expenses.map((e) => e.amount), [20]);
+
+    repo = await reopen(repo);
+    expect((await repo.history()).map((p) => p.term.name), [
+      'October',
+      'Summer',
+    ]);
+  });
+
   test('edited, deleted and restored expenses survive reopening', () async {
     var repo = openRepo();
     await repo.load();

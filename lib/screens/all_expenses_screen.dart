@@ -14,8 +14,12 @@ import 'money_actions.dart';
 
 /// Every expense this term, newest first, grouped by day. Tap one to edit
 /// or delete it.
+///
+/// With [past], shows a finished term from History instead, read-only.
 class AllExpensesScreen extends StatelessWidget {
-  const AllExpensesScreen({super.key});
+  const AllExpensesScreen({super.key, this.past});
+
+  final PastTerm? past;
 
   static String _dayLabel(DateTime day, DateTime today) =>
       switch (daysBetween(day, today)) {
@@ -33,8 +37,12 @@ class AllExpensesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
+    final past = this.past;
     final today = state.today;
-    final expenses = state.allExpenses;
+    final term = past?.term ?? state.term;
+    final expenses = past == null
+        ? state.allExpenses
+        : ([...past.expenses]..sort((a, b) => b.date.compareTo(a.date)));
     final days = <DateTime, List<Expense>>{};
     for (final e in expenses) {
       days.putIfAbsent(dateOnly(e.date), () => []).add(e);
@@ -68,9 +76,13 @@ class AllExpensesScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('All expenses', style: AppText.title),
                                 Text(
-                                  '${state.term.name} · ${money(total)} · '
+                                  past == null ? 'All expenses' : term.name,
+                                  style: AppText.title,
+                                ),
+                                Text(
+                                  '${past == null ? term.name : dateRange(term.start, term.end)}'
+                                  ' · ${money(total)} · '
                                   '${plural(expenses.length, 'expense')}',
                                   style: AppText.label,
                                   maxLines: 1,
@@ -88,7 +100,9 @@ class AllExpensesScreen extends StatelessWidget {
                       hasScrollBody: false,
                       child: Center(
                         child: Text(
-                          'Nothing logged this ${state.term.period.noun} yet.',
+                          past == null
+                              ? 'Nothing logged this ${term.period.noun} yet.'
+                              : 'Nothing was logged.',
                           style: AppText.label,
                         ),
                       ),
@@ -101,7 +115,9 @@ class AllExpensesScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SectionHeader(
-                              _dayLabel(day, today),
+                              past == null
+                                  ? _dayLabel(day, today)
+                                  : shortDate(day),
                               trailing: Text(
                                 money(
                                   items.fold<double>(0, (s, e) => s + e.amount),
@@ -133,8 +149,12 @@ class AllExpensesScreen extends StatelessWidget {
                                       accent: items[i].isNeed
                                           ? AppColors.need
                                           : AppColors.want,
-                                      onTap: () =>
-                                          showExpenseActions(context, items[i]),
+                                      onTap: past != null
+                                          ? null
+                                          : () => showExpenseActions(
+                                              context,
+                                              items[i],
+                                            ),
                                     ),
                                   ],
                                 ],

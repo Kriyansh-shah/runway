@@ -35,6 +35,11 @@ String money(double value, {bool cents = true}) {
 /// `Nov 27`
 String shortDate(DateTime d) => '${_months[d.month - 1]} ${d.day}';
 
+/// `Oct 1 – Dec 11, 2026`, or with both years when it spans two.
+String dateRange(DateTime start, DateTime end) => start.year == end.year
+    ? '${shortDate(start)} – ${shortDate(end)}, ${end.year}'
+    : '${shortDate(start)}, ${start.year} – ${shortDate(end)}, ${end.year}';
+
 /// Strips the time component (local calendar day).
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 

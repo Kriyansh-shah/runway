@@ -286,6 +286,50 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
   }
 }
 
+/// The totals for one finished term or month.
+class TermSummary {
+  const TermSummary({
+    required this.startedWith,
+    required this.moneyIn,
+    required this.spent,
+    required this.topCategories,
+  });
+
+  final double startedWith;
+
+  /// Pay and one-off money that arrived while it ran.
+  final double moneyIn;
+  final double spent;
+
+  /// Biggest spending categories first, at most three.
+  final List<({ExpenseCategory category, double amount})> topCategories;
+
+  /// Negative when more was spent than there was.
+  double get left => startedWith + moneyIn - spent;
+}
+
+TermSummary summarize(PastTerm past) {
+  final term = past.term;
+  final ended = dateOnly(past.endedOn);
+  final last = ended.isBefore(term.end) ? ended : term.end;
+  final byCategory = <ExpenseCategory, double>{};
+  var spent = 0.0;
+  for (final e in past.expenses) {
+    spent += e.amount;
+    byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount;
+  }
+  final top = [
+    for (final MapEntry(:key, :value) in byCategory.entries)
+      (category: key, amount: value),
+  ]..sort((a, b) => b.amount.compareTo(a.amount));
+  return TermSummary(
+    startedWith: term.startingBalance,
+    moneyIn: incomeReceived(past.incomes, term: term, today: last),
+    spent: spent,
+    topCategories: top.take(3).toList(),
+  );
+}
+
 /// Consecutive days with at least one logged expense. Today not being logged
 /// yet doesn't break the streak — it only counts once you log.
 int computeStreak(List<Expense> expenses, DateTime today) {
