@@ -251,7 +251,7 @@ class _TermEditor extends StatefulWidget {
 class _TermEditorState extends State<_TermEditor> {
   late final _name = TextEditingController(text: widget.term.name);
   late final _balance = TextEditingController(
-    text: _amountText(widget.term.startingBalance),
+    text: amountText(widget.term.startingBalance),
   );
   late DateTime _start = widget.term.start;
   late DateTime _end = widget.term.end;
@@ -262,9 +262,6 @@ class _TermEditorState extends State<_TermEditor> {
     _balance.dispose();
     super.dispose();
   }
-
-  static String _amountText(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
   DateTime get _today => AppScope.read(context).today;
 

@@ -217,6 +217,14 @@ double incomeReceived(
   return total;
 }
 
+/// The first payday of [income] after [day], term or not; null once it has
+/// stopped or a one-off payment has arrived.
+DateTime? paydayAfter(Income income, DateTime day) => paydays(
+  income,
+  from: DateTime(day.year, day.month, day.day + 1),
+  to: DateTime(day.year + 1, day.month, day.day + 1),
+).firstOrNull;
+
 /// The next payment after [today] and before the term ends, if any.
 ({Income income, DateTime date})? nextIncome(
   List<Income> incomes, {

@@ -10,7 +10,7 @@ and tells you how much you can safely spend **today**.
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-127%20passing-C6FF3D)
+![Tests](https://img.shields.io/badge/tests-133%20passing-C6FF3D)
 ![Status](https://img.shields.io/badge/status-prototype-FFB547)
 
 </div>
@@ -59,16 +59,18 @@ as it can be: two taps for most purchases. Your money data never leaves your pho
   `14 days short` (coral) or `Covered ✓` (mint).
 - **Coming up:** big known costs (flight home, formal ticket, phone bill) that
   are **reserved ahead of time** so they can't be spent by accident. Tap one to
-  mark it paid (your daily budget doesn't move) or delete it. Overdue costs stay
+  mark it paid (your daily budget doesn't move), edit it, or delete it. Overdue costs stay
   reserved until you do.
 - **Monthly bills:** tick **Every month** when adding a cost (rent, phone,
   subscriptions). Every month of it due before the term ends is reserved, each
   paid on its own; a monthly budget reserves it again each new month. Skip
-  just one month, or stop the bill.
+  just one month, or stop the bill. A new name or amount applies from the
+  month you edit on; months already paid stay as they were.
 - **Money in:** paychecks (weekly, every 2 weeks, monthly), allowance or a
   one-off payment like a scholarship. Each payment counts **on the day it
   arrives, never before**, and shows what's coming next. Repeating pay can be
-  stopped (past paydays still count) or deleted.
+  edited, stopped (past paydays still count) or deleted. A new amount never
+  changes money already received: it starts at the next payday.
 - **This week:** a need vs want split bar, plus your recent expenses. Tap an
   expense to **edit** it (amount, note, category, need/want) or **delete** it,
   with an **Undo** bar. **See all** lists every expense this term by day.
@@ -340,7 +342,7 @@ flutter run -d android    # needs the Android SDK
 
 ```sh
 flutter analyze   # static analysis, currently clean
-flutter test      # 127 tests
+flutter test      # 133 tests
 ```
 
 After changing a table in `lib/app/database.dart`, regenerate the drift code:
@@ -352,11 +354,11 @@ dart run build_runner build
 | Suite | Covers |
 |---|---|
 | `budget_math_test.dart` | Every runway formula, days short, no-spend and overspend cases, last day of term, streaks, pet levels, weekly split, even splits, mock data calibration, starting the next month (leftover, skipped months, stopped pay, overspending) |
-| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over, monthly bills (reserve, pay, skip, stop, longer term, new month, new semester), history (never the demo, newest first, deleted expenses left out) |
+| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over, monthly bills (reserve, pay, skip, stop, longer term, new month, new semester), history (never the demo, newest first, deleted expenses left out), editing costs, bills from a month on, and pay (a raise keeps past paydays) |
 | `device_database_test.dart` | Encryption with the real SQLite3MultipleCiphers build: an old plain file is encrypted in place, app data is unreadable on disk without the key, a file the key can't open is moved aside (never deleted), the key is made once |
 | `coach_test.dart` | All three verdicts, the inclusive 12% boundary, minimum trade, goal suggestion, amount parsing (`$1,299.99`, phrasing, no amount) |
 | `intro_test.dart` | Intro maths (Mochi lands on each letter, the y beat, logo hand-off is pixel-exact), first launch → welcome, tap to skip, signed-in → Home, Reduce Motion |
-| `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout, History (cards, read-only past month, empty state) |
+| `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout, History (cards, read-only past month, empty state), editing a cost and pay from Home |
 
 ---
 
@@ -364,8 +366,6 @@ dart run build_runner build
 
 This is an early prototype:
 
-- **Costs and income can't be edited in place yet.** They can be deleted and
-  re-added. (Expenses can be edited.)
 - **Money coming in belongs to one term.** Starting a new semester starts
   with no paychecks; add them again in the new term.
 - **No accounts yet.** Runway only asks for a name; there's no server. The app

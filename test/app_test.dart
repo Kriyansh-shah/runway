@@ -9,12 +9,14 @@ import 'package:runway/app/models.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
 import 'package:runway/screens/add_income_sheet.dart';
+import 'package:runway/screens/edit_cost_sheet.dart';
 import 'package:runway/screens/history_screen.dart';
 import 'package:runway/screens/quick_add_sheet.dart';
 import 'package:runway/screens/settings_screen.dart';
 import 'package:runway/widgets/celebrations.dart';
 import 'package:runway/widgets/expense_inputs.dart';
 import 'package:runway/widgets/form_fields.dart';
+import 'package:runway/widgets/list_row.dart';
 import 'package:runway/widgets/mochi_takeoff.dart';
 import 'package:runway/widgets/ph_icons.dart';
 
@@ -493,6 +495,69 @@ void main() {
       closeTo(safe + 70 / state.snapshot.daysLeft, 1e-9),
     );
     expect(find.text('Tutoring'), findsOneWidget);
+  });
+
+  testWidgets('a big cost and pay can be edited from Home', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    state.addIncome(
+      name: 'Café shifts',
+      amount: 100,
+      frequency: IncomeFrequency.weekly,
+      firstDate: now.subtract(const Duration(days: 7)),
+    );
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+
+    // The phone bill: a one-off cost.
+    final phone = find.descendant(
+      of: find.byType(ListRow),
+      matching: find.text('Phone bill'),
+    );
+    await centerOn(tester, phone);
+    await tester.tap(phone);
+    await settle(tester);
+    await tester.tap(find.text('Edit'));
+    await settle(tester);
+    expect(find.text('Edit cost'), findsOneWidget);
+    final costFields = find.descendant(
+      of: find.byType(EditCostSheet),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(costFields.at(1), '62.5');
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Save \$62.50'));
+    await settle(tester);
+    expect(
+      state.comingUp.firstWhere((c) => c.name == 'Phone bill').amount,
+      62.5,
+    );
+
+    // The café pay has paid out, so a raise starts at the next payday.
+    final pay = find.text('Café shifts');
+    await centerOn(tester, pay);
+    await tester.tap(pay);
+    await settle(tester);
+    await tester.tap(find.text('Edit'));
+    await settle(tester);
+    expect(find.text('Edit money coming in'), findsOneWidget);
+    final payFields = find.descendant(
+      of: find.byType(AddIncomeSheet),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(payFields.at(1), '120');
+    await settle(tester, const Duration(milliseconds: 300));
+    // Sep 25 and today (Oct 2) were paid; the raise starts next Friday.
+    expect(
+      find.text('Paydays you\'ve had stay at \$100.00. \$120.00 starts Oct 9.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Save \$120.00'));
+    await settle(tester);
+    expect(state.incomes.map((i) => i.amount), [100, 120]);
   });
 
   testWidgets('settings saves term edits and can erase everything', (

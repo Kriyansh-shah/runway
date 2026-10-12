@@ -101,6 +101,17 @@ class UpcomingCost {
   final String? billId;
 
   bool get repeats => billId != null;
+
+  /// The same cost with new details; the id and [billId] stay.
+  UpcomingCost copyWith({String? name, double? amount, DateTime? dueDate}) =>
+      UpcomingCost(
+        id: id,
+        emoji: emoji,
+        name: name ?? this.name,
+        amount: amount ?? this.amount,
+        dueDate: dueDate ?? this.dueDate,
+        billId: billId,
+      );
 }
 
 /// A bill due every month (rent, phone, subscriptions) on [firstDue]'s day
@@ -120,6 +131,14 @@ class RepeatingBill {
   final String name;
   final double amount;
   final DateTime firstDue;
+
+  RepeatingBill copyWith({String? name, double? amount}) => RepeatingBill(
+    id: id,
+    emoji: emoji,
+    name: name ?? this.name,
+    amount: amount ?? this.amount,
+    firstDue: firstDue,
+  );
 }
 
 /// How often money comes in. [once] is a single payment (scholarship,
@@ -161,12 +180,18 @@ class Income {
 
   bool get repeats => frequency != IncomeFrequency.once;
 
-  Income copyWith({String? id, DateTime? endsOn}) => Income(
+  Income copyWith({
+    String? id,
+    String? name,
+    double? amount,
+    DateTime? firstDate,
+    DateTime? endsOn,
+  }) => Income(
     id: id ?? this.id,
-    name: name,
-    amount: amount,
+    name: name ?? this.name,
+    amount: amount ?? this.amount,
     frequency: frequency,
-    firstDate: firstDate,
+    firstDate: firstDate ?? this.firstDate,
     endsOn: endsOn ?? this.endsOn,
   );
 }

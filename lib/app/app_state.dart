@@ -276,6 +276,95 @@ class AppState extends ChangeNotifier {
     _persist(() => _repo.addBill(bill, due));
   }
 
+  /// A one-off cost's new name, amount or due date.
+  void updateUpcomingCost(UpcomingCost cost) {
+    _checkAmount(cost.amount);
+    final index = _upcoming.indexWhere((c) => c.id == cost.id);
+    if (index < 0) return;
+    _upcoming[index] = cost;
+    _changed();
+    _persist(() => _repo.updateUpcomingCost(cost));
+  }
+
+  /// A monthly bill's new name and amount, for the month due on [from] and
+  /// every later one. Earlier months, paid or not, stay as they were.
+  void updateBill(
+    String billId, {
+    required String name,
+    required double amount,
+    required DateTime from,
+  }) {
+    _checkAmount(amount);
+    final index = _bills.indexWhere((b) => b.id == billId);
+    if (index < 0) return;
+    final bill = _bills[index].copyWith(name: name.trim(), amount: amount);
+    _bills[index] = bill;
+    for (var i = 0; i < _upcoming.length; i++) {
+      final c = _upcoming[i];
+      if (c.billId == billId && !c.dueDate.isBefore(from)) {
+        _upcoming[i] = c.copyWith(name: bill.name, amount: amount);
+      }
+    }
+    _changed();
+    _persist(() => _repo.updateBill(bill, from: from));
+  }
+
+  /// Renames money coming in or changes its amount; [date] moves a payment
+  /// that hasn't arrived yet. Money already received never changes: once
+  /// repeating pay has paid out, a new amount stops it today and carries
+  /// on from its next payday. A stopped payment is finished, so a new
+  /// amount there corrects all of its paydays.
+  void updateIncome(
+    String id, {
+    required String name,
+    required double amount,
+    DateTime? date,
+  }) {
+    _checkAmount(amount);
+    final index = _incomes.indexWhere((i) => i.id == id);
+    if (index < 0) return;
+    final old = _incomes[index];
+    final next = incomeChangeStarts(old, amount);
+    if (next == null) {
+      final edited = old.copyWith(
+        name: name.trim(),
+        amount: amount,
+        firstDate: old.firstDate.isAfter(today) && date != null
+            ? dateOnly(date)
+            : null,
+      );
+      _incomes[index] = edited;
+      _changed();
+      _persist(() => _repo.updateIncome(edited));
+      return;
+    }
+    final stopped = old.copyWith(name: name.trim(), endsOn: today);
+    final continued = Income(
+      id: 'i${DateTime.now().microsecondsSinceEpoch}',
+      name: name.trim(),
+      amount: amount,
+      frequency: old.frequency,
+      firstDate: next,
+    );
+    _incomes[index] = stopped;
+    _incomes.add(continued);
+    _changed();
+    _persist(() => _repo.updateIncome(stopped, continuedBy: continued));
+  }
+
+  /// When a new [amount] for [income] would start: its next payday, if it
+  /// repeats, has already paid out and is still going. Null means the
+  /// change applies to the whole payment instead.
+  DateTime? incomeChangeStarts(Income income, double amount) {
+    if (amount == income.amount ||
+        !income.repeats ||
+        income.endsOn != null ||
+        income.firstDate.isAfter(today)) {
+      return null;
+    }
+    return paydayAfter(income, today);
+  }
+
   /// With [andLater], a repeating bill stops: this month and every later
   /// one is removed, and no new months are reserved.
   void deleteUpcomingCost(String id, {bool andLater = false}) {

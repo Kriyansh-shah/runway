@@ -80,8 +80,10 @@ adds the `incomes` table and `expenses.is_planned`.
 both, and a monthly budget starts the next month by itself, carrying over the
 leftover money, unpaid costs and repeating pay.
 
-Still open: editing a cost or income in place (today it's delete + re-add);
-custom dates (asked in Professor Questions, #2); payday-based monthly cycles.
+✅ Costs, monthly bills and money coming in can be edited in place (a new
+pay amount starts at the next payday; money already received never changes).
+
+Still open: custom dates (asked in Professor Questions, #2); payday-based monthly cycles.
 
 **Why:** Term dates, starting balance and upcoming costs are currently hard-coded demo data.
 

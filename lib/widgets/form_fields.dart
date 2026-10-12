@@ -16,6 +16,11 @@ final amountInputFormatter = FilteringTextInputFormatter.allow(
 /// The typed amount, or 0 when empty or unreadable.
 double parseAmountInput(String text) => double.tryParse(text) ?? 0;
 
+/// How an amount is put back into a field: `12`, or `12.50` with cents.
+String amountText(double amount) => amount == amount.roundToDouble()
+    ? amount.toStringAsFixed(0)
+    : amount.toStringAsFixed(2);
+
 /// `$`-prefixed numeric field that only accepts [amountInputFormatter] input.
 class AmountField extends StatelessWidget {
   const AmountField({

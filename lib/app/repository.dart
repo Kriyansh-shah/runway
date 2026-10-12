@@ -34,6 +34,17 @@ abstract interface class BudgetRepository {
   Future<void> saveTerm(Term term, {List<UpcomingCost> added = const []});
   Future<void> addUpcomingCost(UpcomingCost cost);
 
+  /// Saves a one-off cost's new name, amount or due date.
+  Future<void> updateUpcomingCost(UpcomingCost cost);
+
+  /// Saves a bill's new name and amount, and gives them to its unpaid
+  /// months due on or after [from].
+  Future<void> updateBill(RepeatingBill bill, {required DateTime from});
+
+  /// Saves the payment's new details. [continuedBy] is added with it, in
+  /// one go, when a repeating payment carries on with a new amount.
+  Future<void> updateIncome(Income income, {Income? continuedBy});
+
   /// Saves a new repeating bill and the months of it reserved so far.
   Future<void> addBill(RepeatingBill bill, List<UpcomingCost> due);
 
@@ -121,6 +132,15 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> addUpcomingCost(UpcomingCost cost) async {}
+
+  @override
+  Future<void> updateUpcomingCost(UpcomingCost cost) async {}
+
+  @override
+  Future<void> updateBill(RepeatingBill bill, {required DateTime from}) async {}
+
+  @override
+  Future<void> updateIncome(Income income, {Income? continuedBy}) async {}
 
   @override
   Future<void> addBill(RepeatingBill bill, List<UpcomingCost> due) async {}

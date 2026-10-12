@@ -10,21 +10,27 @@ import '../widgets/form_fields.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/ph_icons.dart';
 
-Future<void> showAddIncomeSheet(BuildContext context) {
+/// With [editing], changes that payment instead of adding one.
+Future<void> showAddIncomeSheet(BuildContext context, {Income? editing}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
     elevation: 0,
-    builder: (_) => const AddIncomeSheet(),
+    builder: (_) => AddIncomeSheet(editing: editing),
   );
 }
 
 /// Adds a paycheck, allowance or one-off payment. It counts toward the
 /// budget only on the days it arrives.
+///
+/// With [editing], changes its name or amount (and the date, until it has
+/// arrived). How often it comes stays: that's a different payment.
 class AddIncomeSheet extends StatefulWidget {
-  const AddIncomeSheet({super.key});
+  const AddIncomeSheet({super.key, this.editing});
+
+  final Income? editing;
 
   @override
   State<AddIncomeSheet> createState() => _AddIncomeSheetState();
@@ -39,7 +45,14 @@ class _AddIncomeSheetState extends State<AddIncomeSheet> {
   @override
   void initState() {
     super.initState();
-    _date = _clampToTerm(AppScope.read(context).today);
+    if (widget.editing case final e?) {
+      _name.text = e.name;
+      _amount.text = amountText(e.amount);
+      _frequency = e.frequency;
+      _date = e.firstDate;
+    } else {
+      _date = _clampToTerm(AppScope.read(context).today);
+    }
   }
 
   @override
@@ -84,23 +97,44 @@ class _AddIncomeSheetState extends State<AddIncomeSheet> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  /// Still to arrive, so its date can move.
+  bool get _datePickable {
+    final e = widget.editing;
+    return e == null || e.firstDate.isAfter(AppScope.read(context).today);
+  }
+
   void _save() {
     if (!_ready) return;
-    AppScope.read(context).addIncome(
-      name: _name.text,
-      amount: _value,
-      frequency: _frequency,
-      firstDate: _date,
-    );
+    final state = AppScope.read(context);
+    if (widget.editing case final e?) {
+      state.updateIncome(e.id, name: _name.text, amount: _value, date: _date);
+    } else {
+      state.addIncome(
+        name: _name.text,
+        amount: _value,
+        frequency: _frequency,
+        firstDate: _date,
+      );
+    }
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final today = AppScope.of(context).today;
+    final state = AppScope.of(context);
+    final today = state.today;
+    final editing = widget.editing;
     final arrived = !_date.isAfter(today);
+    final changeStarts = editing == null
+        ? null
+        : state.incomeChangeStarts(editing, _value);
     final hint = switch ((_frequency == IncomeFrequency.once, arrived)) {
+      _ when changeStarts != null =>
+        'Paydays you\'ve had stay at ${money(editing!.amount)}. '
+            '${money(_value)} starts ${shortDate(changeStarts)}.',
+      _ when editing?.endsOn != null && _value != editing!.amount =>
+        'Stopped pay: this changes every payday it paid.',
       (true, true) =>
         'Counts right away. Skip it if it\'s already in your starting money.',
       (true, false) => 'Counts on ${shortDate(_date)}, the day it arrives.',
@@ -109,7 +143,7 @@ class _AddIncomeSheetState extends State<AddIncomeSheet> {
     return SheetFrame(
       children: [
         Text(
-          'Money coming in',
+          editing == null ? 'Money coming in' : 'Edit money coming in',
           style: AppText.heading,
           textAlign: TextAlign.center,
         ),
@@ -124,18 +158,21 @@ class _AddIncomeSheetState extends State<AddIncomeSheet> {
         ),
         const SizedBox(height: 14),
         const FieldLabel('How often'),
-        ChipRow(
-          children: [
-            for (final f in IncomeFrequency.values)
-              ChoiceChipPill(
-                key: ValueKey(f),
-                selected: f == _frequency,
-                color: AppColors.lime,
-                onTap: () => _setFrequency(f),
-                child: Text(f.label),
-              ),
-          ],
-        ),
+        if (editing != null)
+          Text(_frequency.label, style: AppText.body)
+        else
+          ChipRow(
+            children: [
+              for (final f in IncomeFrequency.values)
+                ChoiceChipPill(
+                  key: ValueKey(f),
+                  selected: f == _frequency,
+                  color: AppColors.lime,
+                  onTap: () => _setFrequency(f),
+                  child: Text(f.label),
+                ),
+            ],
+          ),
         const SizedBox(height: 14),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -154,24 +191,31 @@ class _AddIncomeSheetState extends State<AddIncomeSheet> {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: DateField(
-                label: _frequency == IncomeFrequency.once
-                    ? 'Arrives'
-                    : 'Next payday',
-                date: _date,
-                onTap: _pickDate,
+            if (_datePickable) ...[
+              const SizedBox(width: 10),
+              Expanded(
+                child: DateField(
+                  label: _frequency == IncomeFrequency.once
+                      ? 'Arrives'
+                      : 'Next payday',
+                  date: _date,
+                  onTap: _pickDate,
+                ),
               ),
-            ),
+            ],
           ],
         ),
         const SizedBox(height: 10),
         Text(hint, style: AppText.label),
         const SizedBox(height: 18),
         GradientButton(
-          label: _ready ? 'Add ${money(_value)}' : 'Add money',
-          icon: PhIcons.plusBold,
+          label: switch ((editing != null, _ready)) {
+            (true, true) => 'Save ${money(_value)}',
+            (true, false) => 'Save',
+            (false, true) => 'Add ${money(_value)}',
+            (false, false) => 'Add money',
+          },
+          icon: editing == null ? PhIcons.plusBold : PhIcons.checkBold,
           onTap: _ready ? _save : null,
         ),
       ],

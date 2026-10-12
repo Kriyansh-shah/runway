@@ -291,6 +291,67 @@ class DriftBudgetRepository implements BudgetRepository {
   }
 
   @override
+  Future<void> updateUpcomingCost(UpcomingCost cost) async {
+    await (_db.update(
+      _db.upcomingCosts,
+    )..where((c) => c.id.equals(cost.id))).write(
+      UpcomingCostsCompanion(
+        name: Value(cost.name),
+        amountCents: Value(_cents(cost.amount)),
+        dueDate: Value(cost.dueDate),
+      ),
+    );
+  }
+
+  @override
+  Future<void> updateBill(RepeatingBill bill, {required DateTime from}) {
+    return _db.transaction(() async {
+      await (_db.update(
+        _db.repeatingBills,
+      )..where((b) => b.id.equals(bill.id))).write(
+        RepeatingBillsCompanion(
+          name: Value(bill.name),
+          amountCents: Value(_cents(bill.amount)),
+        ),
+      );
+      await (_db.update(_db.upcomingCosts)..where(
+            (c) =>
+                c.billId.equals(bill.id) &
+                c.paidAt.isNull() &
+                c.dueDate.isBiggerOrEqualValue(from),
+          ))
+          .write(
+            UpcomingCostsCompanion(
+              name: Value(bill.name),
+              amountCents: Value(_cents(bill.amount)),
+            ),
+          );
+    });
+  }
+
+  @override
+  Future<void> updateIncome(Income income, {Income? continuedBy}) async {
+    final termId = await _currentTermId();
+    await _db.transaction(() async {
+      await (_db.update(
+        _db.incomes,
+      )..where((i) => i.id.equals(income.id))).write(
+        IncomesCompanion(
+          name: Value(income.name),
+          amountCents: Value(_cents(income.amount)),
+          firstDate: Value(income.firstDate),
+          endsOn: Value(income.endsOn),
+        ),
+      );
+      if (continuedBy != null) {
+        await _db
+            .into(_db.incomes)
+            .insert(_incomeRow(continuedBy, termId, _clock()));
+      }
+    });
+  }
+
+  @override
   Future<void> addBill(RepeatingBill bill, List<UpcomingCost> due) async {
     final termId = await _currentTermId();
     await _db.transaction(() async {

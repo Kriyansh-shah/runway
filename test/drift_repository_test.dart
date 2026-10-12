@@ -781,6 +781,185 @@ void main() {
     ]);
   });
 
+  group('editing costs and pay', () {
+    late DriftBudgetRepository repo;
+    late AppState state;
+
+    // Today is Fri Oct 2, 2026.
+    Future<void> start() async {
+      repo = openRepo();
+      state = AppState(
+        repository: repo,
+        data: await repo.load(),
+        clock: () => now,
+      );
+      state.startTerm(
+        Term(
+          name: 'Fall term',
+          start: DateTime(2026, 9, 1),
+          end: DateTime(2026, 12, 20),
+          startingBalance: 3000,
+        ),
+        [
+          UpcomingCost(
+            id: 'my-flight', // the demo already has 'flight'
+            emoji: '📌',
+            name: 'Flight',
+            amount: 300,
+            dueDate: DateTime(2026, 12, 18),
+          ),
+        ],
+      );
+    }
+
+    Future<BudgetData> reload() async {
+      await pumpEventQueue(times: 100);
+      repo = await reopen(repo);
+      return repo.load();
+    }
+
+    test('a one-off cost gets a new name, amount and date', () async {
+      await start();
+      state.updateUpcomingCost(
+        state.comingUp.single.copyWith(
+          name: 'Flight home',
+          amount: 260,
+          dueDate: DateTime(2026, 12, 19),
+        ),
+      );
+      expect(state.snapshot.available, 2740);
+
+      final cost = (await reload()).upcoming.single;
+      expect(cost.name, 'Flight home');
+      expect(cost.amount, 260);
+      expect(cost.dueDate, DateTime(2026, 12, 19));
+    });
+
+    test('a monthly bill changes from that month on', () async {
+      await start();
+      state.addUpcomingCost(
+        UpcomingCost(
+          id: 'x',
+          emoji: '📌',
+          name: 'Rent',
+          amount: 800,
+          dueDate: DateTime(2026, 10, 1),
+        ),
+        monthly: true,
+      );
+      final november = state.comingUp.firstWhere(
+        (c) => c.dueDate == DateTime(2026, 11, 1),
+      );
+      state.updateBill(
+        november.billId!,
+        name: 'Rent (new lease)',
+        amount: 850,
+        from: november.dueDate,
+      );
+      List<String> rent(List<UpcomingCost> costs) => [
+        for (final c in costs)
+          if (c.repeats) '${c.dueDate.month}: ${c.name} ${c.amount}',
+      ];
+      expect(rent(state.comingUp), [
+        '10: Rent 800.0', // overdue October keeps its amount
+        '11: Rent (new lease) 850.0',
+        '12: Rent (new lease) 850.0',
+      ]);
+      // Months reserved later use the new amount too.
+      state.updateTerm(
+        Term(
+          name: 'Fall term',
+          start: DateTime(2026, 9, 1),
+          end: DateTime(2027, 1, 10),
+          startingBalance: 3000,
+        ),
+      );
+      expect(rent(state.comingUp).last, '1: Rent (new lease) 850.0');
+
+      final data = await reload();
+      expect(rent(data.upcoming), rent(state.comingUp));
+      expect(data.bills.single.amount, 850);
+    });
+
+    test('a one-off payment that hasn\'t arrived moves and changes', () async {
+      await start();
+      state.addIncome(
+        name: 'Scholarship',
+        amount: 500,
+        frequency: IncomeFrequency.once,
+        firstDate: DateTime(2026, 10, 20),
+      );
+      final id = state.incomes.single.id;
+      state.updateIncome(
+        id,
+        name: 'Merit scholarship',
+        amount: 650,
+        date: DateTime(2026, 10, 9),
+      );
+      expect(state.incomes.single.firstDate, DateTime(2026, 10, 9));
+      expect(state.nextIncome?.income.amount, 650);
+
+      final income = (await reload()).incomes.single;
+      expect(income.name, 'Merit scholarship');
+      expect(income.amount, 650);
+      expect(income.firstDate, DateTime(2026, 10, 9));
+    });
+
+    test('a raise keeps the paydays already received', () async {
+      await start();
+      state.addIncome(
+        name: 'Job',
+        amount: 200,
+        frequency: IncomeFrequency.weekly,
+        firstDate: DateTime(2026, 9, 18), // Sep 18, 25, Oct 2 paid so far
+      );
+      final id = state.incomes.single.id;
+      expect(state.snapshot.received, 600);
+      expect(
+        state.incomeChangeStarts(state.incomes.single, 250),
+        DateTime(2026, 10, 9),
+      );
+
+      state.updateIncome(id, name: 'Job', amount: 250);
+      expect(state.snapshot.received, 600); // the past didn't change
+      expect(state.nextIncome?.date, DateTime(2026, 10, 9));
+      expect(state.nextIncome?.income.amount, 250);
+      expect(state.incomes.map((i) => (i.amount, i.endsOn)), [
+        (200.0, DateTime(2026, 10, 2)),
+        (250.0, null),
+      ]);
+
+      final data = await reload();
+      expect(data.incomes.map((i) => (i.amount, i.endsOn)), [
+        (200.0, DateTime(2026, 10, 2)),
+        (250.0, null),
+      ]);
+      expect(data.incomes.last.firstDate, DateTime(2026, 10, 9));
+    });
+
+    test('renaming pay, or fixing a stopped one, edits it in place', () async {
+      await start();
+      state.addIncome(
+        name: 'Job',
+        amount: 200,
+        frequency: IncomeFrequency.weekly,
+        firstDate: DateTime(2026, 9, 18),
+      );
+      final id = state.incomes.single.id;
+      state.updateIncome(id, name: 'Campus café', amount: 200);
+      expect(state.incomes.single.name, 'Campus café');
+
+      state.stopIncome(id);
+      state.updateIncome(id, name: 'Campus café', amount: 180);
+      expect(state.incomes, hasLength(1));
+      expect(state.snapshot.received, 540); // 3 paydays, corrected
+
+      final income = (await reload()).incomes.single;
+      expect(income.amount, 180);
+      expect(income.endsOn, DateTime(2026, 10, 2));
+    });
+  });
+
   test('edited, deleted and restored expenses survive reopening', () async {
     var repo = openRepo();
     await repo.load();

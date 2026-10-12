@@ -5,11 +5,13 @@ import '../app/format.dart';
 import '../app/models.dart';
 import '../widgets/action_sheet.dart';
 import '../widgets/ph_icons.dart';
+import 'add_income_sheet.dart';
+import 'edit_cost_sheet.dart';
 import 'quick_add_sheet.dart';
 
-enum _CostAction { pay, delete, stop }
+enum _CostAction { pay, edit, delete, stop }
 
-enum _IncomeAction { stop, delete }
+enum _IncomeAction { edit, stop, delete }
 
 enum _ExpenseAction { edit, delete }
 
@@ -64,8 +66,8 @@ Future<void> showExpenseActions(
   }
 }
 
-/// Mark an upcoming cost paid, or delete it. A monthly bill can also be
-/// stopped, which removes this month and every later one.
+/// Mark an upcoming cost paid, edit it, or delete it. A monthly bill can
+/// also be stopped, which removes this month and every later one.
 Future<void> showCostActions(BuildContext context, UpcomingCost cost) async {
   final state = AppScope.read(context);
   final choice = await showActionSheet<_CostAction>(
@@ -79,6 +81,11 @@ Future<void> showCostActions(BuildContext context, UpcomingCost cost) async {
         value: _CostAction.pay,
         label: 'Mark as paid',
         icon: PhIcons.checkCircle,
+      ),
+      const SheetAction(
+        value: _CostAction.edit,
+        label: 'Edit',
+        icon: PhIcons.notePencil,
       ),
       SheetAction(
         value: _CostAction.delete,
@@ -95,9 +102,12 @@ Future<void> showCostActions(BuildContext context, UpcomingCost cost) async {
         ),
     ],
   );
+  if (!context.mounted) return;
   switch (choice) {
     case _CostAction.pay:
       state.payUpcomingCost(cost.id);
+    case _CostAction.edit:
+      await showEditCostSheet(context, cost);
     case _CostAction.delete:
       state.deleteUpcomingCost(cost.id);
     case _CostAction.stop:
@@ -106,7 +116,7 @@ Future<void> showCostActions(BuildContext context, UpcomingCost cost) async {
   }
 }
 
-/// Stop a repeating income, or delete it.
+/// Edit money coming in, stop a repeating payment, or delete it.
 Future<void> showIncomeActions(BuildContext context, Income income) async {
   final state = AppScope.read(context);
   final stoppable = income.repeats && income.endsOn == null;
@@ -118,6 +128,11 @@ Future<void> showIncomeActions(BuildContext context, Income income) async {
               'every payment, as if it was never added.'
         : 'Deleting removes this money from your budget.',
     actions: [
+      const SheetAction(
+        value: _IncomeAction.edit,
+        label: 'Edit',
+        icon: PhIcons.notePencil,
+      ),
       if (stoppable)
         const SheetAction(
           value: _IncomeAction.stop,
@@ -132,7 +147,10 @@ Future<void> showIncomeActions(BuildContext context, Income income) async {
       ),
     ],
   );
+  if (!context.mounted) return;
   switch (choice) {
+    case _IncomeAction.edit:
+      await showAddIncomeSheet(context, editing: income);
     case _IncomeAction.stop:
       state.stopIncome(income.id);
     case _IncomeAction.delete:

@@ -8,6 +8,7 @@ import '../app/purchase_link.dart';
 import '../app/theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/expense_inputs.dart';
+import '../widgets/form_fields.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/pressable.dart';
 import '../widgets/ph_icons.dart';
@@ -59,7 +60,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   void initState() {
     super.initState();
     if (widget.editing case final e?) {
-      _input = _amountText(e.amount);
+      _input = amountText(e.amount);
       _note.text = e.note ?? '';
       _category = e.category;
       _isNeed = e.isNeed;
@@ -67,7 +68,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     }
     final purchase = widget.purchase;
     if (purchase == null) return;
-    if (purchase.amount case final amount?) _input = _amountText(amount);
+    if (purchase.amount case final amount?) _input = amountText(amount);
     _note.text = purchase.merchant ?? '';
   }
 
@@ -105,15 +106,11 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   void _preset(ExpensePreset p) {
     HapticFeedback.lightImpact();
     setState(() {
-      _input = _amountText(p.amount);
+      _input = amountText(p.amount);
       _category = p.category;
       _isNeed = p.isNeed;
     });
   }
-
-  static String _amountText(double amount) => amount == amount.roundToDouble()
-      ? amount.toStringAsFixed(0)
-      : amount.toStringAsFixed(2);
 
   final _logKey = GlobalKey();
 
