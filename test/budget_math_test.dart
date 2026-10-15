@@ -534,7 +534,7 @@ void main() {
       expect(s.moneyIn, 400); // Sep 4, 11, 18, 25
       expect(s.spent, 240);
       expect(s.left, 660);
-      expect(s.topCategories.map((c) => (c.category, c.amount)), [
+      expect(s.topCategories.map((c) => (c.category.category, c.amount)), [
         (ExpenseCategory.eatingOut, 120.0),
         (ExpenseCategory.groceries, 60.0),
         (ExpenseCategory.coffee, 55.0),
@@ -599,7 +599,7 @@ void main() {
         spend('d', 310, ExpenseCategory.groceries, 10),
       ]);
       final c = biggestChange(october, september)!;
-      expect(c.category, ExpenseCategory.delivery);
+      expect(c.category, const CategoryRef(ExpenseCategory.delivery));
       expect(c.change, closeTo(-0.3, 1e-9));
     });
 
@@ -623,6 +623,35 @@ void main() {
         spend('d', 90, ExpenseCategory.coffee, 10),
       ]);
       expect(biggestChange(october, september), isNull);
+    });
+
+    test('a custom category is its own line, even after a rename', () {
+      const smoke = CustomCategory(id: 'c1', emoji: '🚬', name: 'Smokes');
+      Expense custom(String id, double amount, int m, CustomCategory c) =>
+          Expense(
+            id: id,
+            amount: amount,
+            category: ExpenseCategory.other,
+            isNeed: false,
+            date: DateTime(2026, m, 10, 12),
+            custom: c,
+          );
+      final september = month(9, 'September', [
+        custom('a', 300, 9, smoke),
+        spend('b', 100, ExpenseCategory.other, 9),
+      ]);
+      final october = month(10, 'October', [
+        custom('c', 155, 10, smoke.copyWith(name: 'Cigarettes')),
+        spend('d', 100, ExpenseCategory.other, 10),
+      ]);
+      final top = summarize(september).topCategories;
+      expect(top.map((c) => (c.category.label, c.amount)), [
+        ('Smokes', 300.0),
+        ('Other', 100.0),
+      ]);
+      final c = biggestChange(october, september)!;
+      expect(c.category.custom?.id, 'c1');
+      expect(c.change, closeTo(-0.5, 1e-9));
     });
 
     test('needs share of what was spent', () {

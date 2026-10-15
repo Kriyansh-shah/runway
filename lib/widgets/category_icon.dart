@@ -22,20 +22,45 @@ DuotoneIconData categoryIconData(ExpenseCategory c) => switch (c) {
   ExpenseCategory.other => PhDuotone.wallet,
 };
 
+/// A built-in category's duotone icon, or a custom category's emoji.
 class CategoryIcon extends StatelessWidget {
   const CategoryIcon(
     this.category, {
     super.key,
+    this.custom,
     this.size = 20,
     this.color = AppColors.lilac,
   });
 
+  /// The icon an expense is shown with.
+  CategoryIcon.of(Expense expense, {Key? key, double size = 20})
+    : this(expense.category, key: key, custom: expense.custom, size: size);
+
   final ExpenseCategory category;
+  final CustomCategory? custom;
   final double size;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
+    if (custom case final custom?) {
+      return Semantics(
+        label: custom.name,
+        child: ExcludeSemantics(
+          child: SizedBox.square(
+            dimension: size,
+            child: OverflowBox(
+              maxWidth: size * 1.4,
+              maxHeight: size * 1.4,
+              child: Text(
+                custom.emoji,
+                style: TextStyle(fontSize: size, height: 1),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final icon = categoryIconData(category);
     return Semantics(
       label: category.label,

@@ -50,6 +50,26 @@ class Expenses extends Table {
   /// Soft delete, so a future "Undo" can bring it back.
   DateTimeColumn get deletedAt => dateTime().nullable()();
 
+  /// The person's own category (added in schema 5); [category] is then
+  /// `other`, which is where the expense stays if the category is deleted.
+  TextColumn get customCategoryId =>
+      text().nullable().references(CustomCategories, #id)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// A category the person made, like 🚬 Cigarettes (added in schema 5).
+@DataClassName('CustomCategoryRow')
+class CustomCategories extends Table {
+  TextColumn get id => text()();
+  TextColumn get emoji => text()();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// Last time an expense was logged in it; the picker shows these first.
+  DateTimeColumn get lastUsedAt => dateTime().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -171,6 +191,7 @@ class Meta extends Table {
   tables: [
     Terms,
     Expenses,
+    CustomCategories,
     UpcomingCosts,
     RepeatingBills,
     Incomes,
@@ -190,7 +211,7 @@ class RunwayDatabase extends _$RunwayDatabase {
       RunwayDatabase(await openDeviceDatabase());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -207,6 +228,10 @@ class RunwayDatabase extends _$RunwayDatabase {
       if (from < 4) {
         await m.createTable(repeatingBills);
         await m.addColumn(upcomingCosts, upcomingCosts.billId);
+      }
+      if (from < 5) {
+        await m.createTable(customCategories);
+        await m.addColumn(expenses, expenses.customCategoryId);
       }
     },
     beforeOpen: (details) async {

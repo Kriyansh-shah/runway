@@ -35,6 +35,7 @@ class DriftBudgetRepository implements BudgetRepository {
     final term = await _currentTerm();
     _termId = term.id;
 
+    final customs = await _customCategories();
     final expenses =
         await (_db.select(_db.expenses)
               ..where((e) => e.termId.equals(term.id) & e.deletedAt.isNull())
@@ -67,7 +68,7 @@ class DriftBudgetRepository implements BudgetRepository {
 
     return BudgetData(
       term: _term(term),
-      expenses: [for (final r in expenses) _expense(r)],
+      expenses: [for (final r in expenses) _expense(r, customs)],
       upcoming: [
         for (final r in upcoming)
           UpcomingCost(
@@ -90,6 +91,7 @@ class DriftBudgetRepository implements BudgetRepository {
           ),
       ],
       incomes: [for (final r in incomes) _income(r)],
+      customCategories: [...customs.values],
       friends: [
         for (final r in friends)
           Friend(
@@ -138,6 +140,7 @@ class DriftBudgetRepository implements BudgetRepository {
               ..orderBy([(t) => OrderingTerm.desc(t.id)]))
             .get();
     final ids = [for (final t in terms) t.id];
+    final customs = await _customCategories();
     final expenses =
         await (_db.select(_db.expenses)
               ..where((e) => e.termId.isIn(ids) & e.deletedAt.isNull())
@@ -153,7 +156,7 @@ class DriftBudgetRepository implements BudgetRepository {
           endedOn: t.archivedAt!.toLocal(),
           expenses: [
             for (final r in expenses)
-              if (r.termId == t.id) _expense(r),
+              if (r.termId == t.id) _expense(r, customs),
           ],
           incomes: [
             for (final r in incomes)
@@ -181,6 +184,17 @@ class DriftBudgetRepository implements BudgetRepository {
           .getSingle();
 
   Future<int> _currentTermId() async => _termId ??= (await _currentTerm()).id;
+
+  /// Every custom category by id, most recently used (or made) first.
+  Future<Map<String, CustomCategory>> _customCategories() async {
+    final rows = await _db.select(_db.customCategories).get();
+    DateTime used(CustomCategoryRow r) => r.lastUsedAt ?? r.createdAt;
+    rows.sort((a, b) => used(b).compareTo(used(a)));
+    return {
+      for (final r in rows)
+        r.id: CustomCategory(id: r.id, emoji: r.emoji, name: r.name),
+    };
+  }
 
   // ---------------------------------------------------------------- session
 
@@ -218,7 +232,14 @@ class DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> addExpense(Expense expense) async {
     final termId = await _currentTermId();
-    await _db.into(_db.expenses).insert(_expenseRow(expense, termId));
+    await _db.transaction(() async {
+      await _db.into(_db.expenses).insert(_expenseRow(expense, termId));
+      if (expense.custom case final custom?) {
+        await (_db.update(_db.customCategories)
+              ..where((c) => c.id.equals(custom.id)))
+            .write(CustomCategoriesCompanion(lastUsedAt: Value(_clock())));
+      }
+    });
   }
 
   @override
@@ -231,8 +252,55 @@ class DriftBudgetRepository implements BudgetRepository {
         category: Value(expense.category),
         isNeed: Value(expense.isNeed),
         note: Value(expense.note),
+        customCategoryId: Value(expense.custom?.id),
       ),
     );
+  }
+
+  @override
+  Future<void> addCustomCategory(CustomCategory category) async {
+    await _db
+        .into(_db.customCategories)
+        .insert(
+          CustomCategoriesCompanion.insert(
+            id: category.id,
+            emoji: category.emoji,
+            name: category.name,
+            createdAt: _clock(),
+          ),
+        );
+  }
+
+  @override
+  Future<void> updateCustomCategory(CustomCategory category) async {
+    await (_db.update(
+      _db.customCategories,
+    )..where((c) => c.id.equals(category.id))).write(
+      CustomCategoriesCompanion(
+        emoji: Value(category.emoji),
+        name: Value(category.name),
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteCustomCategory(String id) {
+    return _db.transaction(() async {
+      final category = await (_db.select(
+        _db.customCategories,
+      )..where((c) => c.id.equals(id))).getSingleOrNull();
+      if (category == null) return;
+      // Its expenses stay in Other; ones without a note keep its name.
+      await (_db.update(_db.expenses)
+            ..where((e) => e.customCategoryId.equals(id) & e.note.isNull()))
+          .write(ExpensesCompanion(note: Value(category.name)));
+      await (_db.update(_db.expenses)
+            ..where((e) => e.customCategoryId.equals(id)))
+          .write(const ExpensesCompanion(customCategoryId: Value(null)));
+      await (_db.delete(
+        _db.customCategories,
+      )..where((c) => c.id.equals(id))).go();
+    });
   }
 
   @override
@@ -445,6 +513,7 @@ class DriftBudgetRepository implements BudgetRepository {
       // Children before the terms they reference (foreign keys are on).
       for (final table in <TableInfo<Table, Object?>>[
         _db.expenses,
+        _db.customCategories,
         _db.upcomingCosts,
         _db.repeatingBills,
         _db.incomes,
@@ -601,15 +670,17 @@ class DriftBudgetRepository implements BudgetRepository {
     period: r.period,
   );
 
-  static Expense _expense(ExpenseRow r) => Expense(
-    id: r.id,
-    amount: _dollars(r.amountCents),
-    category: r.category,
-    isNeed: r.isNeed,
-    date: r.createdAt.toLocal(),
-    note: r.note,
-    planned: r.isPlanned,
-  );
+  static Expense _expense(ExpenseRow r, Map<String, CustomCategory> customs) =>
+      Expense(
+        id: r.id,
+        amount: _dollars(r.amountCents),
+        category: r.category,
+        isNeed: r.isNeed,
+        date: r.createdAt.toLocal(),
+        note: r.note,
+        planned: r.isPlanned,
+        custom: customs[r.customCategoryId],
+      );
 
   static Income _income(IncomeRow r) => Income(
     id: r.id,
@@ -630,6 +701,7 @@ class DriftBudgetRepository implements BudgetRepository {
         note: Value(e.note),
         createdAt: e.date,
         isPlanned: Value(e.planned),
+        customCategoryId: Value(e.custom?.id),
       );
 
   static UpcomingCostsCompanion _costRow(UpcomingCost c, int termId) =>

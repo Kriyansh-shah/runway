@@ -38,7 +38,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
   final _description = TextEditingController();
   final _amount = TextEditingController();
   final _selected = <String>{};
-  ExpenseCategory _category = ExpenseCategory.groceries;
+  CategoryRef _category = const CategoryRef(ExpenseCategory.groceries);
   bool _isNeed = true;
 
   @override
@@ -67,7 +67,8 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
       description: _description.text.trim(),
       total: _total,
       roommates: state.friends.where((f) => _selected.contains(f.id)).toList(),
-      category: _category,
+      category: _category.category,
+      custom: _category.custom,
       isNeed: _isNeed,
     );
     HapticFeedback.mediumImpact();
@@ -149,6 +150,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
         const FieldLabel('Category (for your share)'),
         CategoryPicker(
           selected: _category,
+          customs: AppScope.of(context).customCategories,
           onChanged: (c) => setState(() => _category = c),
         ),
         const SizedBox(height: 14),

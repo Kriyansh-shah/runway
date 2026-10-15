@@ -440,6 +440,69 @@ void main() {
     expect(data.incomes, isEmpty);
   });
 
+  test('custom categories are saved, ordered by use, and deletable', () async {
+    var repo = openRepo();
+    var state = AppState(repository: repo, data: await repo.load());
+    final smoke = state.addCustomCategory(name: 'Cigarettes', emoji: '🚬');
+    final games = state.addCustomCategory(name: 'Games', emoji: '🎮');
+    state.addExpense(
+      amount: 12,
+      category: ExpenseCategory.other,
+      isNeed: false,
+      custom: smoke,
+    );
+    await pumpEventQueue(times: 100);
+
+    repo = await reopen(repo);
+    var data = await repo.load();
+    // Used most recently, so first.
+    expect(data.customCategories.map((c) => c.name), ['Cigarettes', 'Games']);
+    final logged = data.expenses.singleWhere((e) => e.custom != null);
+    expect(logged.custom?.id, smoke.id);
+    expect(logged.title, 'Cigarettes');
+
+    state = AppState(repository: repo, data: data);
+    state.updateCustomCategory(games.copyWith(name: 'Gaming'));
+    state.deleteCustomCategory(smoke.id);
+    await pumpEventQueue(times: 100);
+
+    repo = await reopen(repo);
+    data = await repo.load();
+    expect(data.customCategories.map((c) => c.name), ['Gaming']);
+    final moved = data.expenses.singleWhere((e) => e.id == logged.id);
+    expect(moved.custom, isNull);
+    expect(moved.category, ExpenseCategory.other);
+    expect(moved.note, 'Cigarettes');
+  });
+
+  test(
+    'a version 4 database upgrades and can save custom categories',
+    () async {
+      var repo = openRepo();
+      await repo.load();
+      await repo.addExpense(expense('old', 3, note: 'From v4'));
+      await repo.close();
+      open.remove(repo);
+
+      final db = RunwayDatabase(NativeDatabase(file));
+      await db.customStatement(
+        'ALTER TABLE expenses DROP COLUMN custom_category_id',
+      );
+      await db.customStatement('DROP TABLE custom_categories');
+      await db.customStatement('PRAGMA user_version = 4');
+      await db.close();
+
+      repo = openRepo();
+      final data = await repo.load();
+      expect(data.expenses.singleWhere((e) => e.id == 'old').note, 'From v4');
+      expect(data.customCategories, isEmpty);
+      await repo.addCustomCategory(
+        const CustomCategory(id: 'c1', emoji: '🚬', name: 'Cigarettes'),
+      );
+      expect((await repo.load()).customCategories.single.name, 'Cigarettes');
+    },
+  );
+
   test('a version 1 database upgrades without losing data', () async {
     var repo = openRepo();
     await repo.load();
@@ -449,6 +512,10 @@ void main() {
 
     // Turn the file back into the version 1 schema.
     final db = RunwayDatabase(NativeDatabase(file));
+    await db.customStatement(
+      'ALTER TABLE expenses DROP COLUMN custom_category_id',
+    );
+    await db.customStatement('DROP TABLE custom_categories');
     await db.customStatement('DROP TABLE incomes');
     await db.customStatement('ALTER TABLE expenses DROP COLUMN is_planned');
     await db.customStatement('ALTER TABLE upcoming_costs DROP COLUMN bill_id');
@@ -481,6 +548,10 @@ void main() {
     open.remove(repo);
 
     final db = RunwayDatabase(NativeDatabase(file));
+    await db.customStatement(
+      'ALTER TABLE expenses DROP COLUMN custom_category_id',
+    );
+    await db.customStatement('DROP TABLE custom_categories');
     await db.customStatement('ALTER TABLE upcoming_costs DROP COLUMN bill_id');
     await db.customStatement('DROP TABLE repeating_bills');
     await db.customStatement('ALTER TABLE terms DROP COLUMN period');

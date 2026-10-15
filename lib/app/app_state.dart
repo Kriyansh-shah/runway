@@ -29,6 +29,7 @@ class AppState extends ChangeNotifier {
        _upcoming = [...data.upcoming],
        _bills = [...data.bills],
        _incomes = [...data.incomes],
+       _customCategories = [...data.customCategories],
        _friends = [...data.friends],
        _splits = [...data.splits],
        _needsSetup = data.needsSetup,
@@ -50,6 +51,7 @@ class AppState extends ChangeNotifier {
   final List<UpcomingCost> _upcoming;
   final List<RepeatingBill> _bills;
   final List<Income> _incomes;
+  final List<CustomCategory> _customCategories;
   final List<Friend> _friends;
   final List<BillSplit> _splits;
   DateTime _challengeStart;
@@ -118,6 +120,10 @@ class AppState extends ChangeNotifier {
   List<Expense> get allExpenses =>
       [..._expenses]..sort((a, b) => b.date.compareTo(a.date));
 
+  /// The person's own categories, most recently used first.
+  List<CustomCategory> get customCategories =>
+      List.unmodifiable(_customCategories);
+
   /// Repeating bills that are still going.
   List<RepeatingBill> get bills => List.unmodifiable(_bills);
 
@@ -141,17 +147,145 @@ class AppState extends ChangeNotifier {
       CoachGrounding.fromSnapshot(_snapshot, period: _term.period);
 
   /// Updates the screen immediately, then saves in the background.
+  /// With [custom], the expense is filed under it (and [category] is Other).
   void addExpense({
     required double amount,
     required ExpenseCategory category,
     required bool isNeed,
     String? note,
+    CustomCategory? custom,
   }) {
     _checkAmount(amount);
-    final expense = _newExpense(amount, category, isNeed, note);
+    final expense = _newExpense(
+      amount,
+      custom == null ? category : ExpenseCategory.other,
+      isNeed,
+      note,
+      custom: custom,
+    );
     _expenses.add(expense);
+    if (custom != null) _moveToFront(custom.id);
     _changed();
     _persist(() => _repo.addExpense(expense));
+  }
+
+  /// Why [name] can't be a new category (or [editingId]'s new name), or
+  /// null if it can.
+  String? checkCategoryName(String name, {String? editingId}) {
+    final key = name.trim().toLowerCase();
+    if (key.isEmpty) return 'Give it a name';
+    if (key.length > maxCategoryName) {
+      return 'Keep it to $maxCategoryName letters';
+    }
+    final taken =
+        ExpenseCategory.values.any((c) => c.label.toLowerCase() == key) ||
+        _customCategories.any(
+          (c) => c.id != editingId && c.name.toLowerCase() == key,
+        );
+    return taken ? 'There\'s already a ${name.trim()} category' : null;
+  }
+
+  static const maxCategoryName = 20;
+
+  /// The name to offer as a new category when an Other expense is noted
+  /// [note]: it has been logged in Other with the same note before (any
+  /// capitals), and isn't a category yet. Null if there's nothing to offer.
+  String? categorySuggestion(String note) {
+    final name = note.trim();
+    final key = name.toLowerCase();
+    if (checkCategoryName(name) != null) return null;
+    final seen = _expenses.any(
+      (e) =>
+          e.category == ExpenseCategory.other &&
+          e.custom == null &&
+          e.note?.trim().toLowerCase() == key,
+    );
+    if (!seen) return null;
+    final first = name.characters.first;
+    return first.toUpperCase() + name.substring(first.length);
+  }
+
+  /// Makes a category and returns it. Expenses already in Other with its
+  /// name as their note move into it, so its totals start out right.
+  CustomCategory addCustomCategory({
+    required String name,
+    required String emoji,
+  }) {
+    final trimmed = name.trim();
+    if (checkCategoryName(trimmed) != null || emoji.trim().isEmpty) {
+      throw ArgumentError.value(name, 'name', 'invalid category name');
+    }
+    final category = CustomCategory(
+      id: 'c${DateTime.now().microsecondsSinceEpoch}',
+      emoji: emoji.trim().characters.first,
+      name: trimmed,
+    );
+    _customCategories.insert(0, category);
+    final key = trimmed.toLowerCase();
+    final moved = <Expense>[];
+    for (var i = 0; i < _expenses.length; i++) {
+      final e = _expenses[i];
+      if (e.category == ExpenseCategory.other &&
+          e.custom == null &&
+          e.note?.trim().toLowerCase() == key) {
+        _expenses[i] = e.copyWith(custom: () => category);
+        moved.add(_expenses[i]);
+      }
+    }
+    _changed();
+    _persist(() async {
+      await _repo.addCustomCategory(category);
+      for (final e in moved) {
+        await _repo.updateExpense(e);
+      }
+    });
+    return category;
+  }
+
+  /// A new name or emoji for a custom category, everywhere it's shown.
+  void updateCustomCategory(CustomCategory category) {
+    final index = _customCategories.indexWhere((c) => c.id == category.id);
+    if (index < 0 ||
+        checkCategoryName(category.name, editingId: category.id) != null) {
+      return;
+    }
+    final updated = category.copyWith(
+      name: category.name.trim(),
+      emoji: category.emoji.trim().characters.first,
+    );
+    _customCategories[index] = updated;
+    for (var i = 0; i < _expenses.length; i++) {
+      if (_expenses[i].custom?.id == updated.id) {
+        _expenses[i] = _expenses[i].copyWith(custom: () => updated);
+      }
+    }
+    _changed();
+    _persist(() => _repo.updateCustomCategory(updated));
+  }
+
+  /// Removes a custom category. Its expenses stay, filed under Other, and
+  /// ones without a note keep its name as their note.
+  void deleteCustomCategory(String id) {
+    final index = _customCategories.indexWhere((c) => c.id == id);
+    if (index < 0) return;
+    final removed = _customCategories.removeAt(index);
+    for (var i = 0; i < _expenses.length; i++) {
+      final e = _expenses[i];
+      if (e.custom?.id != id) continue;
+      _expenses[i] = e.copyWith(
+        note: () => e.note ?? removed.name,
+        custom: () => null,
+      );
+    }
+    _changed();
+    _persist(() => _repo.deleteCustomCategory(id));
+  }
+
+  void _moveToFront(String customId) {
+    final index = _customCategories.indexWhere((c) => c.id == customId);
+    if (index > 0) {
+      _customCategories.insert(0, _customCategories.removeAt(index));
+    }
   }
 
   /// Replaces the expense with the same id (amount, category, need, note).
@@ -190,6 +324,7 @@ class AppState extends ChangeNotifier {
     required List<Friend> roommates,
     required ExpenseCategory category,
     required bool isNeed,
+    CustomCategory? custom,
   }) {
     if (roommates.isEmpty || total <= 0) return;
     final shares = splitEvenly(total, roommates.length);
@@ -204,7 +339,13 @@ class AppState extends ChangeNotifier {
           theyOweYou: true,
         ),
     ];
-    final myShare = _newExpense(shares.mine, category, isNeed, description);
+    final myShare = _newExpense(
+      shares.mine,
+      custom == null ? category : ExpenseCategory.other,
+      isNeed,
+      description,
+      custom: custom,
+    );
     _splits.insertAll(0, added);
     _expenses.add(myShare);
     _changed();
@@ -576,6 +717,7 @@ class AppState extends ChangeNotifier {
     _replace(_upcoming, data.upcoming);
     _replace(_bills, data.bills);
     _replace(_incomes, data.incomes);
+    _replace(_customCategories, data.customCategories);
     _replace(_friends, data.friends);
     _replace(_splits, data.splits);
     _challengeStart = data.challengeStart;
@@ -600,6 +742,7 @@ class AppState extends ChangeNotifier {
     bool isNeed,
     String? note, {
     bool planned = false,
+    CustomCategory? custom,
   }) => Expense(
     id: 'e${DateTime.now().microsecondsSinceEpoch}',
     amount: amount,
@@ -608,6 +751,7 @@ class AppState extends ChangeNotifier {
     date: _clock(),
     note: note,
     planned: planned,
+    custom: custom,
   );
 
   void _changed() {

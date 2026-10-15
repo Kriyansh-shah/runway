@@ -383,6 +383,94 @@ void main() {
     expect(e.amount, 27);
   });
 
+  testWidgets('a repeat Other note becomes a one-tap category', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final state = buildState();
+    state.addExpense(
+      amount: 12,
+      category: ExpenseCategory.other,
+      isNeed: false,
+      note: 'cigarettes',
+    );
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await tester.tap(find.bySemanticsLabel('Add expense'));
+    await settle(tester);
+
+    // Logging it in Other again offers to make it a category.
+    await tester.enterText(find.byType(TextField), 'Cigarettes');
+    await settle(tester, const Duration(milliseconds: 300));
+    expect(find.textContaining('Make it a category?'), findsOneWidget);
+    await tester.tap(find.text('Make it'));
+    await settle(tester);
+    expect(find.text('New category'), findsOneWidget);
+    await tester.tap(find.text('🚬'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Add 🚬 Cigarettes'));
+    await settle(tester);
+
+    // Picked for this expense, and the earlier one moved into it too.
+    await tester.tap(find.text('1'));
+    await tester.tap(find.text('3'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Log \$13.00'));
+    await settle(tester);
+    expect(state.customCategories.single.name, 'Cigarettes');
+    expect(state.allExpenses.take(2).map((e) => e.custom?.name), [
+      'Cigarettes',
+      'Cigarettes',
+    ]);
+
+    // Next time it's a chip at the front, no typing needed.
+    await tester.tap(find.bySemanticsLabel('Add expense'));
+    await settle(tester);
+    expect(find.text('Make it'), findsNothing);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(CategoryPicker),
+        matching: find.text('Cigarettes'),
+      ),
+    );
+    await tester.tap(find.text('9'));
+    await settle(tester, const Duration(milliseconds: 300));
+    await tester.tap(find.text('Log \$9.00'));
+    await settle(tester);
+    final e = state.recentExpenses(1).single;
+    expect(e.custom?.name, 'Cigarettes');
+    expect(e.title, 'Cigarettes');
+    expect(e.category, ExpenseCategory.other);
+  });
+
+  test('custom category names are checked and renames show everywhere', () {
+    final state = buildState();
+    expect(state.checkCategoryName('  '), isNotNull);
+    expect(state.checkCategoryName('coffee'), isNotNull); // built-in
+    final vape = state.addCustomCategory(name: ' Vape ', emoji: '💨x');
+    expect(vape.name, 'Vape');
+    expect(vape.emoji, '💨');
+    expect(state.checkCategoryName('VAPE'), isNotNull);
+    expect(state.checkCategoryName('Vape', editingId: vape.id), isNull);
+
+    state.addExpense(
+      amount: 8,
+      category: ExpenseCategory.coffee, // ignored: it's filed under Vape
+      isNeed: false,
+      custom: vape,
+    );
+    expect(state.recentExpenses(1).single.category, ExpenseCategory.other);
+    state.updateCustomCategory(vape.copyWith(name: 'Vaping'));
+    expect(state.recentExpenses(1).single.title, 'Vaping');
+
+    state.deleteCustomCategory(vape.id);
+    expect(state.customCategories, isEmpty);
+    final e = state.recentExpenses(1).single;
+    expect(e.custom, isNull);
+    expect(e.title, 'Vaping'); // kept as its note
+  });
+
   // Apple Pay logging is switched off for now.
   // testWidgets('an Apple Pay purchase opens Quick Add pre-filled', (
   //   tester,

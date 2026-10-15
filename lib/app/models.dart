@@ -22,6 +22,49 @@ enum ExpenseCategory {
   final String label;
 }
 
+/// A category the person made themselves, like 🚬 Cigarettes. Expenses in
+/// it are saved as [ExpenseCategory.other] plus a link to it, so deleting
+/// it just leaves them in Other.
+class CustomCategory {
+  const CustomCategory({
+    required this.id,
+    required this.emoji,
+    required this.name,
+  });
+
+  final String id;
+  final String emoji;
+  final String name;
+
+  CustomCategory copyWith({String? emoji, String? name}) => CustomCategory(
+    id: id,
+    emoji: emoji ?? this.emoji,
+    name: name ?? this.name,
+  );
+}
+
+/// What an expense is filed under, for showing and adding up: a built-in
+/// category or a custom one. Two refs to the same custom category are
+/// equal even if one has an older name.
+class CategoryRef {
+  const CategoryRef(this.category, [this.custom]);
+
+  final ExpenseCategory category;
+  final CustomCategory? custom;
+
+  String get emoji => custom?.emoji ?? category.emoji;
+  String get label => custom?.name ?? category.label;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CategoryRef &&
+      other.category == category &&
+      other.custom?.id == custom?.id;
+
+  @override
+  int get hashCode => Object.hash(category, custom?.id);
+}
+
 class Expense {
   const Expense({
     required this.id,
@@ -31,11 +74,17 @@ class Expense {
     required this.date,
     this.note,
     this.planned = false,
+    this.custom,
   });
 
   final String id;
   final double amount;
+
+  /// [ExpenseCategory.other] when [custom] is set.
   final ExpenseCategory category;
+
+  /// The person's own category, if it's filed under one.
+  final CustomCategory? custom;
   final bool isNeed;
   final DateTime date;
   final String? note;
@@ -44,7 +93,9 @@ class Expense {
   /// it isn't day-to-day spending: the money was set aside in advance.
   final bool planned;
 
-  String get title => note ?? category.label;
+  CategoryRef get filedUnder => CategoryRef(category, custom);
+
+  String get title => note ?? filedUnder.label;
 
   /// The same expense with new details; the id, date and [planned] stay.
   Expense copyWith({
@@ -52,6 +103,7 @@ class Expense {
     ExpenseCategory? category,
     bool? isNeed,
     String? Function()? note,
+    CustomCategory? Function()? custom,
   }) => Expense(
     id: id,
     amount: amount ?? this.amount,
@@ -60,6 +112,7 @@ class Expense {
     date: date,
     note: note == null ? this.note : note(),
     planned: planned,
+    custom: custom == null ? this.custom : custom(),
   );
 }
 
@@ -286,6 +339,7 @@ class BudgetData {
     required this.upcoming,
     this.bills = const [],
     this.incomes = const [],
+    this.customCategories = const [],
     required this.friends,
     required this.splits,
     required this.challengeStart,
@@ -300,6 +354,9 @@ class BudgetData {
   /// Repeating bills that haven't been stopped.
   final List<RepeatingBill> bills;
   final List<Income> incomes;
+
+  /// The person's own categories, most recently used first.
+  final List<CustomCategory> customCategories;
   final List<Friend> friends;
   final List<BillSplit> splits;
   final DateTime challengeStart;

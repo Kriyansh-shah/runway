@@ -140,7 +140,7 @@ class AllExpensesScreen extends StatelessWidget {
                                       ),
                                     ListRow(
                                       key: ValueKey(items[i].id),
-                                      leading: CategoryIcon(items[i].category),
+                                      leading: CategoryIcon.of(items[i]),
                                       title: items[i].title,
                                       subtitle:
                                           '${_time(items[i].date)} · '

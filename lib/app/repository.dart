@@ -26,6 +26,15 @@ abstract interface class BudgetRepository {
   Future<void> deleteExpense(String expenseId);
   Future<void> restoreExpense(String expenseId);
 
+  Future<void> addCustomCategory(CustomCategory category);
+
+  /// Saves a custom category's new name or emoji.
+  Future<void> updateCustomCategory(CustomCategory category);
+
+  /// Removes the category; its expenses move to Other, and ones without a
+  /// note get its name as their note.
+  Future<void> deleteCustomCategory(String id);
+
   /// Saves every roommate IOU plus your own share together — all or nothing.
   Future<void> splitBill(List<BillSplit> splits, Expense myShare);
   Future<void> settleSplit(String splitId);
@@ -122,6 +131,15 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> restoreExpense(String expenseId) async {}
+
+  @override
+  Future<void> addCustomCategory(CustomCategory category) async {}
+
+  @override
+  Future<void> updateCustomCategory(CustomCategory category) async {}
+
+  @override
+  Future<void> deleteCustomCategory(String id) async {}
 
   @override
   Future<void> splitBill(List<BillSplit> splits, Expense myShare) async {}

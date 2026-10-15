@@ -317,7 +317,7 @@ class TermSummary {
   double get needShare => spent == 0 ? 0.5 : needSpent / spent;
 
   /// Biggest spending categories first, at most three.
-  final List<({ExpenseCategory category, double amount})> topCategories;
+  final List<({CategoryRef category, double amount})> topCategories;
 
   /// Negative when more was spent than there was.
   double get left => startedWith + moneyIn - spent;
@@ -329,10 +329,11 @@ DateTime _lastDay(PastTerm past) {
   return ended.isBefore(past.term.end) ? ended : past.term.end;
 }
 
-Map<ExpenseCategory, double> _byCategory(List<Expense> expenses) {
-  final totals = <ExpenseCategory, double>{};
+Map<CategoryRef, double> _byCategory(List<Expense> expenses) {
+  final totals = <CategoryRef, double>{};
   for (final e in expenses) {
-    totals[e.category] = (totals[e.category] ?? 0) + e.amount;
+    final key = e.filedUnder;
+    totals[key] = (totals[key] ?? 0) + e.amount;
   }
   return totals;
 }
@@ -368,7 +369,7 @@ class CategoryChange {
     required this.perDayBefore,
   });
 
-  final ExpenseCategory category;
+  final CategoryRef category;
   final double perDayNow;
   final double perDayBefore;
 

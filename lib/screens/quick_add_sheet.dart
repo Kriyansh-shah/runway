@@ -12,6 +12,7 @@ import '../widgets/form_fields.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/pressable.dart';
 import '../widgets/ph_icons.dart';
+import 'category_sheet.dart';
 
 /// Returns where the Log button was (global), so the caller can fly a coin
 /// from it; null if the sheet was dismissed or an expense was edited.
@@ -52,7 +53,7 @@ class QuickAddSheet extends StatefulWidget {
 
 class _QuickAddSheetState extends State<QuickAddSheet> {
   String _input = '';
-  ExpenseCategory _category = ExpenseCategory.other;
+  CategoryRef _category = const CategoryRef(ExpenseCategory.other);
   bool _isNeed = false;
   final _note = TextEditingController();
 
@@ -62,7 +63,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     if (widget.editing case final e?) {
       _input = amountText(e.amount);
       _note.text = e.note ?? '';
-      _category = e.category;
+      _category = e.filedUnder;
       _isNeed = e.isNeed;
       return;
     }
@@ -107,8 +108,48 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     HapticFeedback.lightImpact();
     setState(() {
       _input = amountText(p.amount);
-      _category = p.category;
+      _category = CategoryRef(p.category);
       _isNeed = p.isNeed;
+    });
+  }
+
+  bool get _inPlainOther =>
+      _category.category == ExpenseCategory.other && _category.custom == null;
+
+  void _noteChanged(String note) {
+    // Typing the name of a category you made picks it for you.
+    if (_inPlainOther) {
+      final key = note.trim().toLowerCase();
+      for (final c in AppScope.read(context).customCategories) {
+        if (c.name.toLowerCase() == key) {
+          HapticFeedback.selectionClick();
+          _category = CategoryRef(ExpenseCategory.other, c);
+          break;
+        }
+      }
+    }
+    setState(() {});
+  }
+
+  Future<void> _newCategory({String? name}) async {
+    final made = await showCategorySheet(context, name: name);
+    if (made == null || !mounted) return;
+    setState(() => _category = CategoryRef(ExpenseCategory.other, made));
+  }
+
+  Future<void> _holdCategory(CustomCategory c) async {
+    final deleted = await showCustomCategoryActions(context, c);
+    if (!mounted) return;
+    setState(() {
+      if (deleted && _category.custom?.id == c.id) {
+        _category = const CategoryRef(ExpenseCategory.other);
+      } else if (_category.custom?.id == c.id) {
+        // Pick up a new name or emoji.
+        final now = AppScope.read(context).customCategories
+            .where((x) => x.id == c.id)
+            .firstOrNull;
+        _category = CategoryRef(ExpenseCategory.other, now);
+      }
     });
   }
 
@@ -121,9 +162,10 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
       AppScope.read(context).updateExpense(
         e.copyWith(
           amount: _amount,
-          category: _category,
+          category: _category.category,
           isNeed: _isNeed,
           note: () => note.isEmpty ? null : note,
+          custom: () => _category.custom,
         ),
       );
       HapticFeedback.mediumImpact();
@@ -134,9 +176,10 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     final from = box?.localToGlobal(box.size.center(Offset.zero));
     AppScope.read(context).addExpense(
       amount: _amount,
-      category: _category,
+      category: _category.category,
       isNeed: _isNeed,
       note: note.isEmpty ? null : note,
+      custom: _category.custom,
     );
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop(from);
@@ -144,6 +187,10 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final suggestion = _inPlainOther
+        ? state.categorySuggestion(_note.text)
+        : null;
     return SheetFrame(
       children: [
         Text(
@@ -160,7 +207,15 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
           controller: _note,
           hint: 'What was it? e.g. Uber to airport',
           icon: PhIcons.notePencil,
+          onChanged: _noteChanged,
         ),
+        if (suggestion != null) ...[
+          const SizedBox(height: 8),
+          _SuggestCategory(
+            name: suggestion,
+            onTap: () => _newCategory(name: suggestion),
+          ),
+        ],
         const SizedBox(height: 16),
         const FieldLabel('Quick picks'),
         _Presets(selected: _category, onTap: _preset),
@@ -168,7 +223,10 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
         const FieldLabel('Category'),
         CategoryPicker(
           selected: _category,
+          customs: state.customCategories,
           onChanged: (c) => setState(() => _category = c),
+          onNew: _newCategory,
+          onHoldCustom: _holdCategory,
         ),
         const SizedBox(height: 16),
         NeedWantToggle(
@@ -239,9 +297,51 @@ class _AmountDisplay extends StatelessWidget {
   }
 }
 
+/// "Logged Cigarettes before? Make it a category" under the note.
+class _SuggestCategory extends StatelessWidget {
+  const _SuggestCategory({required this.name, required this.onTap});
+  final String name;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: onTap,
+      scale: 0.98,
+      semanticLabel: 'Make $name a category',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.lime.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.lime.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'You\'ve logged "$name" before. Make it a category?',
+                style: AppText.label.copyWith(color: AppColors.text),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Make it',
+              style: AppText.label.copyWith(
+                color: AppColors.lime,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Presets extends StatelessWidget {
   const _Presets({required this.selected, required this.onTap});
-  final ExpenseCategory selected;
+  final CategoryRef selected;
   final ValueChanged<ExpensePreset> onTap;
 
   @override
@@ -250,7 +350,7 @@ class _Presets extends StatelessWidget {
       children: [
         for (final p in ExpensePreset.all)
           ChoiceChipPill(
-            selected: selected == p.category,
+            selected: selected == CategoryRef(p.category),
             onTap: () => onTap(p),
             child: Row(
               mainAxisSize: MainAxisSize.min,

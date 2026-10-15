@@ -5,6 +5,7 @@ import '../app/models.dart';
 import '../app/theme.dart';
 import 'category_icon.dart';
 import 'glass.dart';
+import 'ph_icons.dart';
 import 'pressable.dart';
 
 /// Frosted bottom-sheet frame with a grab handle. Lifts its content above
@@ -169,10 +170,12 @@ class ChoiceChipPill extends StatelessWidget {
     required this.onTap,
     required this.child,
     this.color = AppColors.lilac,
+    this.onLongPress,
   });
 
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final Widget child;
   final Color color;
 
@@ -180,6 +183,7 @@ class ChoiceChipPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Pressable(
       onTap: onTap,
+      onLongPress: onLongPress,
       haptic: false,
       child: AnimatedContainer(
         duration: Motion.fast,
@@ -228,38 +232,75 @@ class ChipRow extends StatelessWidget {
   }
 }
 
-/// Every category, one tap each.
+/// Every category, one tap each: a "New" chip, the person's own
+/// categories (most recently used first), then the built-in ones.
 class CategoryPicker extends StatelessWidget {
   const CategoryPicker({
     super.key,
     required this.selected,
     required this.onChanged,
+    this.customs = const [],
+    this.onNew,
+    this.onHoldCustom,
   });
 
-  final ExpenseCategory selected;
-  final ValueChanged<ExpenseCategory> onChanged;
+  final CategoryRef selected;
+  final ValueChanged<CategoryRef> onChanged;
+  final List<CustomCategory> customs;
+
+  /// Makes a new category; no "New" chip when null.
+  final VoidCallback? onNew;
+
+  /// Long-press on one of the person's own categories (rename, delete).
+  final ValueChanged<CustomCategory>? onHoldCustom;
 
   @override
   Widget build(BuildContext context) {
+    Widget chip(CategoryRef ref, {VoidCallback? onLongPress}) => ChoiceChipPill(
+      key: ValueKey(ref.custom?.id ?? ref.category),
+      selected: ref == selected,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onChanged(ref);
+      },
+      onLongPress: onLongPress,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CategoryIcon(ref.category, custom: ref.custom, size: 17),
+          const SizedBox(width: 6),
+          Text(ref.label),
+        ],
+      ),
+    );
     return ChipRow(
       children: [
-        for (final c in ExpenseCategory.values)
+        if (onNew case final onNew?)
           ChoiceChipPill(
-            key: ValueKey(c),
-            selected: c == selected,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onChanged(c);
-            },
-            child: Row(
+            key: const ValueKey('new'),
+            selected: false,
+            color: AppColors.lime,
+            onTap: onNew,
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CategoryIcon(c, size: 17),
-                const SizedBox(width: 6),
-                Text(c.label),
+                Icon(PhIcons.plusBold, size: 15),
+                SizedBox(width: 6),
+                Text('New'),
               ],
             ),
           ),
+        for (final c in customs)
+          chip(
+            CategoryRef(ExpenseCategory.other, c),
+            onLongPress: onHoldCustom == null
+                ? null
+                : () {
+                    HapticFeedback.mediumImpact();
+                    onHoldCustom!(c);
+                  },
+          ),
+        for (final c in ExpenseCategory.values) chip(CategoryRef(c)),
       ],
     );
   }

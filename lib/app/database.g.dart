@@ -469,6 +469,373 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
   }
 }
 
+class $CustomCategoriesTable extends CustomCategories
+    with TableInfo<$CustomCategoriesTable, CustomCategoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _emojiMeta = const VerificationMeta('emoji');
+  @override
+  late final GeneratedColumn<String> emoji = GeneratedColumn<String>(
+    'emoji',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUsedAt = GeneratedColumn<DateTime>(
+    'last_used_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    emoji,
+    name,
+    createdAt,
+    lastUsedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'custom_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CustomCategoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('emoji')) {
+      context.handle(
+        _emojiMeta,
+        emoji.isAcceptableOrUnknown(data['emoji']!, _emojiMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_emojiMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('last_used_at')) {
+      context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
+          _lastUsedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CustomCategoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CustomCategoryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      emoji: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}emoji'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_used_at'],
+      ),
+    );
+  }
+
+  @override
+  $CustomCategoriesTable createAlias(String alias) {
+    return $CustomCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class CustomCategoryRow extends DataClass
+    implements Insertable<CustomCategoryRow> {
+  final String id;
+  final String emoji;
+  final String name;
+  final DateTime createdAt;
+
+  /// Last time an expense was logged in it; the picker shows these first.
+  final DateTime? lastUsedAt;
+  const CustomCategoryRow({
+    required this.id,
+    required this.emoji,
+    required this.name,
+    required this.createdAt,
+    this.lastUsedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['emoji'] = Variable<String>(emoji);
+    map['name'] = Variable<String>(name);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || lastUsedAt != null) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt);
+    }
+    return map;
+  }
+
+  CustomCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return CustomCategoriesCompanion(
+      id: Value(id),
+      emoji: Value(emoji),
+      name: Value(name),
+      createdAt: Value(createdAt),
+      lastUsedAt: lastUsedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUsedAt),
+    );
+  }
+
+  factory CustomCategoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CustomCategoryRow(
+      id: serializer.fromJson<String>(json['id']),
+      emoji: serializer.fromJson<String>(json['emoji']),
+      name: serializer.fromJson<String>(json['name']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastUsedAt: serializer.fromJson<DateTime?>(json['lastUsedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'emoji': serializer.toJson<String>(emoji),
+      'name': serializer.toJson<String>(name),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastUsedAt': serializer.toJson<DateTime?>(lastUsedAt),
+    };
+  }
+
+  CustomCategoryRow copyWith({
+    String? id,
+    String? emoji,
+    String? name,
+    DateTime? createdAt,
+    Value<DateTime?> lastUsedAt = const Value.absent(),
+  }) => CustomCategoryRow(
+    id: id ?? this.id,
+    emoji: emoji ?? this.emoji,
+    name: name ?? this.name,
+    createdAt: createdAt ?? this.createdAt,
+    lastUsedAt: lastUsedAt.present ? lastUsedAt.value : this.lastUsedAt,
+  );
+  CustomCategoryRow copyWithCompanion(CustomCategoriesCompanion data) {
+    return CustomCategoryRow(
+      id: data.id.present ? data.id.value : this.id,
+      emoji: data.emoji.present ? data.emoji.value : this.emoji,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomCategoryRow(')
+          ..write('id: $id, ')
+          ..write('emoji: $emoji, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, emoji, name, createdAt, lastUsedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CustomCategoryRow &&
+          other.id == this.id &&
+          other.emoji == this.emoji &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt &&
+          other.lastUsedAt == this.lastUsedAt);
+}
+
+class CustomCategoriesCompanion extends UpdateCompanion<CustomCategoryRow> {
+  final Value<String> id;
+  final Value<String> emoji;
+  final Value<String> name;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> lastUsedAt;
+  final Value<int> rowid;
+  const CustomCategoriesCompanion({
+    this.id = const Value.absent(),
+    this.emoji = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CustomCategoriesCompanion.insert({
+    required String id,
+    required String emoji,
+    required String name,
+    required DateTime createdAt,
+    this.lastUsedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       emoji = Value(emoji),
+       name = Value(name),
+       createdAt = Value(createdAt);
+  static Insertable<CustomCategoryRow> custom({
+    Expression<String>? id,
+    Expression<String>? emoji,
+    Expression<String>? name,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastUsedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (emoji != null) 'emoji': emoji,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastUsedAt != null) 'last_used_at': lastUsedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CustomCategoriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? emoji,
+    Value<String>? name,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? lastUsedAt,
+    Value<int>? rowid,
+  }) {
+    return CustomCategoriesCompanion(
+      id: id ?? this.id,
+      emoji: emoji ?? this.emoji,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+      lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (emoji.present) {
+      map['emoji'] = Variable<String>(emoji.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastUsedAt.present) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomCategoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('emoji: $emoji, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ExpensesTable extends Expenses
     with TableInfo<$ExpensesTable, ExpenseRow> {
   @override
@@ -574,6 +941,20 @@ class $ExpensesTable extends Expenses
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _customCategoryIdMeta = const VerificationMeta(
+    'customCategoryId',
+  );
+  @override
+  late final GeneratedColumn<String> customCategoryId = GeneratedColumn<String>(
+    'custom_category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES custom_categories (id)',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -585,6 +966,7 @@ class $ExpensesTable extends Expenses
     createdAt,
     isPlanned,
     deletedAt,
+    customCategoryId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -656,6 +1038,15 @@ class $ExpensesTable extends Expenses
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('custom_category_id')) {
+      context.handle(
+        _customCategoryIdMeta,
+        customCategoryId.isAcceptableOrUnknown(
+          data['custom_category_id']!,
+          _customCategoryIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -703,6 +1094,10 @@ class $ExpensesTable extends Expenses
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      customCategoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_category_id'],
+      ),
     );
   }
 
@@ -733,6 +1128,10 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
 
   /// Soft delete, so a future "Undo" can bring it back.
   final DateTime? deletedAt;
+
+  /// The person's own category (added in schema 5); [category] is then
+  /// `other`, which is where the expense stays if the category is deleted.
+  final String? customCategoryId;
   const ExpenseRow({
     required this.id,
     required this.termId,
@@ -743,6 +1142,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     required this.createdAt,
     required this.isPlanned,
     this.deletedAt,
+    this.customCategoryId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -764,6 +1164,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    if (!nullToAbsent || customCategoryId != null) {
+      map['custom_category_id'] = Variable<String>(customCategoryId);
+    }
     return map;
   }
 
@@ -780,6 +1183,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      customCategoryId: customCategoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customCategoryId),
     );
   }
 
@@ -800,6 +1206,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       isPlanned: serializer.fromJson<bool>(json['isPlanned']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      customCategoryId: serializer.fromJson<String?>(json['customCategoryId']),
     );
   }
   @override
@@ -817,6 +1224,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'isPlanned': serializer.toJson<bool>(isPlanned),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'customCategoryId': serializer.toJson<String?>(customCategoryId),
     };
   }
 
@@ -830,6 +1238,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     DateTime? createdAt,
     bool? isPlanned,
     Value<DateTime?> deletedAt = const Value.absent(),
+    Value<String?> customCategoryId = const Value.absent(),
   }) => ExpenseRow(
     id: id ?? this.id,
     termId: termId ?? this.termId,
@@ -840,6 +1249,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     createdAt: createdAt ?? this.createdAt,
     isPlanned: isPlanned ?? this.isPlanned,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    customCategoryId: customCategoryId.present
+        ? customCategoryId.value
+        : this.customCategoryId,
   );
   ExpenseRow copyWithCompanion(ExpensesCompanion data) {
     return ExpenseRow(
@@ -854,6 +1266,9 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       isPlanned: data.isPlanned.present ? data.isPlanned.value : this.isPlanned,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      customCategoryId: data.customCategoryId.present
+          ? data.customCategoryId.value
+          : this.customCategoryId,
     );
   }
 
@@ -868,7 +1283,8 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('isPlanned: $isPlanned, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('customCategoryId: $customCategoryId')
           ..write(')'))
         .toString();
   }
@@ -884,6 +1300,7 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
     createdAt,
     isPlanned,
     deletedAt,
+    customCategoryId,
   );
   @override
   bool operator ==(Object other) =>
@@ -897,7 +1314,8 @@ class ExpenseRow extends DataClass implements Insertable<ExpenseRow> {
           other.note == this.note &&
           other.createdAt == this.createdAt &&
           other.isPlanned == this.isPlanned &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.customCategoryId == this.customCategoryId);
 }
 
 class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
@@ -910,6 +1328,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
   final Value<DateTime> createdAt;
   final Value<bool> isPlanned;
   final Value<DateTime?> deletedAt;
+  final Value<String?> customCategoryId;
   final Value<int> rowid;
   const ExpensesCompanion({
     this.id = const Value.absent(),
@@ -921,6 +1340,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     this.createdAt = const Value.absent(),
     this.isPlanned = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.customCategoryId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExpensesCompanion.insert({
@@ -933,6 +1353,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     required DateTime createdAt,
     this.isPlanned = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.customCategoryId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        termId = Value(termId),
@@ -950,6 +1371,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     Expression<DateTime>? createdAt,
     Expression<bool>? isPlanned,
     Expression<DateTime>? deletedAt,
+    Expression<String>? customCategoryId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -962,6 +1384,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
       if (createdAt != null) 'created_at': createdAt,
       if (isPlanned != null) 'is_planned': isPlanned,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (customCategoryId != null) 'custom_category_id': customCategoryId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -976,6 +1399,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     Value<DateTime>? createdAt,
     Value<bool>? isPlanned,
     Value<DateTime?>? deletedAt,
+    Value<String?>? customCategoryId,
     Value<int>? rowid,
   }) {
     return ExpensesCompanion(
@@ -988,6 +1412,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
       createdAt: createdAt ?? this.createdAt,
       isPlanned: isPlanned ?? this.isPlanned,
       deletedAt: deletedAt ?? this.deletedAt,
+      customCategoryId: customCategoryId ?? this.customCategoryId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1024,6 +1449,9 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (customCategoryId.present) {
+      map['custom_category_id'] = Variable<String>(customCategoryId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1042,6 +1470,7 @@ class ExpensesCompanion extends UpdateCompanion<ExpenseRow> {
           ..write('createdAt: $createdAt, ')
           ..write('isPlanned: $isPlanned, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('customCategoryId: $customCategoryId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3995,6 +4424,9 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
   _$RunwayDatabase(QueryExecutor e) : super(e);
   $RunwayDatabaseManager get managers => $RunwayDatabaseManager(this);
   late final $TermsTable terms = $TermsTable(this);
+  late final $CustomCategoriesTable customCategories = $CustomCategoriesTable(
+    this,
+  );
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $RepeatingBillsTable repeatingBills = $RepeatingBillsTable(this);
   late final $UpcomingCostsTable upcomingCosts = $UpcomingCostsTable(this);
@@ -4009,6 +4441,7 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     terms,
+    customCategories,
     expenses,
     repeatingBills,
     upcomingCosts,
@@ -4553,6 +4986,321 @@ typedef $$TermsTableProcessedTableManager =
         bool incomesRefs,
       })
     >;
+typedef $$CustomCategoriesTableCreateCompanionBuilder =
+    CustomCategoriesCompanion Function({
+      required String id,
+      required String emoji,
+      required String name,
+      required DateTime createdAt,
+      Value<DateTime?> lastUsedAt,
+      Value<int> rowid,
+    });
+typedef $$CustomCategoriesTableUpdateCompanionBuilder =
+    CustomCategoriesCompanion Function({
+      Value<String> id,
+      Value<String> emoji,
+      Value<String> name,
+      Value<DateTime> createdAt,
+      Value<DateTime?> lastUsedAt,
+      Value<int> rowid,
+    });
+
+final class $$CustomCategoriesTableReferences
+    extends
+        BaseReferences<
+          _$RunwayDatabase,
+          $CustomCategoriesTable,
+          CustomCategoryRow
+        > {
+  $$CustomCategoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$ExpensesTable, List<ExpenseRow>>
+  _expensesRefsTable(_$RunwayDatabase db) => MultiTypedResultKey.fromTable(
+    db.expenses,
+    aliasName: 'custom_categories__id__expenses__custom_category_id',
+  );
+
+  $$ExpensesTableProcessedTableManager get expensesRefs {
+    final manager = $$ExpensesTableTableManager($_db, $_db.expenses).filter(
+      (f) => f.customCategoryId.id.sqlEquals($_itemColumn<String>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_expensesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$CustomCategoriesTableFilterComposer
+    extends Composer<_$RunwayDatabase, $CustomCategoriesTable> {
+  $$CustomCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get emoji => $composableBuilder(
+    column: $table.emoji,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> expensesRefs(
+    Expression<bool> Function($$ExpensesTableFilterComposer f) f,
+  ) {
+    final $$ExpensesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenses,
+      getReferencedColumn: (t) => t.customCategoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpensesTableFilterComposer(
+            $db: $db,
+            $table: $db.expenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CustomCategoriesTableOrderingComposer
+    extends Composer<_$RunwayDatabase, $CustomCategoriesTable> {
+  $$CustomCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get emoji => $composableBuilder(
+    column: $table.emoji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CustomCategoriesTableAnnotationComposer
+    extends Composer<_$RunwayDatabase, $CustomCategoriesTable> {
+  $$CustomCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get emoji =>
+      $composableBuilder(column: $table.emoji, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
+
+  Expression<T> expensesRefs<T extends Object>(
+    Expression<T> Function($$ExpensesTableAnnotationComposer a) f,
+  ) {
+    final $$ExpensesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenses,
+      getReferencedColumn: (t) => t.customCategoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpensesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.expenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CustomCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$RunwayDatabase,
+          $CustomCategoriesTable,
+          CustomCategoryRow,
+          $$CustomCategoriesTableFilterComposer,
+          $$CustomCategoriesTableOrderingComposer,
+          $$CustomCategoriesTableAnnotationComposer,
+          $$CustomCategoriesTableCreateCompanionBuilder,
+          $$CustomCategoriesTableUpdateCompanionBuilder,
+          (CustomCategoryRow, $$CustomCategoriesTableReferences),
+          CustomCategoryRow,
+          PrefetchHooks Function({bool expensesRefs})
+        > {
+  $$CustomCategoriesTableTableManager(
+    _$RunwayDatabase db,
+    $CustomCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CustomCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CustomCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CustomCategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> emoji = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CustomCategoriesCompanion(
+                id: id,
+                emoji: emoji,
+                name: name,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String emoji,
+                required String name,
+                required DateTime createdAt,
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CustomCategoriesCompanion.insert(
+                id: id,
+                emoji: emoji,
+                name: name,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CustomCategoriesTable, CustomCategoryRow>(table),
+                  $$CustomCategoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({expensesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (expensesRefs) db.expenses],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (expensesRefs)
+                    await $_getPrefetchedData<
+                      CustomCategoryRow,
+                      $CustomCategoriesTable,
+                      ExpenseRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$CustomCategoriesTableReferences
+                          ._expensesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$CustomCategoriesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).expensesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.customCategoryId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CustomCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RunwayDatabase,
+      $CustomCategoriesTable,
+      CustomCategoryRow,
+      $$CustomCategoriesTableFilterComposer,
+      $$CustomCategoriesTableOrderingComposer,
+      $$CustomCategoriesTableAnnotationComposer,
+      $$CustomCategoriesTableCreateCompanionBuilder,
+      $$CustomCategoriesTableUpdateCompanionBuilder,
+      (CustomCategoryRow, $$CustomCategoriesTableReferences),
+      CustomCategoryRow,
+      PrefetchHooks Function({bool expensesRefs})
+    >;
 typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String id,
   required int termId,
@@ -4563,6 +5311,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required DateTime createdAt,
   Value<bool> isPlanned,
   Value<DateTime?> deletedAt,
+  Value<String?> customCategoryId,
   Value<int> rowid,
 });
 typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
@@ -4575,6 +5324,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<DateTime> createdAt,
   Value<bool> isPlanned,
   Value<DateTime?> deletedAt,
+  Value<String?> customCategoryId,
   Value<int> rowid,
 });
 
@@ -4593,6 +5343,25 @@ final class $$ExpensesTableReferences
       $_db.terms,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_termIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $CustomCategoriesTable _customCategoryIdTable(_$RunwayDatabase db) =>
+      db.customCategories.createAlias(
+        'expenses__custom_category_id__custom_categories__id',
+      );
+
+  $$CustomCategoriesTableProcessedTableManager? get customCategoryId {
+    final $_column = $_itemColumn<String>('custom_category_id');
+    if ($_column == null) return null;
+    final manager = $$CustomCategoriesTableTableManager(
+      $_db,
+      $_db.customCategories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_customCategoryIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -4664,6 +5433,29 @@ class $$ExpensesTableFilterComposer
           }) => $$TermsTableFilterComposer(
             $db: $db,
             $table: $db.terms,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$CustomCategoriesTableFilterComposer get customCategoryId {
+    final $$CustomCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customCategoryId,
+      referencedTable: $db.customCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.customCategories,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4745,6 +5537,29 @@ class $$ExpensesTableOrderingComposer
     );
     return composer;
   }
+
+  $$CustomCategoriesTableOrderingComposer get customCategoryId {
+    final $$CustomCategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customCategoryId,
+      referencedTable: $db.customCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomCategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.customCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ExpensesTableAnnotationComposer
@@ -4804,6 +5619,29 @@ class $$ExpensesTableAnnotationComposer
     );
     return composer;
   }
+
+  $$CustomCategoriesTableAnnotationComposer get customCategoryId {
+    final $$CustomCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customCategoryId,
+      referencedTable: $db.customCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.customCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ExpensesTableTableManager
@@ -4819,7 +5657,7 @@ class $$ExpensesTableTableManager
           $$ExpensesTableUpdateCompanionBuilder,
           (ExpenseRow, $$ExpensesTableReferences),
           ExpenseRow,
-          PrefetchHooks Function({bool termId})
+          PrefetchHooks Function({bool termId, bool customCategoryId})
         > {
   $$ExpensesTableTableManager(_$RunwayDatabase db, $ExpensesTable table)
     : super(
@@ -4843,6 +5681,7 @@ class $$ExpensesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<bool> isPlanned = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String?> customCategoryId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion(
                 id: id,
@@ -4854,6 +5693,7 @@ class $$ExpensesTableTableManager
                 createdAt: createdAt,
                 isPlanned: isPlanned,
                 deletedAt: deletedAt,
+                customCategoryId: customCategoryId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4867,6 +5707,7 @@ class $$ExpensesTableTableManager
                 required DateTime createdAt,
                 Value<bool> isPlanned = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String?> customCategoryId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion.insert(
                 id: id,
@@ -4878,6 +5719,7 @@ class $$ExpensesTableTableManager
                 createdAt: createdAt,
                 isPlanned: isPlanned,
                 deletedAt: deletedAt,
+                customCategoryId: customCategoryId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4888,7 +5730,7 @@ class $$ExpensesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({termId = false}) {
+          prefetchHooksCallback: ({termId = false, customCategoryId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -4920,6 +5762,17 @@ class $$ExpensesTableTableManager
                             .id,
                       ) as T;
                     }
+                    if (customCategoryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.customCategoryId,
+                        referencedTable: $$ExpensesTableReferences
+                            ._customCategoryIdTable(db),
+                        referencedColumn: $$ExpensesTableReferences
+                            ._customCategoryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
 
                     return state;
                   },
@@ -4944,7 +5797,7 @@ typedef $$ExpensesTableProcessedTableManager =
       $$ExpensesTableUpdateCompanionBuilder,
       (ExpenseRow, $$ExpensesTableReferences),
       ExpenseRow,
-      PrefetchHooks Function({bool termId})
+      PrefetchHooks Function({bool termId, bool customCategoryId})
     >;
 typedef $$RepeatingBillsTableCreateCompanionBuilder =
     RepeatingBillsCompanion Function({
@@ -6956,6 +7809,8 @@ class $RunwayDatabaseManager {
   $RunwayDatabaseManager(this._db);
   $$TermsTableTableManager get terms =>
       $$TermsTableTableManager(_db, _db.terms);
+  $$CustomCategoriesTableTableManager get customCategories =>
+      $$CustomCategoriesTableTableManager(_db, _db.customCategories);
   $$ExpensesTableTableManager get expenses =>
       $$ExpensesTableTableManager(_db, _db.expenses);
   $$RepeatingBillsTableTableManager get repeatingBills =>

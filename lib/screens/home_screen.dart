@@ -1110,7 +1110,7 @@ class _Recent extends StatelessWidget {
                         if (i > 0)
                           Divider(height: 1, color: AppColors.hairline),
                         ListRow(
-                          leading: CategoryIcon(expenses[i].category),
+                          leading: CategoryIcon.of(expenses[i]),
                           title: expenses[i].title,
                           subtitle:
                               '${relativeDay(expenses[i].date, today)} · ${expenses[i].isNeed ? 'Need' : 'Want'}',
