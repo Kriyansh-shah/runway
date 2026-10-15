@@ -117,7 +117,7 @@ class _RunwayAppState extends State<RunwayApp> {
     return AppScope(
       state: state,
       child: MaterialApp(
-        title: 'Runway',
+        title: 'runway',
         scaffoldMessengerKey: _messenger,
         // Above the navigator, so the lock and the app-switcher cover hide
         // every screen and sheet.
