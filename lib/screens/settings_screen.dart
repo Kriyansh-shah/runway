@@ -275,6 +275,7 @@ class _TermEditorState extends State<_TermEditor> {
     end: _end,
     startingBalance: parseAmountInput(_balance.text),
     period: widget.term.period,
+    savingsGoal: widget.term.savingsGoal,
   );
 
   bool get _dirty {

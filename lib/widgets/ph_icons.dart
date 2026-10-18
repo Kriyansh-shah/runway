@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 
 abstract final class PhIcons {
   static const house = IconData(0xe2c2, fontFamily: 'PhosphorRegular');
+  static const piggyBank = IconData(0xea04, fontFamily: 'PhosphorRegular');
   static const sparkle = IconData(0xe6a2, fontFamily: 'PhosphorRegular');
   static const usersThree = IconData(0xe68e, fontFamily: 'PhosphorRegular');
   static const at = IconData(0xe0ac, fontFamily: 'PhosphorRegular');
@@ -30,6 +31,7 @@ abstract final class PhIcons {
     fontFamily: 'PhosphorRegular',
   );
   static const houseFill = IconData(0xe2c2, fontFamily: 'PhosphorFill');
+  static const piggyBankFill = IconData(0xea04, fontFamily: 'PhosphorFill');
   static const sparkleFill = IconData(0xe6a2, fontFamily: 'PhosphorFill');
   static const usersThreeFill = IconData(0xe68e, fontFamily: 'PhosphorFill');
   static const plusBold = IconData(0xe3d4, fontFamily: 'PhosphorBold');

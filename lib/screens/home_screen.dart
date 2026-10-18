@@ -9,6 +9,7 @@ import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
 import '../widgets/category_icon.dart';
+import '../widgets/expense_inputs.dart';
 import '../widgets/celebrations.dart';
 import '../widgets/glass.dart';
 import '../widgets/list_row.dart';
@@ -19,6 +20,7 @@ import '../widgets/transitions.dart';
 import 'add_income_sheet.dart';
 import 'all_expenses_screen.dart';
 import 'money_actions.dart';
+import 'savings_goal_sheet.dart';
 import 'settings_screen.dart';
 import 'shell.dart';
 
@@ -55,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       _HeroRing(s: s),
+      if (state.offerSavingsGoal) const _SavingsPrompt(),
       _RunwayCard(s: s, costs: state.comingUp),
       _ComingUp(costs: state.comingUp, today: s.today),
       _MoneyIn(
@@ -515,6 +518,96 @@ class _RunwayCard extends StatelessWidget {
               ),
               _Stat(label: 'Reserved', value: money(s.reserved, cents: false)),
               _Stat(label: 'Burn / day', value: money(s.burnRate)),
+            ],
+          ),
+          if (s.savingsGoal > 0) ...[
+            const SizedBox(height: 12),
+            _SavingsLine(s: s),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "🐷 $100 set aside for savings", or how much of it has been spent.
+class _SavingsLine extends StatelessWidget {
+  const _SavingsLine({required this.s});
+  final RunwaySnapshot s;
+
+  @override
+  Widget build(BuildContext context) {
+    final dipped = s.dippedIntoSavings > 0.005;
+    final goal = money(s.savingsGoal, cents: false);
+    return Row(
+      children: [
+        Icon(
+          PhIcons.piggyBank,
+          size: 18,
+          color: dipped ? AppColors.butter : AppColors.lime,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            dipped
+                ? 'You\'re dipping into your savings: '
+                      '${money(s.dippedIntoSavings)} of your $goal is gone'
+                : '$goal set aside for savings, not in your daily budget',
+            style: AppText.label.copyWith(
+              color: dipped ? AppColors.butter : AppColors.muted,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Asked once of people who set up before savings existed.
+class _SavingsPrompt extends StatelessWidget {
+  const _SavingsPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    return GlassCard(
+      borderColor: AppColors.lime.withValues(alpha: 0.35),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(PhIcons.piggyBank, size: 22, color: AppColors.lime),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Save something this ${state.term.period.noun}?',
+                  style: AppText.heading,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Pick an amount and Runway sets it aside, so your daily budget '
+            'already leaves it alone.',
+            style: AppText.label,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              ChoiceChipPill(
+                selected: true,
+                color: AppColors.lime,
+                onTap: () => showSavingsGoalSheet(context),
+                child: const Text('Set a goal'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChipPill(
+                selected: false,
+                onTap: state.skipSavingsGoal,
+                child: const Text('Not now'),
+              ),
             ],
           ),
         ],

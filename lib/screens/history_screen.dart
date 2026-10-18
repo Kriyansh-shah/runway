@@ -146,6 +146,12 @@ class _PastCard extends StatelessWidget {
             _Line('Started with', money(s.startedWith)),
             if (s.moneyIn > 0) _Line('Money in', '+${money(s.moneyIn)}'),
             _Line('Spent', '−${money(s.spent)}'),
+            if (s.savingsGoal > 0)
+              _Line(
+                'Saved',
+                '${money(s.saved, cents: false)} of '
+                    '${money(s.savingsGoal, cents: false)}',
+              ),
             if (s.topCategories.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(

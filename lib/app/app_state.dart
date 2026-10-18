@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
 import 'auth.dart';
 import 'budget_math.dart';
-import 'budget_math.dart' as budget show nextIncome;
+import 'budget_math.dart' as budget show nextIncome, savingsStreak;
 import 'coach.dart';
 import 'device_auth.dart';
 import 'format.dart';
@@ -33,6 +34,8 @@ class AppState extends ChangeNotifier {
        _friends = [...data.friends],
        _splits = [...data.splits],
        _needsSetup = data.needsSetup,
+       _savingsHistory = [...data.savingsHistory],
+       _savingsAsked = data.savingsAsked,
        _appLock = data.appLock,
        _challengeStart = data.challengeStart {
     _user = user;
@@ -70,6 +73,8 @@ class AppState extends ChangeNotifier {
   UserProfile? _user;
   bool _needsSetup;
   bool _appLock;
+  final List<SavedTerm> _savingsHistory;
+  bool _savingsAsked;
 
   final _problems = StreamController<SaveProblem>.broadcast();
   int _pendingWrites = 0;
@@ -95,6 +100,58 @@ class AppState extends ChangeNotifier {
 
   /// Still on demo data: show the setup flow before Home.
   bool get needsSetup => _needsSetup;
+
+  /// Finished terms and months, newest first, with what each one saved.
+  List<SavedTerm> get savingsHistory => List.unmodifiable(_savingsHistory);
+
+  /// Everything saved in finished terms and months. This term's goal
+  /// joins it when the term ends.
+  double get totalSaved => _savingsHistory.fold(0, (s, t) => s + t.saved);
+
+  /// Terms or months in a row that hit their savings goal.
+  int get savingsStreak => budget.savingsStreak(_savingsHistory);
+
+  /// Home offers to set a savings goal: there's none yet, and the person
+  /// hasn't been asked (people set up before savings existed).
+  bool get offerSavingsGoal =>
+      !_needsSetup && !_savingsAsked && _term.savingsGoal == 0;
+
+  /// The numbers as they'd be with [goal] as the savings goal, to preview
+  /// a change before saving it.
+  RunwaySnapshot snapshotWithGoal(double goal) => computeRunway(
+    term: _term.copyWith(savingsGoal: goal),
+    expenses: _expenses,
+    upcoming: _upcoming,
+    incomes: _incomes,
+    today: today,
+  );
+
+  /// Sets this term's savings goal (0 for none), from today on. It can't
+  /// be more than the money not already set aside for big costs.
+  void setSavingsGoal(double goal) {
+    if (!goal.isFinite || goal < 0) {
+      throw ArgumentError.value(goal, 'goal', 'must be 0 or more');
+    }
+    final capped = math.min(goal, _snapshot.maxSavingsGoal);
+    _term = _term.copyWith(savingsGoal: (capped * 100).round() / 100);
+    final asked = _savingsAsked;
+    _savingsAsked = true;
+    _changed();
+    final term = _term;
+    _persist(() async {
+      await _repo.saveTerm(term);
+      if (!asked) await _repo.setSavingsAsked();
+    });
+  }
+
+  /// "Not now" on Home's savings card: it won't ask again.
+  void skipSavingsGoal() {
+    if (_savingsAsked) return;
+    _savingsAsked = true;
+    notifyListeners();
+    _persist(_repo.setSavingsAsked);
+  }
+
   Term get term => _term;
   RunwaySnapshot get snapshot => _snapshot;
   int get streak => _streak;
@@ -280,6 +337,21 @@ class AppState extends ChangeNotifier {
     _changed();
     _persist(() => _repo.deleteCustomCategory(id));
   }
+
+  /// What's left of the savings goal if the term ended now, in cents.
+  double get _keptSavings => (_snapshot.savingsKept * 100).round() / 100;
+
+  /// Money that would carry on if the term ended now: everything but the
+  /// savings it keeps. Offered as the next semester's starting money.
+  double get leftIfEndedNow =>
+      math.max(0, ((_snapshot.balance - _keptSavings) * 100).round() / 100);
+
+  static SavedTerm _savedTerm(Term term, double saved) => SavedTerm(
+    name: term.name,
+    period: term.period,
+    goal: term.savingsGoal,
+    saved: saved,
+  );
 
   void _moveToFront(String customId) {
     final index = _customCategories.indexWhere((c) => c.id == customId);
@@ -598,9 +670,16 @@ class AppState extends ChangeNotifier {
 
   /// Swaps the demo term for the user's own, starting with no expenses.
   /// Repeating bills stop; add them again with [addUpcomingCost].
+  /// The term that ends keeps what's left of its savings goal; the rest
+  /// of its money is up to the person to carry into [term].
   void startTerm(Term term, List<UpcomingCost> upcoming) {
     // The demo term ending is no achievement; a real one gets a recap.
     final endsRealTerm = !_needsSetup;
+    final saved = endsRealTerm ? _keptSavings : 0.0;
+    if (endsRealTerm) {
+      _savingsHistory.insert(0, _savedTerm(_term, saved));
+    }
+    _savingsAsked = true;
     _term = term;
     _bills.clear();
     _expenses.clear();
@@ -610,7 +689,7 @@ class AppState extends ChangeNotifier {
     _incomes.clear();
     _needsSetup = false;
     _changed();
-    _persist(() => _repo.startTerm(term, upcoming));
+    _persist(() => _repo.startTerm(term, upcoming, saved: saved));
     if (endsRealTerm) unawaited(checkForRecap());
   }
 
@@ -663,6 +742,7 @@ class AppState extends ChangeNotifier {
       term: _term,
       expenses: _expenses,
       incomes: _incomes,
+      upcoming: _upcoming,
       today: today,
     );
     if (next == null) return;
@@ -683,13 +763,19 @@ class AppState extends ChangeNotifier {
       // Months skipped while the app was closed too: unpaid until marked.
       ..._billsDue(from: _dayAfter(_term.end), to: next.term.end),
     ];
+    _savingsHistory.insert(0, _savedTerm(_term, next.saved));
     _term = next.term;
     _expenses.clear();
     _upcoming.addAll(added);
     _replace(_incomes, incomes);
     _changed();
     _persist(
-      () => _repo.startNewMonth(next.term, incomes: incomes, added: added),
+      () => _repo.startNewMonth(
+        next.term,
+        incomes: incomes,
+        added: added,
+        saved: next.saved,
+      ),
     );
     unawaited(checkForRecap());
   }
@@ -723,6 +809,8 @@ class AppState extends ChangeNotifier {
     _challengeStart = data.challengeStart;
     _needsSetup = data.needsSetup;
     _appLock = data.appLock;
+    _replace(_savingsHistory, data.savingsHistory);
+    _savingsAsked = data.savingsAsked;
   }
 
   static void _replace<T>(List<T> list, List<T> items) => list

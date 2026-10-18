@@ -30,6 +30,13 @@ class Terms extends Table {
 
   /// Set when a term is finished; the current term has this null.
   DateTimeColumn get archivedAt => dateTime().nullable()();
+
+  /// Money to save this term (added in schema 6).
+  IntColumn get savingsGoalCents => integer().withDefault(const Constant(0))();
+
+  /// How much of the goal was kept, set when the term is archived (added
+  /// in schema 6).
+  IntColumn get savedCents => integer().nullable()();
 }
 
 @DataClassName('ExpenseRow')
@@ -211,7 +218,7 @@ class RunwayDatabase extends _$RunwayDatabase {
       RunwayDatabase(await openDeviceDatabase());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -232,6 +239,10 @@ class RunwayDatabase extends _$RunwayDatabase {
       if (from < 5) {
         await m.createTable(customCategories);
         await m.addColumn(expenses, expenses.customCategoryId);
+      }
+      if (from < 6) {
+        await m.addColumn(terms, terms.savingsGoalCents);
+        await m.addColumn(terms, terms.savedCents);
       }
     },
     beforeOpen: (details) async {

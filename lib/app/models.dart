@@ -270,6 +270,7 @@ class Term {
     required this.end,
     required this.startingBalance,
     this.period = BudgetPeriod.semester,
+    this.savingsGoal = 0,
   });
 
   final String name;
@@ -277,6 +278,38 @@ class Term {
   final DateTime end;
   final double startingBalance;
   final BudgetPeriod period;
+
+  /// Money to save this term or month. It's set aside on day one, like a
+  /// big cost, so the daily budget only spreads what's left.
+  final double savingsGoal;
+
+  Term copyWith({double? savingsGoal}) => Term(
+    name: name,
+    start: start,
+    end: end,
+    startingBalance: startingBalance,
+    period: period,
+    savingsGoal: savingsGoal ?? this.savingsGoal,
+  );
+}
+
+/// How a finished term or month went for saving.
+class SavedTerm {
+  const SavedTerm({
+    required this.name,
+    required this.period,
+    required this.goal,
+    required this.saved,
+  });
+
+  final String name;
+  final BudgetPeriod period;
+  final double goal;
+
+  /// What was actually kept: the goal, less anything spent out of it.
+  final double saved;
+
+  bool get hitGoal => goal > 0 && saved >= goal - 0.005;
 }
 
 /// A finished semester or month, kept on the phone for History.
@@ -286,9 +319,13 @@ class PastTerm {
     required this.endedOn,
     required this.expenses,
     required this.incomes,
+    this.saved = 0,
   });
 
   final Term term;
+
+  /// How much of [Term.savingsGoal] was kept when it ended.
+  final double saved;
 
   /// When it was put away: after its last day, or earlier if a new
   /// semester was started before it ended.
@@ -340,6 +377,8 @@ class BudgetData {
     this.bills = const [],
     this.incomes = const [],
     this.customCategories = const [],
+    this.savingsHistory = const [],
+    this.savingsAsked = false,
     required this.friends,
     required this.splits,
     required this.challengeStart,
@@ -357,6 +396,13 @@ class BudgetData {
 
   /// The person's own categories, most recently used first.
   final List<CustomCategory> customCategories;
+
+  /// Finished terms and months of your own, newest first.
+  final List<SavedTerm> savingsHistory;
+
+  /// The person has been asked for a savings goal (at setup, or by the
+  /// card on Home), so Home stops asking.
+  final bool savingsAsked;
   final List<Friend> friends;
   final List<BillSplit> splits;
   final DateTime challengeStart;

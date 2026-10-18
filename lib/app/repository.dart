@@ -74,18 +74,28 @@ abstract interface class BudgetRepository {
   Future<void> deleteIncome(String incomeId);
 
   /// Replaces the current term with the user's own: the old term (and its
-  /// expenses) is archived, repeating bills are stopped, and [term] starts
-  /// empty with [upcoming] reserved.
-  Future<void> startTerm(Term term, List<UpcomingCost> upcoming);
+  /// expenses) is archived with [saved] kept of its savings goal, repeating
+  /// bills are stopped, and [term] starts empty with [upcoming] reserved.
+  /// Setup asks for a savings goal, so Home stops asking.
+  Future<void> startTerm(
+    Term term,
+    List<UpcomingCost> upcoming, {
+    double saved = 0,
+  });
 
   /// A monthly budget moves on to [term]: the old month (and its expenses)
-  /// is archived, its unpaid costs move to [term] along with [added], and
-  /// [incomes] (copies of the pay that keeps coming) start in [term].
+  /// is archived with [saved] kept of its savings goal, its unpaid costs
+  /// move to [term] along with [added], and [incomes] (copies of the pay
+  /// that keeps coming) start in [term].
   Future<void> startNewMonth(
     Term term, {
     required List<Income> incomes,
     required List<UpcomingCost> added,
+    double saved = 0,
   });
+
+  /// The person answered the savings question (set a goal or said no).
+  Future<void> setSavingsAsked();
 
   /// Finished terms and months, newest first. The demo term shown before
   /// setup isn't included.
@@ -187,14 +197,22 @@ class MockBudgetRepository implements BudgetRepository {
   Future<void> deleteIncome(String incomeId) async {}
 
   @override
-  Future<void> startTerm(Term term, List<UpcomingCost> upcoming) async {}
+  Future<void> startTerm(
+    Term term,
+    List<UpcomingCost> upcoming, {
+    double saved = 0,
+  }) async {}
 
   @override
   Future<void> startNewMonth(
     Term term, {
     required List<Income> incomes,
     required List<UpcomingCost> added,
+    double saved = 0,
   }) async {}
+
+  @override
+  Future<void> setSavingsAsked() async {}
 
   @override
   Future<List<PastTerm>> history() async => const [];

@@ -15,6 +15,7 @@ class RunwaySnapshot {
     required this.balance,
     required this.received,
     required this.reserved,
+    this.savingsGoal = 0,
     required this.spentToday,
     required this.totalSpent,
     required this.everydaySpent,
@@ -36,6 +37,9 @@ class RunwaySnapshot {
   /// ones: that money is still owed.
   final double reserved;
 
+  /// This term's savings goal, set aside like [reserved].
+  final double savingsGoal;
+
   /// Everyday spending today (excludes paid upcoming costs).
   final double spentToday;
 
@@ -52,8 +56,20 @@ class RunwaySnapshot {
   /// Days elapsed in term, counting today.
   final int daysElapsed;
 
-  /// available = balance − reserved upcoming costs
-  double get available => balance - reserved;
+  /// available = balance − reserved upcoming costs − savings goal
+  double get available => balance - reserved - savingsGoal;
+
+  /// How much of the savings goal is still there. Big costs are covered
+  /// first, so overspending eats into savings before them.
+  double get savingsKept =>
+      (balance - reserved).clamp(0, math.max(0, savingsGoal)).toDouble();
+
+  /// Spent out of the savings goal so far.
+  double get dippedIntoSavings => savingsGoal - savingsKept;
+
+  /// The most the savings goal can be right now: everything not already
+  /// promised to a big cost.
+  double get maxSavingsGoal => math.max(0, balance - reserved);
 
   /// daily allowance = (available + spentToday) / daysLeftInTerm
   double get dailyAllowance => (available + spentToday) / daysLeft;
@@ -129,6 +145,7 @@ RunwaySnapshot computeRunway({
     balance: term.startingBalance + received - total,
     received: received,
     reserved: reserved,
+    savingsGoal: term.savingsGoal,
     spentToday: todaySpend,
     totalSpent: total,
     everydaySpent: everyday,
@@ -248,14 +265,17 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
     if (i.repeats && (i.endsOn == null || i.endsOn!.isAfter(after))) i,
 ];
 
-/// Once a monthly budget's month is over: the month [today] falls in, and
-/// how much was overspent if the money ran out. Leftover money carries over,
-/// and pay that keeps coming counts in any months skipped in between (the
-/// app wasn't opened). Null for a semester, or while the month is running.
-({Term term, double overspent})? nextMonth({
+/// Once a monthly budget's month is over: the month [today] falls in, how
+/// much was overspent if the money ran out, and how much of the savings
+/// goal was kept ([saved]; it leaves the budget). Leftover money carries
+/// over, and so does the goal; pay that keeps coming counts in any months
+/// skipped in between (the app wasn't opened). [upcoming] are the unpaid
+/// costs, still owed. Null for a semester, or while the month is running.
+({Term term, double overspent, double saved})? nextMonth({
   required Term term,
   required List<Expense> expenses,
   required List<Income> incomes,
+  List<UpcomingCost> upcoming = const [],
   required DateTime today,
 }) {
   final day = dateOnly(today);
@@ -265,15 +285,15 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
   // Whole cents: summing amounts like 0.10 + 0.20 leaves float dust that
   // would otherwise show up as a $0.00 overspend.
   double cents(double v) => (v * 100).round() / 100;
-  var left = cents(
-    computeRunway(
-      term: term,
-      expenses: expenses,
-      upcoming: const [],
-      incomes: incomes,
-      today: term.end,
-    ).balance,
+  final end = computeRunway(
+    term: term,
+    expenses: expenses,
+    upcoming: upcoming,
+    incomes: incomes,
+    today: term.end,
   );
+  final saved = cents(end.savingsKept);
+  var left = cents(end.balance - saved);
   final continuing = continuingIncomes(incomes, term.end);
   var start = DateTime(term.end.year, term.end.month, term.end.day + 1);
   while (true) {
@@ -283,9 +303,10 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
       end: endOfMonth(start),
       startingBalance: math.max(0, left),
       period: BudgetPeriod.monthly,
+      savingsGoal: term.savingsGoal,
     );
     if (!day.isAfter(month.end)) {
-      return (term: month, overspent: math.max(0, -left));
+      return (term: month, overspent: math.max(0, -left), saved: saved);
     }
     left = cents(
       left + incomeReceived(continuing, term: month, today: month.end),
@@ -302,6 +323,8 @@ class TermSummary {
     required this.spent,
     required this.needSpent,
     required this.topCategories,
+    this.savingsGoal = 0,
+    this.saved = 0,
   });
 
   final double startedWith;
@@ -319,8 +342,16 @@ class TermSummary {
   /// Biggest spending categories first, at most three.
   final List<({CategoryRef category, double amount})> topCategories;
 
-  /// Negative when more was spent than there was.
+  final double savingsGoal;
+
+  /// How much of [savingsGoal] was kept.
+  final double saved;
+
+  /// Negative when more was spent than there was. Includes [saved].
   double get left => startedWith + moneyIn - spent;
+
+  /// What was left besides the savings: it carries on as spending money.
+  double get leftOver => left - saved;
 }
 
 /// The last day [past] ran: its end, or earlier if it was ended early.
@@ -357,6 +388,8 @@ TermSummary summarize(PastTerm past) {
     spent: spent,
     needSpent: need,
     topCategories: top.take(3).toList(),
+    savingsGoal: term.savingsGoal,
+    saved: past.saved,
   );
 }
 
@@ -401,6 +434,16 @@ CategoryChange? biggestChange(PastTerm now, PastTerm before) {
   if (changes.first.change <= -0.1) return changes.first;
   if (changes.last.change >= 0.1) return changes.last;
   return null;
+}
+
+/// How many terms or months in a row, newest first, hit their savings goal.
+int savingsStreak(List<SavedTerm> history) {
+  var n = 0;
+  for (final t in history) {
+    if (!t.hitGoal) break;
+    n++;
+  }
+  return n;
 }
 
 /// Consecutive days with at least one logged expense. Today not being logged

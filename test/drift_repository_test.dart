@@ -45,6 +45,14 @@ void main() {
     note: note,
   );
 
+  /// Turns schema 6's savings columns back into schema 5.
+  Future<void> dropSavingsColumns(RunwayDatabase db) async {
+    await db.customStatement(
+      'ALTER TABLE terms DROP COLUMN savings_goal_cents',
+    );
+    await db.customStatement('ALTER TABLE terms DROP COLUMN saved_cents');
+  }
+
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
 
   setUp(() {
@@ -475,6 +483,25 @@ void main() {
     expect(moved.note, 'Cigarettes');
   });
 
+  test('a version 5 database upgrades with no savings goal', () async {
+    var repo = openRepo();
+    await repo.load();
+    await repo.close();
+    open.remove(repo);
+
+    final db = RunwayDatabase(NativeDatabase(file));
+    await dropSavingsColumns(db);
+    await db.customStatement('PRAGMA user_version = 5');
+    await db.close();
+
+    repo = openRepo();
+    final data = await repo.load();
+    expect(data.term.savingsGoal, 0);
+    expect(data.savingsAsked, isFalse);
+    await repo.saveTerm(data.term.copyWith(savingsGoal: 50));
+    expect((await repo.load()).term.savingsGoal, 50);
+  });
+
   test(
     'a version 4 database upgrades and can save custom categories',
     () async {
@@ -485,6 +512,7 @@ void main() {
       open.remove(repo);
 
       final db = RunwayDatabase(NativeDatabase(file));
+      await dropSavingsColumns(db);
       await db.customStatement(
         'ALTER TABLE expenses DROP COLUMN custom_category_id',
       );
@@ -512,6 +540,7 @@ void main() {
 
     // Turn the file back into the version 1 schema.
     final db = RunwayDatabase(NativeDatabase(file));
+    await dropSavingsColumns(db);
     await db.customStatement(
       'ALTER TABLE expenses DROP COLUMN custom_category_id',
     );
@@ -548,6 +577,7 @@ void main() {
     open.remove(repo);
 
     final db = RunwayDatabase(NativeDatabase(file));
+    await dropSavingsColumns(db);
     await db.customStatement(
       'ALTER TABLE expenses DROP COLUMN custom_category_id',
     );
@@ -562,6 +592,84 @@ void main() {
     final term = (await repo.load()).term;
     expect(term.name, 'Fall term');
     expect(term.period, BudgetPeriod.semester);
+  });
+
+  test('a month\'s savings are kept and the goal carries on', () async {
+    var repo = openRepo();
+    var clock = now;
+    final state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      clock: () => clock,
+    );
+    state.startTerm(
+      Term(
+        name: 'October',
+        start: DateTime(2026, 10, 1),
+        end: DateTime(2026, 10, 31),
+        startingBalance: 500,
+        period: BudgetPeriod.monthly,
+        savingsGoal: 100,
+      ),
+      const [],
+    );
+    state.addExpense(
+      amount: 360,
+      category: ExpenseCategory.groceries,
+      isNeed: true,
+    );
+    clock = DateTime(2026, 11, 2, 9);
+    state.startNewMonthIfDue();
+    expect(state.totalSaved, 100);
+    expect(state.term.startingBalance, 40); // leftover, not savings
+    expect(state.term.savingsGoal, 100);
+    await pumpEventQueue(times: 100);
+
+    repo = await reopen(repo);
+    final data = await repo.load();
+    expect(data.term.savingsGoal, 100);
+    expect(data.savingsAsked, isTrue);
+    expect(data.savingsHistory.map((t) => (t.name, t.goal, t.saved)), [
+      ('October', 100.0, 100.0),
+    ]);
+    final october = (await repo.history()).single;
+    expect(summarize(october).leftOver, 40);
+    expect(summarize(october).saved, 100);
+  });
+
+  test('a new semester keeps the old one\'s savings', () async {
+    final repo = openRepo();
+    final state = AppState(
+      repository: repo,
+      data: await repo.load(),
+      clock: () => now,
+    );
+    state.startTerm(
+      Term(
+        name: 'Fall',
+        start: DateTime(2026, 9, 1),
+        end: DateTime(2026, 12, 15),
+        startingBalance: 1000,
+        savingsGoal: 200,
+      ),
+      const [],
+    );
+    state.addExpense(amount: 300, category: ExpenseCategory.fun, isNeed: false);
+    expect(state.leftIfEndedNow, 500); // 700 − 200 saved
+
+    state.startTerm(
+      Term(
+        name: 'Winter',
+        start: DateTime(2026, 10, 2),
+        end: DateTime(2027, 1, 31),
+        startingBalance: 500,
+      ),
+      const [],
+    );
+    expect(state.totalSaved, 200);
+    await pumpEventQueue(times: 100);
+    expect((await repo.history()).single.saved, 200);
+    expect((await repo.load()).savingsHistory.single.saved, 200);
   });
 
   test('a monthly budget starts the next month by itself', () async {

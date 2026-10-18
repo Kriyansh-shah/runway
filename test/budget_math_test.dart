@@ -123,6 +123,55 @@ void main() {
     });
   });
 
+  group('savings goal', () {
+    final flight = UpcomingCost(
+      id: 'f',
+      emoji: '✈️',
+      name: 'Flight',
+      amount: 300,
+      dueDate: day(5),
+    );
+
+    test('is set aside like a big cost, so the daily budget skips it', () {
+      final s = computeRunway(
+        term: term.copyWith(savingsGoal: 200),
+        expenses: [spend(100, -5)],
+        upcoming: [flight],
+        today: today,
+      );
+      expect(s.available, 400); // 900 − 300 flight − 200 savings
+      expect(s.dailyAllowance, 40); // over 10 days
+      expect(s.savingsKept, 200);
+      expect(s.dippedIntoSavings, 0);
+      expect(s.maxSavingsGoal, 600);
+    });
+
+    test('overspending eats savings before the big costs', () {
+      final s = computeRunway(
+        term: term.copyWith(savingsGoal: 200),
+        expenses: [spend(550, -5)],
+        upcoming: [flight],
+        today: today,
+      );
+      // 450 left: the flight's 300 is covered, 150 of the 200 is still saved.
+      expect(s.savingsKept, 150);
+      expect(s.dippedIntoSavings, 50);
+      expect(s.available, -50);
+    });
+
+    test('streak counts goals hit in a row, newest first', () {
+      SavedTerm t(double goal, double saved) => SavedTerm(
+        name: 'M',
+        period: BudgetPeriod.monthly,
+        goal: goal,
+        saved: saved,
+      );
+      expect(savingsStreak([t(100, 100), t(50, 50), t(50, 20), t(50, 50)]), 2);
+      expect(savingsStreak([t(0, 0), t(50, 50)]), 0); // no goal, no streak
+      expect(savingsStreak(const []), 0);
+    });
+  });
+
   group('streak', () {
     test('counts consecutive logged days ending today', () {
       expect(
@@ -337,6 +386,51 @@ void main() {
       isNeed: true,
       date: DateTime(2026, 10, 12, 9),
     );
+
+    test('the goal is saved and only the rest carries over', () {
+      final next = nextMonth(
+        term: month(500).copyWith(savingsGoal: 100),
+        expenses: [spent(360)],
+        incomes: const [],
+        today: DateTime(2026, 11, 3),
+      )!;
+      expect(next.saved, 100);
+      expect(next.term.startingBalance, 40); // 500 − 360 − 100 saved
+      expect(next.term.savingsGoal, 100); // the goal carries on
+      expect(next.overspent, 0);
+    });
+
+    test('leftover with no goal is spending money, not savings', () {
+      final next = nextMonth(
+        term: month(500),
+        expenses: [spent(360)],
+        incomes: const [],
+        today: DateTime(2026, 11, 3),
+      )!;
+      expect(next.saved, 0);
+      expect(next.term.startingBalance, 140);
+    });
+
+    test('spending into the goal saves less; unpaid costs come first', () {
+      final next = nextMonth(
+        term: month(500).copyWith(savingsGoal: 100),
+        expenses: [spent(400)],
+        incomes: const [],
+        upcoming: [
+          UpcomingCost(
+            id: 'rent',
+            emoji: '🏠',
+            name: 'Rent',
+            amount: 30,
+            dueDate: DateTime(2026, 10, 30),
+          ),
+        ],
+        today: DateTime(2026, 11, 3),
+      )!;
+      // 100 left; the unpaid 30 is still owed, so 70 of the goal is kept.
+      expect(next.saved, 70);
+      expect(next.term.startingBalance, 30); // pays the rent that moves over
+    });
 
     test('only once a monthly budget\'s month is over', () {
       expect(

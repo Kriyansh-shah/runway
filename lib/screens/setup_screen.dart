@@ -15,6 +15,7 @@ import '../widgets/motion.dart';
 import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
+import 'savings_goal_sheet.dart';
 import 'shell.dart';
 
 /// Where a signed-in user lands: setup until they've entered their own term.
@@ -40,6 +41,7 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   final _name = TextEditingController();
   final _balance = TextEditingController();
+  final _savings = TextEditingController();
   final _costs = <UpcomingCost>[];
 
   /// Ids of the [_costs] that repeat every month.
@@ -59,6 +61,11 @@ class _SetupScreenState extends State<SetupScreen> {
     super.initState();
     final state = AppScope.read(context);
     _start = state.today;
+    // A new semester starts with what the old one leaves (its savings stay
+    // saved).
+    if (widget.cancellable && state.leftIfEndedNow > 0) {
+      _balance.text = amountText(state.leftIfEndedNow);
+    }
     if (!state.appLockEnabled) {
       state.deviceAuth.isAvailable().then((ok) {
         if (mounted && ok) setState(() => _offerLock = true);
@@ -70,6 +77,7 @@ class _SetupScreenState extends State<SetupScreen> {
   void dispose() {
     _name.dispose();
     _balance.dispose();
+    _savings.dispose();
     super.dispose();
   }
 
@@ -82,8 +90,21 @@ class _SetupScreenState extends State<SetupScreen> {
 
   String get _termName => _monthly ? monthName(_start) : _name.text.trim();
 
+  double get _savingsGoal => parseAmountInput(_savings.text);
+
+  /// Money not going to the big costs listed, the most there is to save.
+  double get _canSave {
+    final costs = _costs.fold<double>(0, (s, c) => s + c.amount);
+    return (_startingBalance - costs).clamp(0, double.infinity).toDouble();
+  }
+
+  bool get _savingsTooBig => _savingsGoal > _canSave + 0.005;
+
   bool get _ready =>
-      _termName.isNotEmpty && _end != null && _startingBalance > 0;
+      _termName.isNotEmpty &&
+      _end != null &&
+      _startingBalance > 0 &&
+      !_savingsTooBig;
 
   void _setPeriod(BudgetPeriod period) {
     setState(() {
@@ -158,6 +179,7 @@ class _SetupScreenState extends State<SetupScreen> {
         end: end,
         startingBalance: _startingBalance,
         period: _period,
+        savingsGoal: _savingsGoal,
       ),
       costs.where((c) => !_monthlyCosts.contains(c.id)).toList(),
     );
@@ -245,8 +267,25 @@ class _SetupScreenState extends State<SetupScreen> {
               style: AppText.number,
               onChanged: (_) => setState(() {}),
             ),
+            if (widget.cancellable && AppScope.read(context).leftIfEndedNow > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  'What ${AppScope.read(context).term.name} leaves you, '
+                  'besides its savings.',
+                  style: AppText.caption.copyWith(letterSpacing: 0),
+                ),
+              ),
           ],
         ),
+      ),
+      const SizedBox(height: 16),
+      _SavingsGoalCard(
+        controller: _savings,
+        noun: _period.noun,
+        canSave: _canSave,
+        tooBig: _savingsTooBig,
+        onChanged: () => setState(() {}),
       ),
       const SizedBox(height: 16),
       GlassCard(
@@ -379,6 +418,78 @@ class _SetupScreenState extends State<SetupScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "Save this semester": optional, with 10% / 20% suggestions.
+class _SavingsGoalCard extends StatelessWidget {
+  const _SavingsGoalCard({
+    required this.controller,
+    required this.noun,
+    required this.canSave,
+    required this.tooBig,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String noun;
+  final double canSave;
+  final bool tooBig;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = parseAmountInput(controller.text);
+    final suggestions = {
+      for (final share in [0.1, 0.2])
+        if (suggestedGoal(canSave, share) > 0)
+          suggestedGoal(canSave, share): '${(share * 100).round()}%',
+    };
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Save this $noun', style: AppText.heading),
+          const SizedBox(height: 2),
+          Text(
+            'Runway sets it aside first, so your daily budget leaves it '
+            'alone. Optional, and you can change it anytime.',
+            style: AppText.label,
+          ),
+          const SizedBox(height: 14),
+          AmountField(controller: controller, onChanged: (_) => onChanged()),
+          if (suggestions.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final MapEntry(key: goal, value: label)
+                    in suggestions.entries)
+                  ChoiceChipPill(
+                    selected: value == goal,
+                    color: AppColors.lime,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      controller.text = amountText(goal);
+                      onChanged();
+                    },
+                    child: Text('$label · ${money(goal, cents: false)}'),
+                  ),
+              ],
+            ),
+          ],
+          if (tooBig) ...[
+            const SizedBox(height: 8),
+            Text(
+              'That\'s more than you have after your big costs '
+              '(${money(canSave, cents: false)}).',
+              style: AppText.label.copyWith(color: AppColors.butter),
+            ),
+          ],
+        ],
       ),
     );
   }

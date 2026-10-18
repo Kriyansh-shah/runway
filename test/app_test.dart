@@ -143,8 +143,11 @@ void main() {
     await settle(tester);
     expect(find.text('Oct 20, 2026'), findsOneWidget);
 
-    await tester.enterText(fields.at(2), 'Concert');
-    await tester.enterText(fields.at(3), '100');
+    await tester.enterText(fields.at(2), '150'); // save this semester
+    await tester.enterText(fields.at(3), 'Concert');
+    await tester.enterText(fields.at(4), '100');
+    await tester.ensureVisible(find.text('Pick date'));
+    await settle(tester, const Duration(milliseconds: 300));
     await tester.tap(find.text('Pick date')); // cost due date
     await settle(tester);
     await tester.tap(find.text('10'));
@@ -162,7 +165,9 @@ void main() {
     expect(state.term.name, 'Winter term');
     expect(state.term.end, DateTime(2026, 10, 20));
     expect(state.recentExpenses(), isEmpty);
-    expect(state.snapshot.available, 1400);
+    expect(state.term.savingsGoal, 150);
+    expect(state.snapshot.available, 1250); // 1500 − 100 cost − 150 saved
+    expect(state.offerSavingsGoal, isFalse); // setup already asked
     expect(find.text('Safe to spend today'), findsOneWidget);
     expect(find.text('Concert'), findsOneWidget);
     expect(
@@ -286,7 +291,16 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
+    final state = buildState()..setSavingsGoal(80);
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await tester.tap(find.text('Savings').last);
+    await settle(tester);
+    await tester.tap(find.text('Change goal'));
+    await settle(tester);
+    expect(find.text('Save this semester'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    Navigator.of(tester.element(find.text('Save this semester'))).pop();
     await settle(tester);
     for (final tab in ['Coach', 'Squad', 'Home']) {
       await tester.tap(find.text(tab).last);
@@ -336,7 +350,7 @@ void main() {
         .value;
 
     final home = find.text('Safe to spend today');
-    for (final tab in ['Coach', 'Squad']) {
+    for (final tab in ['Savings', 'Coach', 'Squad']) {
       await tester.tap(find.text(tab).last);
       await settle(tester);
       expect(opacityOf(home), 0);
@@ -469,6 +483,58 @@ void main() {
     final e = state.recentExpenses(1).single;
     expect(e.custom, isNull);
     expect(e.title, 'Vaping'); // kept as its note
+  });
+
+  test('the savings goal is capped, and Home asks only once', () {
+    final state = buildState();
+    expect(state.offerSavingsGoal, isTrue);
+    final daily = state.snapshot.dailyAllowance;
+    state.setSavingsGoal(70);
+    expect(state.offerSavingsGoal, isFalse);
+    expect(
+      state.snapshot.available,
+      closeTo(state.snapshot.balance - 420 - 70, 1e-9),
+    );
+    expect(state.snapshot.dailyAllowance, lessThan(daily));
+
+    state.setSavingsGoal(1e5); // more than there is
+    expect(
+      state.term.savingsGoal,
+      closeTo(state.snapshot.maxSavingsGoal, 0.01),
+    );
+    state.setSavingsGoal(0);
+    expect(state.term.savingsGoal, 0);
+    expect(state.offerSavingsGoal, isFalse); // answered once already
+
+    final other = buildState()..skipSavingsGoal();
+    expect(other.offerSavingsGoal, isFalse);
+  });
+
+  testWidgets('a goal set from Home shows on the Savings tab', (tester) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final state = buildState();
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    expect(find.text('Save something this term?'), findsNothing);
+    expect(find.text('Save something this semester?'), findsOneWidget);
+    await tester.tap(find.text('Set a goal'));
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), '120');
+    await settle(tester, const Duration(milliseconds: 300));
+    expect(find.textContaining('Safe to spend each day'), findsOneWidget);
+    await tester.tap(find.text('Save \$120 goal'));
+    await settle(tester);
+    expect(state.term.savingsGoal, 120);
+    expect(find.text('Save something this semester?'), findsNothing);
+
+    await tester.tap(find.text('Savings'));
+    await settle(tester);
+    expect(find.text('of \$120 for Fall term'), findsOneWidget);
+    expect(find.text('Saved so far'), findsOneWidget);
   });
 
   // Apple Pay logging is switched off for now.
@@ -881,6 +947,51 @@ void main() {
     await tester.tap(find.text('Nice'));
     await settle(tester);
     expect(find.text('That\'s a wrap on October'), findsNothing);
+  });
+
+  testWidgets('a recap shows what was saved and asks about next month', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState()..setSavingsGoal(100);
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    state.pendingRecap.value = (
+      ended: PastTerm(
+        term: Term(
+          name: 'October',
+          start: DateTime(2026, 10, 1),
+          end: DateTime(2026, 10, 31),
+          startingBalance: 500,
+          period: BudgetPeriod.monthly,
+          savingsGoal: 100,
+        ),
+        endedOn: DateTime(2026, 11, 1, 9),
+        expenses: [
+          Expense(
+            id: 'a',
+            amount: 360,
+            category: ExpenseCategory.groceries,
+            isNeed: true,
+            date: DateTime(2026, 10, 10),
+          ),
+        ],
+        incomes: const [],
+        saved: 100,
+      ),
+      before: null,
+    );
+    await settle(tester);
+
+    expect(find.text('\$40.00'), findsOneWidget); // left over, not saved
+    expect(find.text('\$100 of \$100 🎉'), findsOneWidget);
+    expect(find.text('Save \$100 again in Fall term?'), findsOneWidget);
+    await tester.tap(find.text('Skip this month'));
+    await settle(tester, const Duration(milliseconds: 300));
+    expect(state.term.savingsGoal, 0);
+    expect(find.text('Save something in Fall term?'), findsOneWidget);
   });
 
   testWidgets('history is empty until something ends', (tester) async {

@@ -11,6 +11,7 @@ import '../widgets/gradient_button.dart';
 import '../widgets/mochi.dart';
 import '../widgets/transitions.dart';
 import 'history_screen.dart';
+import 'savings_goal_sheet.dart';
 
 Future<void> showRecapSheet(BuildContext context, Recap recap) {
   HapticFeedback.mediumImpact();
@@ -64,7 +65,7 @@ class RecapSheet extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         Text(
-          money(s.left.abs()),
+          money(over ? s.left.abs() : s.leftOver),
           style: AppText.number.copyWith(
             fontSize: 40,
             color: over ? AppColors.red : AppColors.lime,
@@ -82,6 +83,13 @@ class RecapSheet extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 18),
+        if (s.savingsGoal > 0)
+          _Line(
+            'Saved',
+            '${money(s.saved, cents: false)} of '
+                '${money(s.savingsGoal, cents: false)}'
+                '${s.saved >= s.savingsGoal - 0.005 ? ' 🎉' : ''}',
+          ),
         _Line('Spent', money(s.spent)),
         if (s.moneyIn > 0) _Line('Money in', money(s.moneyIn)),
         if (s.spent > 0) _Line('Needs vs wants', '$needs% · ${100 - needs}%'),
@@ -101,6 +109,7 @@ class RecapSheet extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
+        if (monthly) ...[const SizedBox(height: 16), const _NextGoal()],
         const SizedBox(height: 20),
         GradientButton(label: 'Nice', onTap: () => Navigator.of(context).pop()),
         const SizedBox(height: 4),
@@ -127,6 +136,68 @@ class RecapSheet extends StatelessWidget {
     return c.change < 0
         ? '$percent% less on $what than in $beforeName 🎉'
         : '$what was up $percent% on $beforeName';
+  }
+}
+
+/// The goal carries into the new month: keep it, change it, or skip it.
+class _NextGoal extends StatelessWidget {
+  const _NextGoal();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final term = state.term;
+    final goal = term.savingsGoal;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            goal > 0
+                ? 'Save ${money(goal, cents: false)} again in ${term.name}?'
+                : 'Save something in ${term.name}?',
+            style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (goal > 0) ...[
+                ChoiceChipPill(
+                  selected: true,
+                  color: AppColors.lime,
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Text('Keep ${money(goal, cents: false)}'),
+                ),
+                ChoiceChipPill(
+                  selected: false,
+                  onTap: () => showSavingsGoalSheet(context),
+                  child: const Text('Change'),
+                ),
+                ChoiceChipPill(
+                  selected: false,
+                  onTap: () => state.setSavingsGoal(0),
+                  child: const Text('Skip this month'),
+                ),
+              ] else
+                ChoiceChipPill(
+                  selected: false,
+                  color: AppColors.lime,
+                  onTap: () => showSavingsGoalSheet(context),
+                  child: const Text('Set a goal'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

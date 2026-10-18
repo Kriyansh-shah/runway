@@ -23,6 +23,7 @@ class DriftBudgetRepository implements BudgetRepository {
   static const _setUpAtKey = 'set_up_at';
   static const _appLockKey = 'app_lock';
   static const _recapSeenKey = 'recap_seen_until';
+  static const _savingsAskedKey = 'savings_asked';
   static const _sessionId = 1;
 
   Future<void> close() => _db.close();
@@ -65,6 +66,8 @@ class DriftBudgetRepository implements BudgetRepository {
     final challengeStart = await _getMeta(_challengeStartKey);
     final setUpAt = await _getMeta(_setUpAtKey);
     final appLock = await _getMeta(_appLockKey);
+    final savingsAsked = await _getMeta(_savingsAskedKey);
+    final past = await _pastTerms();
 
     return BudgetData(
       term: _term(term),
@@ -92,6 +95,16 @@ class DriftBudgetRepository implements BudgetRepository {
       ],
       incomes: [for (final r in incomes) _income(r)],
       customCategories: [...customs.values],
+      savingsHistory: [
+        for (final t in past)
+          SavedTerm(
+            name: t.name,
+            period: t.period,
+            goal: _dollars(t.savingsGoalCents),
+            saved: _dollars(t.savedCents ?? 0),
+          ),
+      ],
+      savingsAsked: savingsAsked != null,
       friends: [
         for (final r in friends)
           Friend(
@@ -122,8 +135,8 @@ class DriftBudgetRepository implements BudgetRepository {
     );
   }
 
-  @override
-  Future<List<PastTerm>> history() async {
+  /// Finished terms of the user's own, newest first.
+  Future<List<TermRow>> _pastTerms() async {
     // The demo term is always the first row: it's seeded into an empty
     // database before any term of the user's own exists.
     final demo =
@@ -132,13 +145,15 @@ class DriftBudgetRepository implements BudgetRepository {
               ..limit(1))
             .getSingleOrNull();
     if (demo == null) return const [];
-    final terms =
-        await (_db.select(_db.terms)
-              ..where(
-                (t) => t.archivedAt.isNotNull() & t.id.isNotValue(demo.id),
-              )
-              ..orderBy([(t) => OrderingTerm.desc(t.id)]))
-            .get();
+    return (_db.select(_db.terms)
+          ..where((t) => t.archivedAt.isNotNull() & t.id.isNotValue(demo.id))
+          ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+        .get();
+  }
+
+  @override
+  Future<List<PastTerm>> history() async {
+    final terms = await _pastTerms();
     final ids = [for (final t in terms) t.id];
     final customs = await _customCategories();
     final expenses =
@@ -153,6 +168,7 @@ class DriftBudgetRepository implements BudgetRepository {
       for (final t in terms)
         PastTerm(
           term: _term(t),
+          saved: _dollars(t.savedCents ?? 0),
           endedOn: t.archivedAt!.toLocal(),
           expenses: [
             for (final r in expenses)
@@ -175,6 +191,10 @@ class DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> setRecapSeenUntil(DateTime endedOn) =>
       _setMeta(_recapSeenKey, endedOn.toUtc().toIso8601String());
+
+  @override
+  Future<void> setSavingsAsked() =>
+      _setMeta(_savingsAskedKey, _clock().toIso8601String());
 
   Future<TermRow> _currentTerm() =>
       (_db.select(_db.terms)
@@ -353,6 +373,7 @@ class DriftBudgetRepository implements BudgetRepository {
           end: Value(term.end),
           startingBalanceCents: Value(_cents(term.startingBalance)),
           period: Value(term.period),
+          savingsGoalCents: Value(_cents(term.savingsGoal)),
         ),
       );
       await _db.batch((b) {
@@ -532,13 +553,17 @@ class DriftBudgetRepository implements BudgetRepository {
   }
 
   @override
-  Future<void> startTerm(Term term, List<UpcomingCost> upcoming) {
+  Future<void> startTerm(
+    Term term,
+    List<UpcomingCost> upcoming, {
+    double saved = 0,
+  }) {
     // Writes that start after this wait for the transaction, then look up
     // the new term instead of using the cached old one.
     _termId = null;
     final now = _clock();
     return _db.transaction(() async {
-      final termId = await _replaceCurrentTerm(term, now);
+      final termId = await _replaceCurrentTerm(term, now, saved);
       await (_db.update(_db.repeatingBills)..where((b) => b.endedAt.isNull()))
           .write(RepeatingBillsCompanion(endedAt: Value(now)));
       await _db.batch((b) {
@@ -547,6 +572,7 @@ class DriftBudgetRepository implements BudgetRepository {
         ]);
       });
       await _setMeta(_setUpAtKey, now.toIso8601String());
+      await _setMeta(_savingsAskedKey, now.toIso8601String());
       _termId = termId;
     });
   }
@@ -556,11 +582,12 @@ class DriftBudgetRepository implements BudgetRepository {
     Term term, {
     required List<Income> incomes,
     required List<UpcomingCost> added,
+    double saved = 0,
   }) {
     _termId = null;
     return _db.transaction(() async {
       final oldId = (await _currentTerm()).id;
-      final termId = await _replaceCurrentTerm(term, _clock());
+      final termId = await _replaceCurrentTerm(term, _clock(), saved);
       // Still owed, so still reserved: the costs move with the money.
       await (_db.update(_db.upcomingCosts)
             ..where((c) => c.termId.equals(oldId) & c.paidAt.isNull()))
@@ -577,11 +604,11 @@ class DriftBudgetRepository implements BudgetRepository {
     });
   }
 
-  /// Archives the current term and inserts [term] as the new current one.
-  /// Call inside a transaction.
-  Future<int> _replaceCurrentTerm(Term term, DateTime now) async {
+  /// Archives the current term, with [saved] kept of its savings goal,
+  /// and inserts [term] as the new current one. Call inside a transaction.
+  Future<int> _replaceCurrentTerm(Term term, DateTime now, double saved) async {
     await (_db.update(_db.terms)..where((t) => t.archivedAt.isNull())).write(
-      TermsCompanion(archivedAt: Value(now)),
+      TermsCompanion(archivedAt: Value(now), savedCents: Value(_cents(saved))),
     );
     return _db
         .into(_db.terms)
@@ -592,6 +619,7 @@ class DriftBudgetRepository implements BudgetRepository {
             end: term.end,
             startingBalanceCents: _cents(term.startingBalance),
             period: Value(term.period),
+            savingsGoalCents: Value(_cents(term.savingsGoal)),
           ),
         );
   }
@@ -668,6 +696,7 @@ class DriftBudgetRepository implements BudgetRepository {
     end: _day(r.end),
     startingBalance: _dollars(r.startingBalanceCents),
     period: r.period,
+    savingsGoal: _dollars(r.savingsGoalCents),
   );
 
   static Expense _expense(ExpenseRow r, Map<String, CustomCategory> customs) =>

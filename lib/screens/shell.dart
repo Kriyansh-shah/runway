@@ -12,6 +12,7 @@ import 'coach_screen.dart';
 import 'home_screen.dart';
 import 'quick_add_sheet.dart';
 import 'recap_sheet.dart';
+import 'savings_screen.dart';
 import 'squad_screen.dart';
 import '../widgets/ph_icons.dart';
 
@@ -33,7 +34,12 @@ class _ShellState extends State<Shell> {
   int _tab = 0;
   final _visited = <int>{0};
 
-  static const _screens = [HomeScreen(), CoachScreen(), SquadScreen()];
+  static const _screens = [
+    HomeScreen(),
+    SavingsScreen(),
+    CoachScreen(),
+    SquadScreen(),
+  ];
 
   late final ValueNotifier<ApplePayPurchase?> _purchases;
   late final ValueNotifier<Recap?> _recaps;
@@ -175,8 +181,8 @@ class _NavBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onAdd;
 
-  /// Nav slots left to right: Home, Coach, (+), Squad.
-  static const _slotOfTab = [0, 1, 3];
+  /// Nav slots left to right: Home, Savings, (+), Coach, Squad.
+  static const _slotOfTab = [0, 1, 3, 4];
 
   @override
   Widget build(BuildContext context) {
@@ -192,11 +198,11 @@ class _NavBar extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(7),
                 child: AnimatedAlign(
-                  alignment: Alignment(-1 + 2 * slot / 3, 0),
+                  alignment: Alignment(-1 + 2 * slot / 4, 0),
                   duration: Motion.med,
                   curve: Motion.spring,
                   child: FractionallySizedBox(
-                    widthFactor: 0.25,
+                    widthFactor: 0.2,
                     heightFactor: 1,
                     child: Center(
                       child: Container(
@@ -230,9 +236,9 @@ class _NavBar extends StatelessWidget {
                   onTap: () => onSelect(0),
                 ),
                 _NavItem(
-                  icon: PhIcons.sparkle,
-                  activeIcon: PhIcons.sparkleFill,
-                  label: 'Coach',
+                  icon: PhIcons.piggyBank,
+                  activeIcon: PhIcons.piggyBankFill,
+                  label: 'Savings',
                   active: current == 1,
                   onTap: () => onSelect(1),
                 ),
@@ -240,11 +246,18 @@ class _NavBar extends StatelessWidget {
                   child: Center(child: _AddButton(onTap: onAdd)),
                 ),
                 _NavItem(
+                  icon: PhIcons.sparkle,
+                  activeIcon: PhIcons.sparkleFill,
+                  label: 'Coach',
+                  active: current == 2,
+                  onTap: () => onSelect(2),
+                ),
+                _NavItem(
                   icon: PhIcons.usersThree,
                   activeIcon: PhIcons.usersThreeFill,
                   label: 'Squad',
-                  active: current == 2,
-                  onTap: () => onSelect(2),
+                  active: current == 3,
+                  onTap: () => onSelect(3),
                 ),
               ],
             ),

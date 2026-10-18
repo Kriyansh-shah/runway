@@ -79,6 +79,29 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _savingsGoalCentsMeta = const VerificationMeta(
+    'savingsGoalCents',
+  );
+  @override
+  late final GeneratedColumn<int> savingsGoalCents = GeneratedColumn<int>(
+    'savings_goal_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _savedCentsMeta = const VerificationMeta(
+    'savedCents',
+  );
+  @override
+  late final GeneratedColumn<int> savedCents = GeneratedColumn<int>(
+    'saved_cents',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -88,6 +111,8 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
     startingBalanceCents,
     period,
     archivedAt,
+    savingsGoalCents,
+    savedCents,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -145,6 +170,21 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
         archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
+    if (data.containsKey('savings_goal_cents')) {
+      context.handle(
+        _savingsGoalCentsMeta,
+        savingsGoalCents.isAcceptableOrUnknown(
+          data['savings_goal_cents']!,
+          _savingsGoalCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('saved_cents')) {
+      context.handle(
+        _savedCentsMeta,
+        savedCents.isAcceptableOrUnknown(data['saved_cents']!, _savedCentsMeta),
+      );
+    }
     return context;
   }
 
@@ -184,6 +224,14 @@ class $TermsTable extends Terms with TableInfo<$TermsTable, TermRow> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
       ),
+      savingsGoalCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}savings_goal_cents'],
+      )!,
+      savedCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}saved_cents'],
+      ),
     );
   }
 
@@ -208,6 +256,13 @@ class TermRow extends DataClass implements Insertable<TermRow> {
 
   /// Set when a term is finished; the current term has this null.
   final DateTime? archivedAt;
+
+  /// Money to save this term (added in schema 6).
+  final int savingsGoalCents;
+
+  /// How much of the goal was kept, set when the term is archived (added
+  /// in schema 6).
+  final int? savedCents;
   const TermRow({
     required this.id,
     required this.name,
@@ -216,6 +271,8 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     required this.startingBalanceCents,
     required this.period,
     this.archivedAt,
+    required this.savingsGoalCents,
+    this.savedCents,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -233,6 +290,10 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
+    map['savings_goal_cents'] = Variable<int>(savingsGoalCents);
+    if (!nullToAbsent || savedCents != null) {
+      map['saved_cents'] = Variable<int>(savedCents);
+    }
     return map;
   }
 
@@ -247,6 +308,10 @@ class TermRow extends DataClass implements Insertable<TermRow> {
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
+      savingsGoalCents: Value(savingsGoalCents),
+      savedCents: savedCents == null && nullToAbsent
+          ? const Value.absent()
+          : Value(savedCents),
     );
   }
 
@@ -267,6 +332,8 @@ class TermRow extends DataClass implements Insertable<TermRow> {
         serializer.fromJson<String>(json['period']),
       ),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
+      savingsGoalCents: serializer.fromJson<int>(json['savingsGoalCents']),
+      savedCents: serializer.fromJson<int?>(json['savedCents']),
     );
   }
   @override
@@ -282,6 +349,8 @@ class TermRow extends DataClass implements Insertable<TermRow> {
         $TermsTable.$converterperiod.toJson(period),
       ),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
+      'savingsGoalCents': serializer.toJson<int>(savingsGoalCents),
+      'savedCents': serializer.toJson<int?>(savedCents),
     };
   }
 
@@ -293,6 +362,8 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     int? startingBalanceCents,
     BudgetPeriod? period,
     Value<DateTime?> archivedAt = const Value.absent(),
+    int? savingsGoalCents,
+    Value<int?> savedCents = const Value.absent(),
   }) => TermRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -301,6 +372,8 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     startingBalanceCents: startingBalanceCents ?? this.startingBalanceCents,
     period: period ?? this.period,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    savingsGoalCents: savingsGoalCents ?? this.savingsGoalCents,
+    savedCents: savedCents.present ? savedCents.value : this.savedCents,
   );
   TermRow copyWithCompanion(TermsCompanion data) {
     return TermRow(
@@ -315,6 +388,12 @@ class TermRow extends DataClass implements Insertable<TermRow> {
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
+      savingsGoalCents: data.savingsGoalCents.present
+          ? data.savingsGoalCents.value
+          : this.savingsGoalCents,
+      savedCents: data.savedCents.present
+          ? data.savedCents.value
+          : this.savedCents,
     );
   }
 
@@ -327,7 +406,9 @@ class TermRow extends DataClass implements Insertable<TermRow> {
           ..write('end: $end, ')
           ..write('startingBalanceCents: $startingBalanceCents, ')
           ..write('period: $period, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('savingsGoalCents: $savingsGoalCents, ')
+          ..write('savedCents: $savedCents')
           ..write(')'))
         .toString();
   }
@@ -341,6 +422,8 @@ class TermRow extends DataClass implements Insertable<TermRow> {
     startingBalanceCents,
     period,
     archivedAt,
+    savingsGoalCents,
+    savedCents,
   );
   @override
   bool operator ==(Object other) =>
@@ -352,7 +435,9 @@ class TermRow extends DataClass implements Insertable<TermRow> {
           other.end == this.end &&
           other.startingBalanceCents == this.startingBalanceCents &&
           other.period == this.period &&
-          other.archivedAt == this.archivedAt);
+          other.archivedAt == this.archivedAt &&
+          other.savingsGoalCents == this.savingsGoalCents &&
+          other.savedCents == this.savedCents);
 }
 
 class TermsCompanion extends UpdateCompanion<TermRow> {
@@ -363,6 +448,8 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
   final Value<int> startingBalanceCents;
   final Value<BudgetPeriod> period;
   final Value<DateTime?> archivedAt;
+  final Value<int> savingsGoalCents;
+  final Value<int?> savedCents;
   const TermsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -371,6 +458,8 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     this.startingBalanceCents = const Value.absent(),
     this.period = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.savingsGoalCents = const Value.absent(),
+    this.savedCents = const Value.absent(),
   });
   TermsCompanion.insert({
     this.id = const Value.absent(),
@@ -380,6 +469,8 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     required int startingBalanceCents,
     this.period = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.savingsGoalCents = const Value.absent(),
+    this.savedCents = const Value.absent(),
   }) : name = Value(name),
        start = Value(start),
        end = Value(end),
@@ -392,6 +483,8 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     Expression<int>? startingBalanceCents,
     Expression<String>? period,
     Expression<DateTime>? archivedAt,
+    Expression<int>? savingsGoalCents,
+    Expression<int>? savedCents,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -402,6 +495,8 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
         'starting_balance_cents': startingBalanceCents,
       if (period != null) 'period': period,
       if (archivedAt != null) 'archived_at': archivedAt,
+      if (savingsGoalCents != null) 'savings_goal_cents': savingsGoalCents,
+      if (savedCents != null) 'saved_cents': savedCents,
     });
   }
 
@@ -413,6 +508,8 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     Value<int>? startingBalanceCents,
     Value<BudgetPeriod>? period,
     Value<DateTime?>? archivedAt,
+    Value<int>? savingsGoalCents,
+    Value<int?>? savedCents,
   }) {
     return TermsCompanion(
       id: id ?? this.id,
@@ -422,6 +519,8 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
       startingBalanceCents: startingBalanceCents ?? this.startingBalanceCents,
       period: period ?? this.period,
       archivedAt: archivedAt ?? this.archivedAt,
+      savingsGoalCents: savingsGoalCents ?? this.savingsGoalCents,
+      savedCents: savedCents ?? this.savedCents,
     );
   }
 
@@ -451,6 +550,12 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
+    if (savingsGoalCents.present) {
+      map['savings_goal_cents'] = Variable<int>(savingsGoalCents.value);
+    }
+    if (savedCents.present) {
+      map['saved_cents'] = Variable<int>(savedCents.value);
+    }
     return map;
   }
 
@@ -463,7 +568,9 @@ class TermsCompanion extends UpdateCompanion<TermRow> {
           ..write('end: $end, ')
           ..write('startingBalanceCents: $startingBalanceCents, ')
           ..write('period: $period, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('savingsGoalCents: $savingsGoalCents, ')
+          ..write('savedCents: $savedCents')
           ..write(')'))
         .toString();
   }
@@ -4464,6 +4571,8 @@ typedef $$TermsTableCreateCompanionBuilder = TermsCompanion Function({
   required int startingBalanceCents,
   Value<BudgetPeriod> period,
   Value<DateTime?> archivedAt,
+  Value<int> savingsGoalCents,
+  Value<int?> savedCents,
 });
 typedef $$TermsTableUpdateCompanionBuilder = TermsCompanion Function({
   Value<int> id,
@@ -4473,6 +4582,8 @@ typedef $$TermsTableUpdateCompanionBuilder = TermsCompanion Function({
   Value<int> startingBalanceCents,
   Value<BudgetPeriod> period,
   Value<DateTime?> archivedAt,
+  Value<int> savingsGoalCents,
+  Value<int?> savedCents,
 });
 
 final class $$TermsTableReferences
@@ -4577,6 +4688,16 @@ class $$TermsTableFilterComposer
 
   ColumnFilters<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get savingsGoalCents => $composableBuilder(
+    column: $table.savingsGoalCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get savedCents => $composableBuilder(
+    column: $table.savedCents,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4699,6 +4820,16 @@ class $$TermsTableOrderingComposer
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get savingsGoalCents => $composableBuilder(
+    column: $table.savingsGoalCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get savedCents => $composableBuilder(
+    column: $table.savedCents,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TermsTableAnnotationComposer
@@ -4732,6 +4863,16 @@ class $$TermsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get savingsGoalCents => $composableBuilder(
+    column: $table.savingsGoalCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get savedCents => $composableBuilder(
+    column: $table.savedCents,
     builder: (column) => column,
   );
 
@@ -4850,6 +4991,8 @@ class $$TermsTableTableManager
                 Value<int> startingBalanceCents = const Value.absent(),
                 Value<BudgetPeriod> period = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<int> savingsGoalCents = const Value.absent(),
+                Value<int?> savedCents = const Value.absent(),
               }) => TermsCompanion(
                 id: id,
                 name: name,
@@ -4858,6 +5001,8 @@ class $$TermsTableTableManager
                 startingBalanceCents: startingBalanceCents,
                 period: period,
                 archivedAt: archivedAt,
+                savingsGoalCents: savingsGoalCents,
+                savedCents: savedCents,
               ),
           createCompanionCallback:
               ({
@@ -4868,6 +5013,8 @@ class $$TermsTableTableManager
                 required int startingBalanceCents,
                 Value<BudgetPeriod> period = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<int> savingsGoalCents = const Value.absent(),
+                Value<int?> savedCents = const Value.absent(),
               }) => TermsCompanion.insert(
                 id: id,
                 name: name,
@@ -4876,6 +5023,8 @@ class $$TermsTableTableManager
                 startingBalanceCents: startingBalanceCents,
                 period: period,
                 archivedAt: archivedAt,
+                savingsGoalCents: savingsGoalCents,
+                savedCents: savedCents,
               ),
           withReferenceMapper: (p0) => p0
               .map(
