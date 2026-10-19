@@ -1218,6 +1218,153 @@ void main() {
     });
   });
 
+  group('Google sign-in', () {
+    late _FakeAccounts accounts;
+    setUp(() => accounts = _FakeAccounts());
+
+    AppState stateWith({UserProfile? user}) => AppState(
+      repository: MockBudgetRepository(now: now),
+      data: MockBudgetRepository.seed(now),
+      accounts: accounts,
+      user: user,
+      clock: () => now,
+    );
+
+    Future<void> boot(WidgetTester tester, AppState state) async {
+      tester.view.physicalSize = const Size(750, 1334);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+    }
+
+    Future<void> openSettings(WidgetTester tester) async {
+      await tester.tap(find.text('A')); // avatar initial
+      await settle(tester);
+    }
+
+    testWidgets('only offered where Google sign-in is set up', (tester) async {
+      await boot(
+        tester,
+        AppState(
+          repository: MockBudgetRepository(now: now),
+          data: MockBudgetRepository.seed(now),
+          clock: () => now,
+        ),
+      );
+      expect(find.text('Continue with Google'), findsNothing);
+    });
+
+    testWidgets('welcome: signs in and greets by Google first name', (
+      tester,
+    ) async {
+      final state = stateWith();
+      await boot(tester, state);
+
+      await tester.tap(find.text('Continue with Google'));
+      await settle(tester, const Duration(seconds: 3));
+
+      expect(tester.takeException(), isNull);
+      expect(state.account?.email, 'priya@gmail.com');
+      expect(state.user?.name, 'Priya');
+      expect(state.user?.email, 'priya@gmail.com');
+      expect(find.text('Hey, Priya'), findsOneWidget);
+    });
+
+    testWidgets('welcome: backing out of Google stays put', (tester) async {
+      accounts.result = null;
+      final state = stateWith();
+      await boot(tester, state);
+
+      await tester.tap(find.text('Continue with Google'));
+      await settle(tester);
+
+      expect(state.user, isNull);
+      expect(find.text('Continue with Google'), findsOneWidget);
+    });
+
+    testWidgets('welcome: a failed sign-in says why', (tester) async {
+      accounts.error = const AccountException('No connection.');
+      final state = stateWith();
+      await boot(tester, state);
+
+      await tester.tap(find.text('Continue with Google'));
+      await settle(tester);
+
+      expect(state.user, isNull);
+      expect(find.text('No connection.'), findsOneWidget);
+    });
+
+    testWidgets('settings: signing in keeps the name you chose', (
+      tester,
+    ) async {
+      final state = stateWith(user: const UserProfile(name: 'Alex'));
+      await boot(tester, state);
+      await openSettings(tester);
+
+      await tester.tap(find.text('Continue with Google'));
+      await settle(tester);
+
+      expect(state.user?.name, 'Alex');
+      expect(find.text('priya@gmail.com'), findsOneWidget);
+    });
+
+    testWidgets('settings: signing out keeps the budget', (tester) async {
+      accounts.current = accounts.result;
+      final state = stateWith(
+        user: const UserProfile(name: 'Alex', email: 'priya@gmail.com'),
+      );
+      final spent = state.snapshot.totalSpent;
+      await boot(tester, state);
+      await openSettings(tester);
+
+      await tester.tap(find.text('Sign out'));
+      await settle(tester);
+      await tester.tap(find.text('Sign out').last); // confirm in the sheet
+      await settle(tester);
+
+      expect(state.account, isNull);
+      expect(state.user?.name, 'Alex');
+      expect(state.user?.email, isEmpty);
+      expect(state.snapshot.totalSpent, spent);
+      expect(find.text('Continue with Google'), findsOneWidget);
+    });
+
+    testWidgets('settings: deleting the account', (tester) async {
+      accounts.current = accounts.result;
+      final state = stateWith(
+        user: const UserProfile(name: 'Alex', email: 'priya@gmail.com'),
+      );
+      await boot(tester, state);
+      await openSettings(tester);
+
+      await centerOn(tester, find.text('Delete account'));
+      await tester.tap(find.text('Delete account'));
+      await settle(tester);
+      await tester.tap(find.text('Delete account').last);
+      await settle(tester);
+
+      expect(accounts.deleted, isTrue);
+      expect(state.account, isNull);
+      expect(state.user?.name, 'Alex');
+      expect(find.text('Your account was deleted.'), findsOneWidget);
+    });
+
+    test('erasing everything also signs out', () async {
+      accounts.current = accounts.result;
+      final state = stateWith(user: const UserProfile(name: 'Alex'));
+      await state.eraseEverything();
+      expect(state.account, isNull);
+      expect(state.user, isNull);
+    });
+  });
+
+  test('first names come from a full Google name', () {
+    expect(firstNameOf('Priya Patel'), 'Priya');
+    expect(firstNameOf('  Sam  '), 'Sam');
+    expect(firstNameOf('x' * 40).length, 30);
+  });
+
   test('names are required and kept short', () {
     expect(validateName('Sam'), isNull);
     expect(validateName('   '), isNotNull);
@@ -1504,4 +1651,37 @@ class _HistoryRepository extends MockBudgetRepository {
 
   @override
   Future<List<PastTerm>> history() async => _past;
+}
+
+/// Google sign-in without Google: returns [result] (null = backed out) or
+/// throws [error].
+class _FakeAccounts implements AccountService {
+  Account? result = const Account(
+    id: 'u1',
+    email: 'priya@gmail.com',
+    firstName: 'Priya',
+  );
+  AccountException? error;
+  bool deleted = false;
+
+  @override
+  Account? current;
+
+  @override
+  bool get canUseGoogle => true;
+
+  @override
+  Future<Account?> signInWithGoogle() async {
+    if (error case final e?) throw e;
+    return current = result;
+  }
+
+  @override
+  Future<void> signOut() async => current = null;
+
+  @override
+  Future<void> deleteAccount() async {
+    deleted = true;
+    current = null;
+  }
 }

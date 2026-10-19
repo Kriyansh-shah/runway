@@ -1,9 +1,10 @@
 # Runway Privacy Policy
 
-_Last updated: October 12, 2026_
+_Last updated: October 19, 2026_
 
-**The short version: Runway doesn't collect your data. Everything you enter
-stays on your device, and we can't see it.**
+**The short version: your money data stays on your device, and we can't see
+it. Signing in with Google is optional; if you do, only your name, email and
+an account ID are stored on our server.**
 
 ## What Runway stores, and where
 
@@ -24,9 +25,23 @@ other apps can't open.
 
 ## What leaves your device
 
-**Nothing.** Runway has no accounts, no servers, no analytics, no ads and no
-tracking, and it doesn't include any third-party code that collects data. We
-never receive, sell or share your information, because we never have it.
+**Your money data never does.** Balances, expenses, budgets, bills and splits
+stay on your device whether or not you sign in.
+
+**If you don't sign in, nothing leaves your device.**
+
+**If you choose "Continue with Google":**
+
+- Google confirms who you are and tells Runway your **name, email address and
+  Google account ID**. Runway never sees your Google password.
+- Those are stored in Runway's account database, run by
+  [Supabase](https://supabase.com/privacy) on servers in the United States,
+  so you can sign in again later and, in the future, use Squad.
+- Runway keeps a sign-in session on your device, in the iOS Keychain or
+  Android Keystore.
+
+Runway has no analytics, no ads and no tracking. We never sell or share your
+information, and it's used only to run your account.
 
 ## Face ID, Touch ID and passcode
 
@@ -50,9 +65,13 @@ money amounts.
 
 ## Deleting your data
 
-- In Runway: **Settings → Erase everything on this phone** deletes all of it
-  and rewrites the file so nothing is left behind.
-- Or delete the app. Its data is deleted with it.
+- **Your account:** Settings → Account → **Delete account** deletes your
+  account and everything stored with it on our server, right away.
+- **Data on your device:** Settings → **Erase everything on this phone**
+  deletes all of it and rewrites the file so nothing is left behind. It also
+  signs you out.
+- Or delete the app. Its data on the device is deleted with it. (This doesn't
+  delete your account; use Delete account for that.)
 
 ## Children
 

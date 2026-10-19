@@ -9,8 +9,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'app/app_state.dart';
+import 'app/auth.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
+import 'app/supabase_accounts.dart';
 // import 'app/purchase_link.dart';
 import 'app/theme.dart';
 import 'screens/launch_intro.dart';
@@ -35,7 +37,22 @@ Future<void> main() async {
   final repository = DriftBudgetRepository(await RunwayDatabase.onDevice());
   final data = await repository.load();
   final user = await repository.currentUser();
-  final state = AppState(repository: repository, data: data, user: user);
+  // Optional Google sign-in, on iPhone and Android only. If it can't start,
+  // the app still opens, name-only.
+  AccountService accounts = const NoAccounts();
+  if (SupabaseAccounts.supported) {
+    try {
+      accounts = await SupabaseAccounts.start();
+    } on Object catch (error) {
+      debugPrint('Sign-in unavailable: $error');
+    }
+  }
+  final state = AppState(
+    repository: repository,
+    data: data,
+    user: user,
+    accounts: accounts,
+  );
   // A monthly budget moves on once its month is over, also when the app
   // comes back from the background in a new month.
   state.startNewMonthIfDue();

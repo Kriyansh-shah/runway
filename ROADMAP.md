@@ -164,9 +164,9 @@ screen), and the app lock below protects the data on the phone.
 
 *Owner to-do (needs your accounts, payments or decisions):*
 - [ ] Apple Developer Program ($99/yr): needed for Sign in with Apple and the App Store.
-- [ ] Supabase project (free tier): share the project URL + anon key. Never share
+- [x] Supabase project (free tier): share the project URL + anon key. Never share
       the service role key.
-- [ ] Google Cloud project: OAuth consent screen (name + email only), iOS client
+- [x] Google Cloud project: OAuth consent screen (name + email only), iOS client
       ID and web client ID.
 - [ ] Google Play Console ($25 once), only if shipping Android; app signing SHA-1.
 - [ ] Turn on "Sign in with Apple" for `com.kriyanshshah.runway`; enable Apple,
@@ -180,10 +180,10 @@ screen), and the app lock below protects the data on the phone.
       same phone.
 
 *Build (once the keys exist):*
-- [ ] `supabase_flutter` behind a real `AuthService`; sessions in Keychain / Keystore.
-- [ ] Apple, Google and email-code buttons on the welcome screen.
+- [x] `supabase_flutter` behind a real `AccountService`; sessions in Keychain / Keystore.
+- [ ] Apple, Google and email-code buttons on the welcome screen (Google ✅ 2026-10-19; Apple and email codes to do).
 - [ ] Squad tables with row-level security on every table.
-- [ ] In-app account deletion (needs a small Edge Function).
+- [x] In-app account deletion (needs a small Edge Function).
 - [ ] URL scheme / universal link so email links open the app; tests.
 
 ---

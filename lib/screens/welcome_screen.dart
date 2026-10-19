@@ -20,8 +20,9 @@ import '../widgets/ph_icons.dart';
 enum _Phase { idle, success }
 
 /// First screen on a fresh install (or after erasing everything): asks only
-/// for a name. There are no accounts and no passwords; the money data never
-/// leaves the phone, and the optional app lock protects it.
+/// for a name, or signs in with Google where that's set up. No passwords;
+/// the money data never leaves the phone, and the optional app lock
+/// protects it.
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key, this.playIntro = false});
 
@@ -37,6 +38,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     with TickerProviderStateMixin {
   final _name = TextEditingController();
   final _buttonKey = GlobalKey();
+  final _googleKey = GlobalKey();
   final _logoKey = GlobalKey();
   final _stackKey = GlobalKey();
 
@@ -48,6 +50,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   _Phase _phase = _Phase.idle;
   String? _error;
+
+  /// Google's account picker is open or the sign-in is finishing.
+  bool _googleBusy = false;
+  String? _googleError;
 
   /// Horizontal shake when the name is missing.
   late final _shake = AnimationController(
@@ -87,7 +93,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Future<void> _submit() async {
-    if (_phase != _Phase.idle) return;
+    if (_phase != _Phase.idle || _googleBusy) return;
     final error = validateName(_name.text);
     if (error != null) {
       HapticFeedback.heavyImpact();
@@ -106,11 +112,46 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     await Future<void>.delayed(const Duration(milliseconds: 380));
     if (!mounted) return;
 
-    final box = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    state.signedIn(user);
+    await _reveal(_buttonKey);
+  }
+
+  Future<void> _continueWithGoogle() async {
+    if (_phase != _Phase.idle || _googleBusy) return;
+    FocusScope.of(context).unfocus();
+    HapticFeedback.selectionClick();
+    final state = AppScope.read(context);
+    setState(() {
+      _googleBusy = true;
+      _googleError = null;
+    });
+    try {
+      final signedIn = await state.signInWithGoogle();
+      if (!mounted) return;
+      if (!signedIn) {
+        setState(() => _googleBusy = false);
+        return;
+      }
+    } on AccountException catch (e) {
+      if (!mounted) return;
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _googleBusy = false;
+        _googleError = e.message;
+      });
+      return;
+    }
+    HapticFeedback.mediumImpact();
+    await _reveal(_googleKey);
+  }
+
+  /// Opens the next screen in a circle growing from the button at [from].
+  Future<void> _reveal(GlobalKey from) async {
+    final state = AppScope.read(context);
+    final box = from.currentContext?.findRenderObject() as RenderBox?;
     final center = box == null
         ? MediaQuery.sizeOf(context).center(Offset.zero)
         : box.localToGlobal(box.size.center(Offset.zero));
-    state.signedIn(user);
     _exit.forward();
     await Navigator.of(context).pushReplacement(
       CircularRevealRoute<void>(
@@ -122,7 +163,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final busy = _phase != _Phase.idle;
+    final busy = _phase != _Phase.idle || _googleBusy;
+    final google = AppScope.read(context).accounts.canUseGoogle;
     final sections = <Widget>[
       // The intro hands its logo over to this exact spot when it ends.
       Center(
@@ -206,9 +248,32 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
         ),
       ),
+      if (google) ...[
+        const SizedBox(height: 16),
+        const _OrDivider(),
+        const SizedBox(height: 16),
+        _GoogleButton(
+          key: _googleKey,
+          busy: _googleBusy,
+          onTap: busy ? null : _continueWithGoogle,
+        ),
+        if (_googleError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(
+              _googleError!,
+              style: AppText.label.copyWith(color: AppColors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+      ],
       const SizedBox(height: 20),
       Text(
-        '🔒 No account, no bank linking. Your money data stays on this phone.',
+        google
+            ? '🔒 No bank linking. Your money data stays on this phone, '
+                  'even when you sign in.'
+            : '🔒 No account, no bank linking. Your money data stays on '
+                  'this phone.',
         style: AppText.caption.copyWith(fontSize: 12, letterSpacing: 0),
         textAlign: TextAlign.center,
       ),
@@ -375,6 +440,77 @@ class _MorphButton extends StatelessWidget {
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "or" between the name card and the Google button.
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final line = Expanded(child: Divider(color: AppColors.hairline));
+    return Row(
+      children: [
+        line,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text('or', style: AppText.label),
+        ),
+        line,
+      ],
+    );
+  }
+}
+
+/// White "Continue with Google" pill, as Google's sign-in guidelines ask.
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({super.key, required this.busy, required this.onTap});
+
+  final bool busy;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const ink = Color(0xFF1F1F1F);
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: 'Continue with Google',
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(26),
+        ),
+        alignment: Alignment.center,
+        child: busy
+            ? const SizedBox.square(
+                dimension: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: ink),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'G',
+                    style: AppText.heading.copyWith(
+                      color: const Color(0xFF4285F4),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      'Continue with Google',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.heading.copyWith(color: ink, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

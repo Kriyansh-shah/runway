@@ -10,19 +10,30 @@ Where Runway stands before its first App Store submission, and what's left.
 - **Face ID message:** "Runway uses Face ID so only you can open your budget."
 - **Version:** 1.0.0, build 1 (`version:` in `pubspec.yaml`; raise the build
   number for every upload).
-- **No sign-in, so no account deletion is needed.** Apple only requires in-app
-  account deletion for apps that have accounts.
+- **Account deletion in the app** (Settings → Account → Delete account), as
+  Apple requires for apps with sign-in. It calls the `delete-account` Edge
+  Function (`supabase/functions/delete-account`).
+- ⚠️ **Sign in with Apple is still missing.** Because Runway offers Google
+  sign-in, App Review Guideline 4.8 requires an equivalent privacy-focused
+  option. Add Sign in with Apple (needs the paid developer account) before
+  the first submission.
 - **Privacy policy:** written in [`privacy.md`](privacy.md). It still needs a
   contact email and a public web address (see below).
 
 ## App Privacy label (App Store Connect)
 
-**Answer: "No, we do not collect data from this app."**
+**Answer: "Yes, we collect data"**, only for people who sign in with Google:
 
-Apple counts data as "collected" only when it's sent off the device. Runway
-has no servers, analytics, ads or tracking, and nothing leaves the phone. Face
-ID results come from iOS and aren't stored. If Squad ever syncs real friends,
-this answer has to change before that update ships.
+| Data type | Linked to the user | Used for tracking | Purpose |
+| --- | --- | --- | --- |
+| Contact Info → Name | Yes | No | App Functionality |
+| Contact Info → Email Address | Yes | No | App Functionality |
+| Identifiers → User ID | Yes | No | App Functionality |
+
+Money data (balances, expenses, budgets) never leaves the phone, so no
+Financial Info is collected. Face ID results come from iOS and aren't stored.
+When Squad syncs real friends, add what it shares (e.g. streaks) before that
+update ships.
 
 ## Export compliance (encryption question)
 
@@ -39,10 +50,11 @@ before answering. Once decided, add `ITSAppUsesNonExemptEncryption` to
 ## Notes for App Review (draft)
 
 > Runway needs no account. On the first screen, type any first name and tap
-> Get started, then enter any dates and an amount to set up a budget. The app
-> lock (Face ID) is optional. Squad currently shows sample friends to preview
-> the feature; nothing is shared. Runway makes no network requests: all data
-> stays on the device, encrypted.
+> Get started, then enter any dates and an amount to set up a budget. Signing
+> in with Google is optional and can be tested from Settings → Account, which
+> also has Delete account. The app lock (Face ID) is optional. Squad currently
+> shows sample friends to preview the feature; nothing is shared. Money data
+> stays on the device, encrypted, and is never sent to a server.
 
 ## Owner to-do (needs your accounts or decisions)
 

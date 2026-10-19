@@ -21,6 +21,7 @@ class AppState extends ChangeNotifier {
     required BudgetData data,
     this.coach = const LocalCoach(),
     this.deviceAuth = const LocalDeviceAuth(),
+    this.accounts = const NoAccounts(),
     UserProfile? user,
     DateTime Function()? clock,
   }) : _repo = repository,
@@ -48,6 +49,9 @@ class AppState extends ChangeNotifier {
 
   /// Face ID / Touch ID / passcode prompt for the app lock.
   final DeviceAuth deviceAuth;
+
+  /// Optional Google sign-in (Supabase). [NoAccounts] where it isn't set up.
+  final AccountService accounts;
 
   Term _term;
   final List<Expense> _expenses;
@@ -436,6 +440,46 @@ class AppState extends ChangeNotifier {
     _persist(() => _repo.setCurrentUser(user));
   }
 
+  /// The linked Google account, or null when it's name-only.
+  Account? get account => accounts.current;
+
+  /// Signs in with Google; false when the person backed out. From the
+  /// welcome screen this also makes the profile, greeting them by their
+  /// Google first name; afterwards the name they chose stays.
+  Future<bool> signInWithGoogle() async {
+    final account = await accounts.signInWithGoogle();
+    if (account == null) return false;
+    final name =
+        _user?.name ??
+        (validateName(account.firstName) == null
+            ? account.firstName
+            : 'Friend');
+    _user = UserProfile(name: name, email: account.email);
+    notifyListeners();
+    _persist(() => _repo.setCurrentUser(_user));
+    return true;
+  }
+
+  /// Unlinks the Google account on this phone. The budget stays.
+  Future<void> signOutAccount() async {
+    await accounts.signOut();
+    _forgetAccount();
+  }
+
+  /// Deletes the Google-linked account on the server. The budget on this
+  /// phone stays; "Erase everything" removes that.
+  Future<void> deleteAccount() async {
+    await accounts.deleteAccount();
+    _forgetAccount();
+  }
+
+  void _forgetAccount() {
+    final user = _user;
+    if (user != null) _user = UserProfile(name: user.name);
+    notifyListeners();
+    _persist(() => _repo.setCurrentUser(_user));
+  }
+
   /// Changes the name shown in the greeting.
   void rename(String name) {
     final user = _user;
@@ -791,6 +835,13 @@ class AppState extends ChangeNotifier {
   /// this waits for the database, so nothing is left behind if it fails.
   Future<void> eraseEverything() async {
     await _repo.eraseEverything();
+    if (accounts.current != null) {
+      try {
+        await accounts.signOut();
+      } on Object catch (error) {
+        debugPrint('Sign-out while erasing failed: $error');
+      }
+    }
     _apply(await _repo.load());
     _user = null;
     _changed();

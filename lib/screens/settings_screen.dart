@@ -130,7 +130,15 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   if (user != null)
-                    _ProfileEditor(key: ObjectKey(user), name: user.name),
+                    _ProfileEditor(
+                      key: ObjectKey(user),
+                      name: user.name,
+                      signedIn: state.account != null,
+                    ),
+                  if (state.account != null || state.accounts.canUseGoogle) ...[
+                    const SectionHeader('Account'),
+                    const _AccountCard(),
+                  ],
                   const SectionHeader('Security'),
                   const _AppLockCard(),
                   SectionHeader(
@@ -428,10 +436,11 @@ class _LinkRow extends StatelessWidget {
   }
 }
 
-/// Your name, for the greeting. No account: it never leaves the phone.
+/// Your name, for the greeting. It stays on the phone.
 class _ProfileEditor extends StatefulWidget {
-  const _ProfileEditor({super.key, required this.name});
+  const _ProfileEditor({super.key, required this.name, required this.signedIn});
   final String name;
+  final bool signedIn;
 
   @override
   State<_ProfileEditor> createState() => _ProfileEditorState();
@@ -489,11 +498,156 @@ class _ProfileEditorState extends State<_ProfileEditor> {
           ),
           const SizedBox(height: 8),
           Text(
-            problem ?? 'No account needed. Your name and money data stay on this phone.',
+            problem ??
+                (widget.signedIn
+                    ? 'Your money data stays on this phone.'
+                    : 'No account needed. Your name and money data stay on '
+                          'this phone.'),
             style: (problem == null ? AppText.caption : AppText.label).copyWith(
               letterSpacing: 0,
               color: problem == null ? null : AppColors.red,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Optional Google account: sign in, sign out, or delete it. Money data
+/// stays on the phone whichever you pick.
+class _AccountCard extends StatefulWidget {
+  const _AccountCard();
+
+  @override
+  State<_AccountCard> createState() => _AccountCardState();
+}
+
+class _AccountCardState extends State<_AccountCard> {
+  bool _busy = false;
+
+  Future<void> _run(Future<void> Function(AppState state) action) async {
+    if (_busy) return;
+    final state = AppScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      await action(state);
+    } on AccountException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _signIn() => _run((state) async {
+    if (await state.signInWithGoogle()) HapticFeedback.mediumImpact();
+  });
+
+  Future<void> _signOut() async {
+    final ok = await showActionSheet<bool>(
+      context,
+      title: 'Sign out?',
+      message: 'Your budget stays on this phone. Sign in again any time.',
+      actions: const [
+        SheetAction(value: true, label: 'Sign out', icon: PhIcons.signOut),
+      ],
+    );
+    if (ok == true) await _run((state) => state.signOutAccount());
+  }
+
+  Future<void> _delete() async {
+    final ok = await showActionSheet<bool>(
+      context,
+      title: 'Delete your account?',
+      message:
+          'Your Runway account and everything stored with it online are '
+          'deleted for good. Your budget on this phone stays; use "Erase '
+          'everything" to remove that too.',
+      actions: const [
+        SheetAction(
+          value: true,
+          label: 'Delete account',
+          icon: PhIcons.trash,
+          destructive: true,
+        ),
+      ],
+    );
+    if (ok != true) return;
+    HapticFeedback.heavyImpact();
+    await _run((state) async {
+      await state.deleteAccount();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Your account was deleted.')),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final account = AppScope.of(context).account;
+    if (account == null) {
+      return GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _LinkRow(
+              icon: PhIcons.user,
+              label: _busy ? 'Signing in…' : 'Continue with Google',
+              onTap: _signIn,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Optional. Squad will need it later. Your money data stays '
+                'on this phone.',
+                style: AppText.caption.copyWith(letterSpacing: 0),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              children: [
+                const Icon(PhIcons.user, size: 20, color: AppColors.lime),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Signed in with Google', style: AppText.label),
+                      Text(
+                        account.email,
+                        style: AppText.body.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: AppColors.hairline),
+          _LinkRow(icon: PhIcons.signOut, label: 'Sign out', onTap: _signOut),
+          Divider(height: 1, color: AppColors.hairline),
+          _LinkRow(
+            icon: PhIcons.trash,
+            label: 'Delete account',
+            color: AppColors.red,
+            onTap: _delete,
           ),
         ],
       ),

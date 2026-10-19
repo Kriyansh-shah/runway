@@ -35,6 +35,18 @@
 		</dict>
 	</array>
 	-->
+	<!-- Google sign-in returns to the app through its reversed iOS client ID. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.363749449062-lkvjpjh5qk55co4fv5dvq5s7f7qqq9hh</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FlutterDeepLinkingEnabled</key>
