@@ -67,6 +67,23 @@ class RunwaySnapshot {
   /// Spent out of the savings goal so far.
   double get dippedIntoSavings => savingsGoal - savingsKept;
 
+  /// How much of the savings goal there'd be at the end if spending keeps
+  /// its pace ([burnRate] every day left, today included).
+  double get projectedSavings =>
+      (available + savingsGoal + spentToday - burnRate * daysLeft)
+          .clamp(0, math.max(0, savingsGoal))
+          .toDouble();
+
+  /// Spending less than [dailyAllowance] a day keeps the whole goal.
+  bool get onTrackToSave => projectedSavings >= savingsGoal - 0.005;
+
+  /// How much less to spend each day, at the current pace, to keep the
+  /// whole goal; 0 when on track.
+  double get savingsCutPerDay => math.max(0, burnRate - dailyAllowance);
+
+  /// The pace means little in the first few days.
+  bool get tooEarlyToForecast => daysElapsed < 3;
+
   /// The most the savings goal can be right now: everything not already
   /// promised to a big cost.
   double get maxSavingsGoal => math.max(0, balance - reserved);

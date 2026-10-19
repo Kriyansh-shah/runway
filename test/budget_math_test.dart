@@ -159,6 +159,33 @@ void main() {
       expect(s.available, -50);
     });
 
+    test('forecasts what the goal ends at, at the current pace', () {
+      // 1000 over 19 days; spending $40/day on days −9..0.
+      final expenses = [for (var d = -9; d <= 0; d++) spend(40, d)];
+      final s = computeRunway(
+        term: term.copyWith(savingsGoal: 300),
+        expenses: expenses,
+        upcoming: const [],
+        today: today,
+      );
+      // 600 left; 9 more days after today at $40 = 360 more spent.
+      expect(s.burnRate, 40);
+      expect(s.dailyAllowance, 34); // (300 available + 40 today) / 10
+      expect(s.projectedSavings, 240); // 300 + 300 + 40 − 400
+      expect(s.onTrackToSave, isFalse);
+      expect(s.savingsCutPerDay, 6);
+
+      final slower = computeRunway(
+        term: term.copyWith(savingsGoal: 300),
+        expenses: [for (var d = -9; d <= 0; d++) spend(30, d)],
+        upcoming: const [],
+        today: today,
+      );
+      expect(slower.onTrackToSave, isTrue);
+      expect(slower.projectedSavings, 300);
+      expect(slower.savingsCutPerDay, 0);
+    });
+
     test('streak counts goals hit in a row, newest first', () {
       SavedTerm t(double goal, double saved) => SavedTerm(
         name: 'M',

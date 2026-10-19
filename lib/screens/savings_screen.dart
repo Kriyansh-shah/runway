@@ -83,8 +83,13 @@ class _GoalCard extends StatelessWidget {
         ),
       );
     }
-    final kept = s.savingsKept;
-    final dipped = s.dippedIntoSavings;
+    // What the goal ends at if spending keeps its pace: the ring and the
+    // big number are about the end of the term, not money in hand.
+    final early = s.tooEarlyToForecast;
+    final heading = early ? s.savingsKept : s.projectedSavings;
+    final onTrack = early ? s.dippedIntoSavings <= 0.005 : s.onTrackToSave;
+    final cents = heading != heading.roundToDouble();
+    final daysLeft = s.daysLeft;
     return GlassCard(
       strong: true,
       child: Column(
@@ -97,25 +102,38 @@ class _GoalCard extends StatelessWidget {
                 alignment: Alignment.center,
                 children: [
                   TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: kept / goal),
+                    tween: Tween(begin: 0, end: heading / goal),
                     duration: Motion.slow,
                     curve: Motion.roll,
                     builder: (context, v, _) => CustomPaint(
                       size: const Size.square(200),
-                      painter: _SavingsRing(kept: v, dipped: dipped > 0.005),
+                      painter: _SavingsRing(kept: v, dipped: !onTrack),
                     ),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Set aside', style: AppText.label),
+                      Text(
+                        early
+                            ? 'Your goal'
+                            : onTrack
+                            ? 'On track for'
+                            : 'Heading for',
+                        style: AppText.label,
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                        money(kept, cents: kept != kept.roundToDouble()),
-                        style: AppText.number.copyWith(fontSize: 34),
+                        money(early ? goal : heading, cents: cents && !early),
+                        style: AppText.number.copyWith(
+                          fontSize: 34,
+                          color: onTrack ? AppColors.text : AppColors.butter,
+                        ),
                       ),
                       Text(
-                        'of ${money(goal, cents: false)} for ${term.name}',
+                        early
+                            ? 'by ${shortDate(s.termEnd)}'
+                            : 'of ${money(goal, cents: false)} by '
+                                  '${shortDate(s.termEnd)}',
                         style: AppText.caption.copyWith(letterSpacing: 0),
                       ),
                     ],
@@ -126,17 +144,31 @@ class _GoalCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            dipped > 0.005
-                ? 'You\'ve spent ${money(dipped)} of it. Stay under your '
-                      'daily budget to keep the rest.'
-                : 'Safe as long as you stay on budget. It counts as saved '
-                      'when the $noun ends.',
+            early
+                ? 'Too early to tell how it\'s going. Check back in a few '
+                      'days.'
+                : onTrack
+                ? 'On track to save ${money(goal, cents: false)} by '
+                      '${shortDate(s.termEnd)} 🎉'
+                : 'At your pace you\'d keep ${money(heading, cents: false)} '
+                      'of ${money(goal, cents: false)}. Spend '
+                      '${money(s.savingsCutPerDay)}/day less to keep it all.',
             style: AppText.body.copyWith(
-              color: dipped > 0.005 ? AppColors.butter : AppColors.text,
+              color: onTrack ? AppColors.text : AppColors.butter,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 6),
+          Text(
+            s.dailyAllowance > 0
+                ? '${plural(daysLeft, 'day')} to go · under '
+                      '${money(s.dailyAllowance)}/day keeps it all'
+                : '${plural(daysLeft, 'day')} to go · more spending comes '
+                      'out of it',
+            style: AppText.label,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
           Center(
             child: TextButton.icon(
               onPressed: () => showSavingsGoalSheet(context),
@@ -197,7 +229,7 @@ class _TotalCard extends StatelessWidget {
                 ? 'What you keep of each goal adds up here.'
                 : kept > 0
                 ? '+ ${money(kept, cents: false)} more when ${state.term.name} '
-                      'ends, if you keep it'
+                      'ends, if you stay on budget'
                 : 'From the ${state.term.period.noun}s you\'ve finished',
             style: AppText.label,
           ),
@@ -254,8 +286,8 @@ class _PastSavings extends StatelessWidget {
   }
 }
 
-/// Lime ring for the part of the goal still set aside; butter once some
-/// of it has been spent.
+/// Lime ring for the part of the goal you're on track to keep; butter
+/// when the pace would eat into it.
 class _SavingsRing extends CustomPainter {
   _SavingsRing({required this.kept, required this.dipped});
   final double kept;

@@ -533,7 +533,10 @@ void main() {
 
     await tester.tap(find.text('Savings'));
     await settle(tester);
-    expect(find.text('of \$120 for Fall term'), findsOneWidget);
+    // The demo spends faster than the budget, so the goal is at risk.
+    expect(find.text('Heading for'), findsOneWidget);
+    expect(find.textContaining('/day less to keep it all'), findsOneWidget);
+    expect(find.textContaining('/day keeps it all'), findsOneWidget);
     expect(find.text('Saved so far'), findsOneWidget);
   });
 
