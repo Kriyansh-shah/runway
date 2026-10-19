@@ -12,7 +12,9 @@ import 'app/app_state.dart';
 import 'app/auth.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
+import 'app/squad.dart';
 import 'app/supabase_accounts.dart';
+import 'app/supabase_squad.dart';
 // import 'app/purchase_link.dart';
 import 'app/theme.dart';
 import 'screens/launch_intro.dart';
@@ -40,9 +42,11 @@ Future<void> main() async {
   // Optional Google sign-in, on iPhone and Android only. If it can't start,
   // the app still opens, name-only.
   AccountService accounts = const NoAccounts();
+  SquadService squad = const NoSquad();
   if (SupabaseAccounts.supported) {
     try {
       accounts = await SupabaseAccounts.start();
+      squad = const SupabaseSquad();
     } on Object catch (error) {
       debugPrint('Sign-in unavailable: $error');
     }
@@ -52,6 +56,7 @@ Future<void> main() async {
     data: data,
     user: user,
     accounts: accounts,
+    squadService: squad,
   );
   // A monthly budget moves on once its month is over, also when the app
   // comes back from the background in a new month.

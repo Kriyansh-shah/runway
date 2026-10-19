@@ -10,6 +10,7 @@ import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/glass.dart';
+import '../widgets/google_button.dart';
 import '../widgets/mochi_takeoff.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
@@ -252,7 +253,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         const SizedBox(height: 16),
         const _OrDivider(),
         const SizedBox(height: 16),
-        _GoogleButton(
+        GoogleButton(
           key: _googleKey,
           busy: _googleBusy,
           onTap: busy ? null : _continueWithGoogle,
@@ -461,57 +462,6 @@ class _OrDivider extends StatelessWidget {
         ),
         line,
       ],
-    );
-  }
-}
-
-/// White "Continue with Google" pill, as Google's sign-in guidelines ask.
-class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({super.key, required this.busy, required this.onTap});
-
-  final bool busy;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    const ink = Color(0xFF1F1F1F);
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: 'Continue with Google',
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
-        ),
-        alignment: Alignment.center,
-        child: busy
-            ? const SizedBox.square(
-                dimension: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.4, color: ink),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'G',
-                    style: AppText.heading.copyWith(
-                      color: const Color(0xFF4285F4),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      'Continue with Google',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.heading.copyWith(color: ink, fontSize: 16),
-                    ),
-                  ),
-                ],
-              ),
-      ),
     );
   }
 }

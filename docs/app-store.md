@@ -13,6 +13,10 @@ Where Runway stands before its first App Store submission, and what's left.
 - **Account deletion in the app** (Settings → Account → Delete account), as
   Apple requires for apps with sign-in. It calls the `delete-account` Edge
   Function (`supabase/functions/delete-account`).
+- ⚠️ **Squad has Leave but no Remove member, Block or Report yet.** Apple
+  expects these when users can interact (Guideline 1.2). Squads are
+  invite-only and show only names and streaks, but add them before
+  submitting.
 - ⚠️ **Sign in with Apple is still missing.** Because Runway offers Google
   sign-in, App Review Guideline 4.8 requires an equivalent privacy-focused
   option. Add Sign in with Apple (needs the paid developer account) before
@@ -29,11 +33,13 @@ Where Runway stands before its first App Store submission, and what's left.
 | Contact Info → Name | Yes | No | App Functionality |
 | Contact Info → Email Address | Yes | No | App Functionality |
 | Identifiers → User ID | Yes | No | App Functionality |
+| Usage Data → Product Interaction (Squad streak, challenge days) | Yes | No | App Functionality |
+| User Content → Other User Content (squad names) | Yes | No | App Functionality |
 
 Money data (balances, expenses, budgets) never leaves the phone, so no
 Financial Info is collected. Face ID results come from iOS and aren't stored.
-When Squad syncs real friends, add what it shares (e.g. streaks) before that
-update ships.
+Squad shares first name, emoji, streak and no-delivery days with squad
+members only (see privacy.md).
 
 ## Export compliance (encryption question)
 
@@ -52,9 +58,10 @@ before answering. Once decided, add `ITSAppUsesNonExemptEncryption` to
 > Runway needs no account. On the first screen, type any first name and tap
 > Get started, then enter any dates and an amount to set up a budget. Signing
 > in with Google is optional and can be tested from Settings → Account, which
-> also has Delete account. The app lock (Face ID) is optional. Squad currently
-> shows sample friends to preview the feature; nothing is shared. Money data
-> stays on the device, encrypted, and is never sent to a server.
+> also has Delete account. The app lock (Face ID) is optional. Squad needs
+> sign-in: start a squad, then share its invite code; friends see only first
+> names, streaks and challenge days. Money data stays on the device,
+> encrypted, and is never sent to a server.
 
 ## Owner to-do (needs your accounts or decisions)
 

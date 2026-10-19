@@ -7,6 +7,7 @@ import 'package:runway/app/device_auth.dart';
 import 'package:runway/app/models.dart';
 // import 'package:runway/app/purchase_link.dart';
 import 'package:runway/app/repository.dart';
+import 'package:runway/app/squad.dart';
 import 'package:runway/main.dart';
 import 'package:runway/screens/add_income_sheet.dart';
 import 'package:runway/screens/edit_cost_sheet.dart';
@@ -1359,6 +1360,130 @@ void main() {
     });
   });
 
+  group('real squad', () {
+    late _FakeAccounts accounts;
+    late _FakeSquad squads;
+    setUp(() {
+      accounts = _FakeAccounts();
+      squads = _FakeSquad();
+    });
+
+    AppState stateWith({bool signedIn = true}) {
+      if (signedIn) accounts.current = accounts.result;
+      return AppState(
+        repository: MockBudgetRepository(now: now),
+        data: MockBudgetRepository.seed(now),
+        accounts: accounts,
+        squadService: squads,
+        user: const UserProfile(name: 'Alex'),
+        clock: () => now,
+      );
+    }
+
+    Future<void> openSquad(WidgetTester tester, AppState state) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+      await tester.tap(find.text('Squad'));
+      await settle(tester, const Duration(seconds: 2));
+    }
+
+    testWidgets('signed out: asks to sign in, then offers to start one', (
+      tester,
+    ) async {
+      final state = stateWith(signedIn: false);
+      await openSquad(tester, state);
+      expect(find.text('Budget with your friends'), findsOneWidget);
+      expect(find.text('Maya'), findsNothing); // no sample friends
+
+      await tester.tap(find.text('Continue with Google'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(find.text('Start a squad'), findsOneWidget);
+      expect(squads.published?.name, 'Alex');
+      expect(squads.published?.streak, state.streak);
+    });
+
+    testWidgets('starting a squad shows it with just you', (tester) async {
+      final state = stateWith();
+      await openSquad(tester, state);
+
+      await tester.tap(find.text('Start squad'));
+      await settle(tester);
+      expect(find.text('Give your squad a name.'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).first, 'Apt 4B');
+      await tester.tap(find.text('Start squad'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(find.text('Apt 4B'), findsOneWidget);
+      expect(find.text('Just you so far'), findsOneWidget);
+      expect(find.text('Invite friends'), findsOneWidget);
+      expect(find.text('No-delivery week'), findsOneWidget);
+    });
+
+    testWidgets('joining with a code shows your friends\' streaks', (
+      tester,
+    ) async {
+      final state = stateWith();
+      await openSquad(tester, state);
+
+      await tester.enterText(find.byType(TextField).last, 'wrong1');
+      await tester.tap(find.text('Join'));
+      await settle(tester);
+      expect(find.textContaining('That code didn\'t work'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).last, 'k7m-2qx');
+      await tester.tap(find.text('Join'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(squads.joinedWith, 'k7m-2qx');
+      expect(find.text('Roomies'), findsOneWidget);
+      expect(find.text('2 of 8 people'), findsOneWidget);
+      expect(find.text('Priya'), findsNWidgets(2)); // challenge + leaderboard
+      expect(find.text('Start a squad'), findsNothing);
+    });
+
+    testWidgets('leaving a squad goes back to start or join', (tester) async {
+      squads.squad = _FakeSquad.roomies;
+      final state = stateWith();
+      await openSquad(tester, state);
+      expect(find.text('Roomies'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Leave squad'));
+      await settle(tester);
+      await tester.tap(find.text('Leave squad').last);
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(squads.left, isTrue);
+      expect(find.text('Start a squad'), findsOneWidget);
+    });
+
+    testWidgets('a failed load says why', (tester) async {
+      squads.error = const SquadException('Couldn\'t reach Squad.');
+      final state = stateWith();
+      await openSquad(tester, state);
+      expect(find.text('Couldn\'t reach Squad.'), findsOneWidget);
+    });
+
+    test('signing out forgets the squad', () async {
+      squads.squad = _FakeSquad.roomies;
+      final state = stateWith();
+      await state.refreshSquad();
+      expect(state.squad?.name, 'Roomies');
+      await state.signOutAccount();
+      expect(state.squad, isNull);
+    });
+  });
+
+  test('invite codes are cleaned up like the server does', () {
+    expect(cleanInviteCode(' k7m-2qx '), 'K7M2QX');
+    expect(validateSquadName('  '), isNotNull);
+    expect(validateSquadName('Apt 4B'), isNull);
+  });
+
   test('first names come from a full Google name', () {
     expect(firstNameOf('Priya Patel'), 'Priya');
     expect(firstNameOf('  Sam  '), 'Sam');
@@ -1683,5 +1808,79 @@ class _FakeAccounts implements AccountService {
   Future<void> deleteAccount() async {
     deleted = true;
     current = null;
+  }
+}
+
+/// Squad without a server. [squad] is what you're in; [error] makes the
+/// next load fail.
+class _FakeSquad implements SquadService {
+  Squad? squad;
+  SquadException? error;
+  SquadStats? published;
+  String? joinedWith;
+  bool left = false;
+
+  static const roomies = Squad(
+    id: 's1',
+    name: 'Roomies',
+    members: [
+      SquadMember(
+        userId: 'u1',
+        name: 'Alex',
+        emoji: '🦊',
+        streak: 3,
+        noDeliveryDays: [true],
+        isMe: true,
+      ),
+      SquadMember(
+        userId: 'u2',
+        name: 'Priya',
+        emoji: '🐼',
+        streak: 9,
+        noDeliveryDays: [true, false],
+      ),
+    ],
+  );
+
+  @override
+  Future<Squad?> sync(SquadStats stats) async {
+    published = stats;
+    if (error case final e?) throw e;
+    return squad;
+  }
+
+  @override
+  Future<Squad> create(String name, SquadStats stats) async {
+    published = stats;
+    return squad = Squad(
+      id: 's2',
+      name: name,
+      members: [
+        SquadMember(
+          userId: 'u1',
+          name: stats.name,
+          emoji: '🦊',
+          streak: stats.streak,
+          noDeliveryDays: stats.noDeliveryDays,
+          isMe: true,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<Squad?> join(String code, SquadStats stats) async {
+    if (cleanInviteCode(code) != 'K7M2QX') return null;
+    joinedWith = code;
+    return squad = roomies;
+  }
+
+  @override
+  Future<String> inviteCode(String squadId) async => 'K7M2QX';
+
+  @override
+  Future<void> leave(String squadId) async {
+    left = true;
+    squad = null;
   }
 }

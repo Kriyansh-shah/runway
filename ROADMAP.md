@@ -182,7 +182,7 @@ screen), and the app lock below protects the data on the phone.
 *Build (once the keys exist):*
 - [x] `supabase_flutter` behind a real `AccountService`; sessions in Keychain / Keystore.
 - [ ] Apple, Google and email-code buttons on the welcome screen (Google ✅ 2026-10-19; Apple and email codes to do).
-- [ ] Squad tables with row-level security on every table.
+- [x] Squad tables with row-level security on every table (2026-10-19: invite codes, up to 8 per squad; links/QR, remove/block/report and synced IOUs still to do).
 - [x] In-app account deletion (needs a small Edge Function).
 - [ ] URL scheme / universal link so email links open the app; tests.
 

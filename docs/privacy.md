@@ -58,10 +58,17 @@ privacy policies.
 
 ## Squad
 
-Squad currently shows sample friends to preview the feature. Nothing about
-you is shared with anyone. If Squad ever connects real friends, this policy
-will be updated before anything is shared, and friends will never see your
-money amounts.
+Squad needs you to sign in. When you start or join a squad, Runway stores on
+our server and shows **only to people in your squads**:
+
+- your first name and a squad emoji
+- your logging streak (days in a row you logged)
+- which days of the current no-delivery week you skipped delivery
+- the squads you're in, their names, and their invite codes
+
+Friends **never** see your balances, expenses, budget or any amounts. Bill
+splits with roommates stay on your device. Leaving a squad stops sharing
+with it right away, and a squad is deleted when its last member leaves.
 
 ## Deleting your data
 

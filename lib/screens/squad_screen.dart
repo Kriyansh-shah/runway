@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../app/app_state.dart';
+import '../app/auth.dart';
 import '../app/budget_math.dart';
 import '../app/format.dart';
 import '../app/models.dart';
+import '../app/squad.dart';
 import '../app/theme.dart';
+import '../widgets/action_sheet.dart';
+import '../widgets/expense_inputs.dart';
 import '../widgets/glass.dart';
+import '../widgets/google_button.dart';
+import '../widgets/gradient_button.dart';
 import '../widgets/mochi.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
@@ -14,36 +21,473 @@ import 'shell.dart';
 import 'split_bill_sheet.dart';
 import '../widgets/ph_icons.dart';
 
-class SquadScreen extends StatelessWidget {
+/// One person in the challenge and leaderboard: you or a friend.
+typedef _Person = ({
+  String name,
+  String emoji,
+  int streak,
+  List<bool> days,
+  bool isMe,
+});
+
+/// Your pet, your squad's challenge and streaks, and roommate splits.
+/// Where sign-in is set up, the squad is real friends (names, streaks and
+/// challenge dots only, never money); elsewhere it shows sample friends.
+class SquadScreen extends StatefulWidget {
   const SquadScreen({super.key});
+
+  @override
+  State<SquadScreen> createState() => _SquadScreenState();
+}
+
+class _SquadScreenState extends State<SquadScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame: loading notifies listeners, which can't
+    // happen mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = AppScope.read(context);
+      if (state.account != null) state.refreshSquad();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
+    final me = (
+      name: 'You',
+      emoji: '😎',
+      streak: state.streak,
+      days: state.myNoDeliveryDays,
+      isMe: true,
+    );
+    final squad = state.squad;
+    final List<_Person>? people = !state.realSquad
+        ? [
+            me,
+            for (final f in state.friends)
+              (
+                name: f.name,
+                emoji: f.emoji,
+                streak: f.streak,
+                days: f.noDeliveryDays,
+                isMe: false,
+              ),
+          ]
+        : squad == null
+        ? null
+        : [
+            for (final m in squad.members)
+              m.isMe
+                  ? me
+                  : (
+                      name: m.name,
+                      emoji: m.emoji,
+                      streak: m.streak,
+                      days: m.noDeliveryDays,
+                      isMe: false,
+                    ),
+          ];
     final sections = <Widget>[
       Padding(
         padding: const EdgeInsets.only(top: 8),
         child: Text('Squad', style: AppText.title),
       ),
       _PetCard(mood: state.mood, level: state.petLevel, streak: state.streak),
-      _ChallengeCard(state: state),
-      _Leaderboard(state: state),
+      if (state.realSquad)
+        if (state.account == null)
+          const _SquadSignIn()
+        else if (squad != null)
+          _SquadHeader(squad: squad)
+        else if (state.squadLoading)
+          const _SquadLoading()
+        else
+          _StartOrJoin(error: state.squadError),
+      if (people != null) ...[
+        _ChallengeCard(state: state, people: people),
+        _Leaderboard(people: people),
+      ],
       _Splits(splits: state.splits),
     ];
+    final scroll = SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 8, 20, navClearance(context)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < sections.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Entrance(index: i, child: sections[i]),
+            ),
+        ],
+      ),
+    );
     return SafeArea(
       bottom: false,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 8, 20, navClearance(context)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < sections.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Entrance(index: i, child: sections[i]),
+      child: state.account == null
+          ? scroll
+          : RefreshIndicator(
+              color: AppColors.lime,
+              backgroundColor: AppColors.bg,
+              onRefresh: state.refreshSquad,
+              child: scroll,
+            ),
+    );
+  }
+}
+
+/// Signed out: Squad needs an account so friends can find each other.
+class _SquadSignIn extends StatefulWidget {
+  const _SquadSignIn();
+
+  @override
+  State<_SquadSignIn> createState() => _SquadSignInState();
+}
+
+class _SquadSignInState extends State<_SquadSignIn> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _signIn() async {
+    if (_busy) return;
+    final state = AppScope.read(context);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (await state.signInWithGoogle()) HapticFeedback.mediumImpact();
+    } on AccountException catch (e) {
+      _error = e.message;
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Budget with your friends', style: AppText.heading),
+          const SizedBox(height: 6),
+          Text(
+            'Start a squad with roommates or friends: streaks and challenges '
+            'together. They see your first name and streak, never your money.',
+            style: AppText.label,
+          ),
+          const SizedBox(height: 16),
+          GoogleButton(busy: _busy, onTap: _busy ? null : _signIn),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _error!,
+                style: AppText.label.copyWith(color: AppColors.red),
+                textAlign: TextAlign.center,
               ),
-          ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SquadLoading extends StatelessWidget {
+  const _SquadLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const GlassCard(
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: SizedBox.square(
+            dimension: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.4,
+              color: AppColors.lime,
+            ),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// Signed in but in no squad: start one, or join with a friend's code.
+class _StartOrJoin extends StatefulWidget {
+  const _StartOrJoin({this.error});
+
+  /// Why loading the squad failed, if it did.
+  final String? error;
+
+  @override
+  State<_StartOrJoin> createState() => _StartOrJoinState();
+}
+
+class _StartOrJoinState extends State<_StartOrJoin> {
+  final _name = TextEditingController();
+  final _code = TextEditingController();
+  bool _busy = false;
+  String? _problem;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<String?> Function(AppState state) action) async {
+    if (_busy) return;
+    FocusScope.of(context).unfocus();
+    final state = AppScope.read(context);
+    setState(() {
+      _busy = true;
+      _problem = null;
+    });
+    String? problem;
+    try {
+      problem = await action(state);
+    } on SquadException catch (e) {
+      problem = e.message;
+    }
+    if (!mounted) return;
+    if (problem == null) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.heavyImpact();
+    }
+    setState(() {
+      _busy = false;
+      _problem = problem;
+    });
+  }
+
+  void _start() => _run((state) async {
+    final problem = validateSquadName(_name.text);
+    if (problem != null) return problem;
+    await state.createSquad(_name.text.trim());
+    return null;
+  });
+
+  void _join() => _run((state) async {
+    if (cleanInviteCode(_code.text).length != 6) {
+      return 'Invite codes are 6 letters and numbers.';
+    }
+    return await state.joinSquad(_code.text)
+        ? null
+        : 'That code didn\'t work. It may have expired; ask for a new one.';
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final problem = _problem ?? widget.error;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Start a squad', style: AppText.heading),
+          const SizedBox(height: 4),
+          Text(
+            'Up to $maxSquadSize friends. They see your first name and '
+            'streak, never your money.',
+            style: AppText.label,
+          ),
+          const SizedBox(height: 12),
+          GlassTextField(
+            controller: _name,
+            hint: 'Squad name, e.g. Apt 4B',
+            icon: PhIcons.usersThree,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.go,
+            onSubmitted: (_) => _start(),
+          ),
+          const SizedBox(height: 12),
+          GradientButton(
+            label: 'Start squad',
+            height: 50,
+            onTap: _busy ? null : _start,
+          ),
+          const SizedBox(height: 20),
+          Text('Have an invite code?', style: AppText.heading),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: GlassTextField(
+                  controller: _code,
+                  hint: 'K7M2QX',
+                  icon: PhIcons.at,
+                  maxLength: 10,
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.go,
+                  onSubmitted: (_) => _join(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 96,
+                child: GradientButton(
+                  label: 'Join',
+                  height: 50,
+                  gradient: AppGradients.hot,
+                  glow: AppColors.lilac,
+                  onTap: _busy ? null : _join,
+                ),
+              ),
+            ],
+          ),
+          if (problem != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                problem,
+                style: AppText.label.copyWith(color: AppColors.red),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Your squad's name and faces, with Invite and Leave.
+class _SquadHeader extends StatefulWidget {
+  const _SquadHeader({required this.squad});
+  final Squad squad;
+
+  @override
+  State<_SquadHeader> createState() => _SquadHeaderState();
+}
+
+class _SquadHeaderState extends State<_SquadHeader> {
+  final _inviteKey = GlobalKey();
+  bool _busy = false;
+
+  Future<void> _invite() async {
+    if (_busy) return;
+    final state = AppScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final box = _inviteKey.currentContext?.findRenderObject() as RenderBox?;
+    final origin = box == null
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size;
+    setState(() => _busy = true);
+    try {
+      final code = await state.squadInviteCode();
+      await SharePlus.instance.share(
+        ShareParams(
+          text:
+              'Join my squad "${widget.squad.name}" on Runway! Open Squad, '
+              'tap "Have an invite code?" and enter $code',
+          subject: 'Join my Runway squad',
+          sharePositionOrigin: origin,
+        ),
+      );
+    } on SquadException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _leave() async {
+    final state = AppScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final alone = widget.squad.members.length <= 1;
+    final ok = await showActionSheet<bool>(
+      context,
+      title: 'Leave ${widget.squad.name}?',
+      message: alone
+          ? 'You\'re the only one in it, so the squad is deleted.'
+          : 'Your friends won\'t see your streak anymore. You can rejoin '
+                'with a new invite code.',
+      actions: const [
+        SheetAction(
+          value: true,
+          label: 'Leave squad',
+          icon: PhIcons.signOut,
+          destructive: true,
+        ),
+      ],
+    );
+    if (ok != true) return;
+    try {
+      await state.leaveSquad();
+    } on SquadException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final squad = widget.squad;
+    final count = squad.members.length;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      squad.name,
+                      style: AppText.heading.copyWith(fontSize: 20),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      count == 1
+                          ? 'Just you so far'
+                          : '$count of $maxSquadSize people',
+                      style: AppText.label,
+                    ),
+                  ],
+                ),
+              ),
+              Pressable(
+                onTap: _leave,
+                semanticLabel: 'Leave squad',
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(
+                    PhIcons.signOut,
+                    size: 20,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final m in squad.members)
+                Text(m.emoji, style: const TextStyle(fontSize: 24)),
+            ],
+          ),
+          if (count < maxSquadSize) ...[
+            const SizedBox(height: 14),
+            GradientButton(
+              key: _inviteKey,
+              label: _busy ? 'Getting a code…' : 'Invite friends',
+              icon: PhIcons.plusBold,
+              height: 50,
+              onTap: _busy ? null : _invite,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -162,15 +606,13 @@ class _XpBar extends StatelessWidget {
 }
 
 class _ChallengeCard extends StatelessWidget {
-  const _ChallengeCard({required this.state});
+  const _ChallengeCard({required this.state, required this.people});
   final AppState state;
+  final List<_Person> people;
 
   @override
   Widget build(BuildContext context) {
-    final rows = [
-      ('You', '😎', state.myNoDeliveryDays),
-      for (final f in state.friends) (f.name, f.emoji, f.noDeliveryDays),
-    ];
+    final rows = [for (final p in people) (p.name, p.emoji, p.days)];
     final day = state.challengeDay.clamp(1, 7);
     return GlassCard(
       child: Column(
@@ -279,14 +721,13 @@ class _Dot extends StatelessWidget {
 }
 
 class _Leaderboard extends StatelessWidget {
-  const _Leaderboard({required this.state});
-  final AppState state;
+  const _Leaderboard({required this.people});
+  final List<_Person> people;
 
   @override
   Widget build(BuildContext context) {
     final entries = [
-      ('You', '😎', state.streak, true),
-      for (final f in state.friends) (f.name, f.emoji, f.streak, false),
+      for (final p in people) (p.name, p.emoji, p.streak, p.isMe),
     ]..sort((a, b) => b.$3.compareTo(a.$3));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

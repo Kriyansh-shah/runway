@@ -12,6 +12,7 @@ import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
 import 'repository.dart';
+import 'squad.dart';
 
 /// Single source of truth for the app. Derived numbers are cached and
 /// recomputed only when the underlying data changes.
@@ -22,6 +23,7 @@ class AppState extends ChangeNotifier {
     this.coach = const LocalCoach(),
     this.deviceAuth = const LocalDeviceAuth(),
     this.accounts = const NoAccounts(),
+    this.squadService = const NoSquad(),
     UserProfile? user,
     DateTime Function()? clock,
   }) : _repo = repository,
@@ -52,6 +54,13 @@ class AppState extends ChangeNotifier {
 
   /// Optional Google sign-in (Supabase). [NoAccounts] where it isn't set up.
   final AccountService accounts;
+
+  /// Real squads on the server. [NoSquad] shows sample friends instead.
+  final SquadService squadService;
+
+  Squad? _squad;
+  bool _squadLoading = false;
+  String? _squadError;
 
   Term _term;
   final List<Expense> _expenses;
@@ -440,6 +449,89 @@ class AppState extends ChangeNotifier {
     _persist(() => _repo.setCurrentUser(user));
   }
 
+  /// Squad with real friends is possible here (sign-in is set up), even if
+  /// the person hasn't signed in yet. Otherwise Squad shows sample friends.
+  bool get realSquad => accounts.canUseGoogle || account != null;
+
+  /// Your squad, once loaded; null when you're in none or signed out.
+  Squad? get squad => _squad;
+
+  /// A squad request is on its way.
+  bool get squadLoading => _squadLoading;
+
+  /// Why the last squad refresh failed, if it did.
+  String? get squadError => _squadError;
+
+  SquadStats get _squadStats => SquadStats(
+    name: _user?.name ?? 'Friend',
+    streak: _streak,
+    noDeliveryDays: myNoDeliveryDays,
+  );
+
+  /// Shares your streak and challenge dots, then loads your squad. Errors
+  /// end up in [squadError] instead of being thrown.
+  Future<void> refreshSquad() async {
+    if (account == null) {
+      _squad = null;
+      _squadError = null;
+      notifyListeners();
+      return;
+    }
+    await _squadCall(() async => _squad = await squadService.sync(_squadStats));
+  }
+
+  /// Starts a squad. Throws [SquadException] when it fails.
+  Future<void> createSquad(String name) => _squadCall(
+    () async => _squad = await squadService.create(name, _squadStats),
+    rethrowErrors: true,
+  );
+
+  /// Joins with an invite code; false when the code doesn't work. Throws
+  /// [SquadException] for other problems.
+  Future<bool> joinSquad(String code) async {
+    var joined = false;
+    await _squadCall(() async {
+      final squad = await squadService.join(code, _squadStats);
+      if (squad != null) _squad = squad;
+      joined = squad != null;
+    }, rethrowErrors: true);
+    return joined;
+  }
+
+  /// A code to share so friends can join your squad.
+  Future<String> squadInviteCode() {
+    final squad = _squad;
+    if (squad == null) throw StateError('not in a squad');
+    return squadService.inviteCode(squad.id);
+  }
+
+  Future<void> leaveSquad() async {
+    final squad = _squad;
+    if (squad == null) return;
+    await _squadCall(() async {
+      await squadService.leave(squad.id);
+      _squad = await squadService.sync(_squadStats);
+    }, rethrowErrors: true);
+  }
+
+  Future<void> _squadCall(
+    Future<void> Function() run, {
+    bool rethrowErrors = false,
+  }) async {
+    _squadLoading = true;
+    _squadError = null;
+    notifyListeners();
+    try {
+      await run();
+    } on SquadException catch (e) {
+      if (rethrowErrors) rethrow;
+      _squadError = e.message;
+    } finally {
+      _squadLoading = false;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
   /// The linked Google account, or null when it's name-only.
   Account? get account => accounts.current;
 
@@ -457,6 +549,7 @@ class AppState extends ChangeNotifier {
     _user = UserProfile(name: name, email: account.email);
     notifyListeners();
     _persist(() => _repo.setCurrentUser(_user));
+    unawaited(refreshSquad());
     return true;
   }
 
@@ -476,6 +569,8 @@ class AppState extends ChangeNotifier {
   void _forgetAccount() {
     final user = _user;
     if (user != null) _user = UserProfile(name: user.name);
+    _squad = null;
+    _squadError = null;
     notifyListeners();
     _persist(() => _repo.setCurrentUser(_user));
   }
@@ -844,6 +939,8 @@ class AppState extends ChangeNotifier {
     }
     _apply(await _repo.load());
     _user = null;
+    _squad = null;
+    _squadError = null;
     _changed();
   }
 
