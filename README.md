@@ -9,9 +9,11 @@ and tells you how much you can safely spend **today**.
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
-![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-140%20passing-C6FF3D)
-![Status](https://img.shields.io/badge/status-prototype-FFB547)
+![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20Web%20%7C%20macOS-8B6CFF)
+![Tests](https://img.shields.io/badge/tests-191%20passing-C6FF3D)
+![Status](https://img.shields.io/badge/status-beta-FFB547)
+
+**[Website](https://kriyansh-shah.github.io/runway/) · [Try it in your browser](https://kriyansh-shah.github.io/runway/app/) · [Privacy](https://kriyansh-shah.github.io/runway/privacy.html)**
 
 </div>
 
@@ -76,6 +78,24 @@ as it can be: two taps for most purchases. Your money data stays on your phone u
   with an **Undo** bar. **See all** lists every expense this term by day.
 - **Personal greeting** with your 🔥 streak chip and account avatar.
 
+### 🐷 Savings: saving built into the budget
+- Setup asks **how much you want to save** this month or semester (10% or 20%
+  suggested, $0 is fine). The goal comes **off the top on day one**, like a
+  reserved cost, so your daily number already leaves room for it.
+- Change it anytime and see the effect first ("$18.20 → $16.40 a day").
+  Spending into it is allowed, but shown honestly ("You're dipping into your
+  savings").
+- **Savings tab:** a ring with a forecast ("On track for $150 by Dec 11", or
+  "Spend $2.10/day less to keep it all"), a countdown, your total saved
+  overall and a streak of goals hit.
+- When a month or semester ends, only the planned goal counts as saved;
+  leftover money carries into next month's spending. The recap asks
+  "Save $150 again?"
+
+### 🏷️ Custom categories
+- Make your own category once (name + icon) and pick it in one tap from
+  Quick Add next time. Hold one to rename or delete it.
+
 ### 🗓️ Semester or monthly
 - Setup asks **how you want to budget**. A **semester** runs between dates you
   pick. A **monthly** budget runs to the end of this month, with no name or end
@@ -127,8 +147,13 @@ as it can be: two taps for most purchases. Your money data stays on your phone u
 ### 👯 Squad: friends without sharing amounts
 - **Mochi, your money pet:** a hand-drawn blob that breathes and blinks.
   Mood follows your budget health (*thriving / chill / worried*), and it levels up with your streak.
+- **Real squads** (signed in): start one, then **Invite friends** shares a
+  6-character code through the share sheet. Up to 8 people; codes expire
+  after 7 days. Friends see your **first name, emoji, streak and challenge
+  dots, never money**. Leave anytime; an empty squad is deleted.
 - **No-delivery week challenge** with 7-day progress dots per friend.
 - **Streak leaderboard:** streaks only, **never dollar amounts**.
+- Without sign-in (macOS preview, tests) Squad shows sample friends.
 - **Roommate splits:** "Aarav owes you $12.40 · Pizza night" with an animated *Settle up*.
 - **Split a bill:** enter what it was and what you paid, pick roommates, and it
   splits evenly. They get IOUs; only **your share** counts as spending.
@@ -151,15 +176,31 @@ lights and landings.
   encrypted with a random 256-bit key kept in the Keychain / Keystore
   (SQLite3MultipleCiphers). Data from before encryption is encrypted in place
   on the first launch of this version.
-- **No account, no password.** The first screen only asks for your first name
-  (it shakes if you leave it empty). The button morphs to ✓, then Home is
-  revealed through a **circle that grows out of the button**.
+- **No account needed.** The first screen asks only for your first name (it
+  shakes if you leave it empty), or **Continue with Google**. The button
+  morphs to ✓, then Home is revealed through a **circle that grows out of
+  the button**.
 - **App lock:** optional Face ID / Touch ID / passcode (fingerprint or PIN on
   Android). Offered during setup, changeable in Settings (both ways need Face ID
   first). Asks on launch and after a minute away; a phone with no passcode is
   never locked out.
 - **App-switcher cover:** the app hides behind the Runway logo whenever it
   leaves the screen, so balances don't show in the app switcher.
+
+### ☁️ Accounts, sync & the website
+- **Continue with Google** (optional) via Supabase Auth: native account
+  picker on iPhone and Android, a redirect on the web. Settings → Account has
+  **Sign out** and **Delete account** (deletes everything on the server).
+- **Budget sync, end-to-end encrypted** (optional): pick a sync passphrase
+  and the whole budget is encrypted on the device (PBKDF2-HMAC-SHA256,
+  600k rounds → AES-256-GCM) before upload. The server only stores
+  ciphertext, so nobody else can read it, including us. Sign in on another
+  device, type the passphrase once, and the same budget is there; a fresh
+  device offers it before setup. Changes upload a few seconds later and the
+  most recent change wins. Forgot it? Start over with a new passphrase.
+- **Website** at [kriyansh-shah.github.io/runway](https://kriyansh-shah.github.io/runway/):
+  landing page, privacy policy, support page and the **web app** at `/app/`,
+  rebuilt and deployed by GitHub Actions on every push to `main`.
 
 ---
 
@@ -260,7 +301,12 @@ lib/
 │   ├── models.dart           # Expense, Term, UpcomingCost, BillSplit, Friend…
 │   ├── budget_math.dart      # runway maths, streaks, pet level, splits (pure)
 │   ├── coach.dart            # AffordabilityCoach interface + LocalCoach rules
-│   ├── auth.dart             # UserProfile (name only) + name validation
+│   ├── auth.dart             # UserProfile, AccountService interface, name validation
+│   ├── supabase_accounts.dart # Google sign-in via Supabase (phones + web)
+│   ├── squad.dart            # Squad models + SquadService interface
+│   ├── supabase_squad.dart   # squads, members and invites on Supabase
+│   ├── budget_sync.dart      # end-to-end encrypted budget sync (cipher + controller)
+│   ├── supabase_budget_backups.dart # encrypted copy on Supabase + key in Keychain
 │   ├── device_auth.dart      # Face ID / passcode behind DeviceAuth (local_auth)
 │   ├── repository.dart       # BudgetRepository interface + in-memory mock + demo seed
 │   ├── database.dart         # drift tables (SQLite schema) + migrations
@@ -277,23 +323,35 @@ lib/
     ├── launch_intro.dart     welcome_screen.dart  lock_gate.dart  shell.dart (tabs + nav)
     ├── home_screen.dart      setup_screen.dart    settings_screen.dart  all_expenses_screen.dart
     ├── coach_screen.dart     squad_screen.dart    quick_add_sheet.dart  add_income_sheet.dart
-    ├── split_bill_sheet.dart money_actions.dart
+    ├── split_bill_sheet.dart money_actions.dart  savings_screen.dart  savings_goal_sheet.dart
+    ├── history_screen.dart   recap_sheet.dart     category_sheet.dart  sync_sheets.dart
+supabase/
+├── migrations/               # Squad + budget_backups tables, row-level security on all
+└── functions/delete-account/ # Edge Function behind "Delete account"
+site/                         # landing page; scripts/build_site.sh builds the website
 test/
 ├── budget_math_test.dart     # runway maths, streaks, splits, mock data
 ├── coach_test.dart           # verdicts, boundaries, amount parsing
-├── drift_repository_test.dart # real SQLite file: save → close → reopen
+├── drift_repository_test.dart # real SQLite file: save → close → reopen, snapshots
+├── budget_sync_test.dart     # encryption, two devices, conflicts, offline, start over
 └── app_test.dart             # app state + widget flows (welcome, app lock, quick add, settings…)
 ```
 
 **Key decisions**
-- **Minimal dependencies.** Plain Flutter, [`drift`](https://pub.dev/packages/drift) for the
-  on-device database, and `device_preview` for development. No state-management package:
-  a single `ChangeNotifier` passed down the widget tree with `InheritedNotifier`.
+- **Few dependencies.** Plain Flutter, [`drift`](https://pub.dev/packages/drift) for the
+  on-device database, `supabase_flutter` + `google_sign_in` for accounts and Squad,
+  `cryptography` for sync encryption, and `device_preview` for development. No
+  state-management package: a single `ChangeNotifier` passed down the widget tree with
+  `InheritedNotifier`.
+- **Backend: Supabase**, with row-level security on every table. It holds
+  accounts, squads and the encrypted budget copy; never readable money data.
 - **Saved on the device.** Every change updates the screen instantly, then saves to
   `runway.sqlite` in the background. Money is stored as whole cents, deletes and
   settle-ups are kept as history (soft delete), and a split bill is saved all-or-nothing.
 - **Everything swappable sits behind an interface:**
   - `BudgetRepository`: SQLite via drift (in-memory mock for tests)
+  - `AccountService`, `SquadService`, `BudgetBackupStore`: Supabase (fakes in tests,
+    sample friends where sign-in isn't set up)
   - `DeviceAuth`: Face ID / passcode via `local_auth` (faked in tests)
   - `AffordabilityCoach`: local rules today, Gemini later
 - **Pure maths with an injectable clock**, so every number is testable without Flutter.
@@ -326,8 +384,9 @@ In **debug builds on macOS**, the app runs inside an **iPhone 16 Pro Max frame**
 via [`device_preview`](https://pub.dev/packages/device_preview), so you don't need an iOS Simulator or the Android SDK.
 Mouse and trackpad dragging scroll just like a finger.
 
-Log in with any valid-looking email and a password of 6+ characters (see
-[limitations](#current-limitations)).
+Type any first name to start. Google sign-in, Squad and sync aren't set up
+in the macOS preview (it shows sample friends); use a phone or the web app
+for those.
 
 | Key | Action |
 |---|---|
@@ -339,7 +398,14 @@ Log in with any valid-looking email and a password of 6+ characters (see
 ```sh
 flutter run -d ios        # needs Xcode + a simulator or device
 flutter run -d android    # needs the Android SDK
+flutter run -d chrome     # the web app
 ```
+
+### Website
+```sh
+BASE_HREF=/app/ scripts/build_site.sh && python3 -m http.server -d _site
+```
+Pushing to `main` builds and deploys it to GitHub Pages (`.github/workflows/website.yml`).
 
 ---
 
@@ -347,7 +413,7 @@ flutter run -d android    # needs the Android SDK
 
 ```sh
 flutter analyze   # static analysis, currently clean
-flutter test      # 140 tests
+flutter test      # 191 tests
 ```
 
 After changing a table in `lib/app/database.dart`, regenerate the drift code:
@@ -359,11 +425,12 @@ dart run build_runner build
 | Suite | Covers |
 |---|---|
 | `budget_math_test.dart` | Every runway formula, days short, no-spend and overspend cases, last day of term, streaks, pet levels, weekly split, even splits, mock data calibration, starting the next month (leftover, skipped months, stopped pay, overspending), history summaries, recap comparisons (per day, 10% and $10 floors) |
-| `drift_repository_test.dart` | Real SQLite file, closed and reopened: demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over, monthly bills (reserve, pay, skip, stop, longer term, new month, new semester), history (never the demo, newest first, deleted expenses left out), editing costs, bills from a month on, and pay (a raise keeps past paydays), recaps (once per ended month, never for the demo or for terms from before recaps) |
+| `budget_sync_test.dart` | The server only gets ciphertext, wrong passphrase refused, a copy can't be opened under another account, changes flow both ways between two devices, most recent change wins, offline changes upload later, start over, deleting the copy stops sync everywhere |
+| `drift_repository_test.dart` | Real SQLite file, closed and reopened: whole-budget snapshots move to another database (device-only settings stay put, newer snapshots refused), demo data seeds once, expenses/splits/session/term survive relaunch, exact cents, dates stay on the right day, a failed split saves nothing, schema upgrades, a new month carrying costs and pay over, monthly bills (reserve, pay, skip, stop, longer term, new month, new semester), history (never the demo, newest first, deleted expenses left out), editing costs, bills from a month on, and pay (a raise keeps past paydays), recaps (once per ended month, never for the demo or for terms from before recaps) |
 | `device_database_test.dart` | Encryption with the real SQLite3MultipleCiphers build: an old plain file is encrypted in place, app data is unreadable on disk without the key, a file the key can't open is moved aside (never deleted), the key is made once |
 | `coach_test.dart` | All three verdicts, the inclusive 12% boundary, minimum trade, goal suggestion, amount parsing (`$1,299.99`, phrasing, no amount) |
 | `intro_test.dart` | Intro maths (Mochi lands on each letter, the y beat, logo hand-off is pixel-exact), first launch → welcome, tap to skip, signed-in → Home, Reduce Motion |
-| `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout, History (cards, read-only past month, empty state), editing a cost and pay from Home, the recap sheet |
+| `app_test.dart` | Logging updates state, splitting bills, booting, tab switching (no ghost tabs), coach chip → verdict, Quick Add with note + category, Split a bill sheet, welcome (name only), app lock (launch, time away, switcher cover, no-passcode fallback, Settings and setup toggles), small-screen (iPhone SE) layout, History (cards, read-only past month, empty state), editing a cost and pay from Home, the recap sheet, savings goal and forecast, Google sign-in (welcome, settings, sign out, delete account), real Squad (sign in, start, join by code, leave, errors), budget sync (turn on, unlock on a fresh device, start fresh) |
 
 ---
 
@@ -373,17 +440,21 @@ This is an early prototype:
 
 - **Money coming in belongs to one term.** Starting a new semester starts
   with no paychecks; add them again in the new term.
-- **No accounts yet.** Runway only asks for a name; there's no server. The app
-  lock protects the data on the phone. Real sign-in comes with Squad sync.
-- **Encryption is phones only.** The macOS build (for development) and the web
-  build store the database unencrypted. An encrypted Android backup restored
-  without its Keystore key can't be read: Runway keeps the file aside and starts
-  fresh.
+- **Google is the only sign-in.** Sign in with Apple (required by the App
+  Store alongside Google) and email codes are still to do.
+- **Sync is a whole-budget snapshot.** The most recent change wins, so edits
+  made on two devices at the same time don't merge. A forgotten sync
+  passphrase can't be recovered (the budget on each device is unaffected).
+- **On-device encryption is phones only.** The macOS build (for development)
+  and the web app store the database unencrypted (the synced copy is always
+  encrypted). An encrypted Android backup restored without its Keystore key
+  can't be read: Runway keeps the file aside and starts fresh.
 - **Monthly budgets follow the calendar month** (1st to last day). A cycle that
   starts on payday (say the 25th) isn't supported yet.
 - **Starting a new semester stops monthly bills.** Add them again during setup.
 - **The coach is rule-based.** It uses no AI and no API keys, and makes no network calls.
-- **Squad friends are mock data.** There's no real friend sync yet.
+- **Squad joins by code only.** Invite links, QR codes, remove/block/report
+  and synced IOUs are still to do. Bill splits stay on your device.
 
 ---
 
@@ -395,9 +466,9 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 |---|---|---|
 | 1 | **Local database (drift / SQLite):** save expenses, splits, streaks and session | ✅ Done |
 | 2 | **Onboarding & setup:** term dates, starting balance, upcoming costs, money coming in, settings | ✅ Done |
-| 3 | **History by semester:** past terms and months ✅, undo delete ✅; CSV export, encrypted backup | 🚧 In progress |
-| 4 | **Real accounts:** Continue with Google / Apple + email codes (app lock ✅ shipped) | 📋 Planned |
-| 5 | **Squad backend (Supabase):** invite links + QR codes (no search), small squads, challenges and IOUs; never amounts | 📋 Planned |
+| 3 | **History by semester:** past terms and months ✅, undo delete ✅, recap ✅, encrypted sync ✅ | ✅ Mostly done |
+| 4 | **Real accounts:** Google ✅, account deletion ✅, encrypted budget sync ✅; Sign in with Apple + email codes next | 🚧 In progress |
+| 5 | **Squad backend (Supabase):** squads + invite codes ✅; invite links, QR codes, block/report, synced IOUs | 🚧 In progress |
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |
 | 7 | **Polish:** notifications, home-screen widget, ~~recurring costs~~ ✅, app icon | 💡 Ideas |
 
@@ -433,9 +504,12 @@ single week doesn't.
 
 The full policy is in [docs/privacy.md](docs/privacy.md); the App Store checklist is in [docs/app-store.md](docs/app-store.md).
 
-- No bank linking, ever.
-- Expenses, balances and history stay **on your device**, encrypted on phones.
-- Friends only ever see **streaks and challenge progress**, never amounts.
+- No bank linking, ever. No ads, no analytics, no tracking.
+- Expenses, balances and history stay **on your device**, encrypted on phones,
+  unless you turn on sync, and the synced copy is **end-to-end encrypted**
+  with a passphrase only you know.
+- Signing in is optional; the server stores your name, email and account ID.
+- Friends only ever see **first name, emoji, streak and challenge progress**, never amounts.
 - When the AI coach arrives, it will receive only summary numbers (available,
   daily allowance, days left), never your expense list, and the API key will stay on a server.
 

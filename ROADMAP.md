@@ -27,7 +27,15 @@ Next plans for Runway, in the order we intend to build them. Each item says
 - [x] Edit and delete expenses, with Undo; "See all" expenses by day
 - [x] Failed saves are undone and reported instead of failing silently
 - [x] Name-only welcome (no fake password login), Face ID / passcode app lock, app-switcher cover
-- [x] 96 tests (maths, coach, intro, motion, widget flows, small-screen layout, save → reopen, v1 → v2 migration)
+- [x] Encrypted on-device database (SQLite3MultipleCiphers, key in Keychain / Keystore)
+- [x] Semester or monthly budgets; monthly bills; history, recaps
+- [x] Custom categories; savings goal + Savings tab with forecast and countdown
+- [x] App icon, dark launch screen, privacy policy, App Store checklist
+- [x] Continue with Google (Supabase Auth) on phones and the web; sign out, delete account
+- [x] Real Squad: start a squad, invite codes, up to 8 people, never money
+- [x] End-to-end encrypted budget sync across signed-in devices
+- [x] Website + web app on GitHub Pages, deployed on every push
+- [x] 191 tests (maths, coach, intro, motion, widget flows, save → reopen, migrations, encryption, sync between two devices)
 
 ---
 
@@ -98,7 +106,7 @@ Still open: custom dates (asked in Professor Questions, #2); payday-based monthl
 
 ---
 
-## 3. 🚧 History by semester
+## 3. ✅ History by semester
 
 **Why:** The best insight is comparing semesters ("I spent 30% less on delivery
 than last fall"). Expense data is tiny, so we keep everything.
@@ -112,19 +120,24 @@ than last fall"). Expense data is tiny, so we keep everything.
 - ✅ ~~**Undo** toast after deleting an expense~~ (shipped). Still to do: permanently
   remove soft-deleted expenses after 30 days.
 - Search and filter expenses by category, note and date.
-- **Export CSV** for any term.
-- Optional **encrypted backup** to iCloud Drive / Google Drive.
+- ✅ ~~Optional **encrypted backup**~~: shipped as end-to-end encrypted budget
+  sync (#4), which doubles as a backup.
 
 **Retention policy:** keep all history on the device indefinitely; the user
 can delete a term or everything at any time.
 
 ---
 
-## 4. 📋 Real accounts & security
+## 4. 🚧 Real accounts & security
+
+**Shipped (2026-10-19/20):** Continue with Google through Supabase Auth on
+iPhone, Android and the web; Settings → Account with sign out and in-app
+**account deletion** (`delete-account` Edge Function); end-to-end encrypted
+**budget sync** (below). The name-only option stays. **Next:** Sign in with
+Apple (needed for the App Store) and maybe email codes.
 
 **Why:** Real accounts only matter once there's sync or Squad, so this ships
-together with #5. Until then Runway asks only for a name (no fake password
-screen), and the app lock below protects the data on the phone.
+together with #5.
 
 **What:**
 - **"Continue with Google"** and **"Continue with Apple"** buttons on the
@@ -141,7 +154,27 @@ screen), and the app lock below protects the data on the phone.
   app-switcher cover).
 - ✅ ~~Encrypt `runway.sqlite`, key in Keychain / Keystore~~ (shipped with
   SQLite3MultipleCiphers, which can encrypt an existing file in place).
-- Add a real `AuthService` (Supabase) next to the name-only profile.
+- ✅ ~~Add a real `AuthService` (Supabase) next to the name-only profile~~
+  (`AccountService` / `SupabaseAccounts`).
+
+### Budget sync (✅ shipped 2026-10-20)
+
+Opt-in, **end-to-end encrypted**: the person picks a sync passphrase; the
+device turns it into a key (PBKDF2-HMAC-SHA256, 600k rounds) and seals the
+whole budget (AES-256-GCM, account ID as associated data) before upload.
+Supabase stores only ciphertext in `budget_backups` (one row per account,
+owner-only row-level security, deleted with the account).
+
+- Whole-budget snapshot, not a row-by-row merge: uploads a few seconds after
+  a change, checks on launch, resume and sign-in; when two devices both
+  changed, the most recent change wins (server-set timestamps, version as an
+  optimistic lock).
+- A fresh signed-in device offers "Welcome back" before setup; a device
+  with its own budget asks before replacing it.
+- Forgotten passphrase: nobody can open the copy; "start over" deletes it and
+  syncs this device's budget under a new passphrase.
+- Not synced: the name on each device and the app lock.
+- Later, maybe: a real merge so edits on two devices at once both survive.
 
 ### Security plan
 
@@ -173,7 +206,10 @@ screen), and the app lock below protects the data on the phone.
       Google and Email providers in Supabase.
 - [ ] Email sending service (Resend / Postmark free tier), ideally with your own domain.
 - [x] Privacy policy at a public URL: https://kriyansh-shah.github.io/runway/privacy.html
-- [ ] App Store privacy label and Play Data safety form.
+- [ ] App Store privacy label and Play Data safety form (draft in
+      `docs/app-store.md`; decide whether E2E-encrypted sync counts as
+      Financial Info).
+- [x] Google sign-in published to production (2026-10-20), so anyone can sign in.
 - [x] Decide what syncs (2026-10-20): Squad, plus the budget as an opt-in,
       end-to-end encrypted copy (sync passphrase; the server can't read it).
 - [ ] Decide: sign-in options (recommended: Apple + Google + email codes, no
@@ -185,11 +221,19 @@ screen), and the app lock below protects the data on the phone.
 - [ ] Apple, Google and email-code buttons on the welcome screen (Google ✅ 2026-10-19; Apple and email codes to do).
 - [x] Squad tables with row-level security on every table (2026-10-19: invite codes, up to 8 per squad; links/QR, remove/block/report and synced IOUs still to do).
 - [x] In-app account deletion (needs a small Edge Function).
+- [x] End-to-end encrypted budget sync, with tests for two devices.
 - [ ] URL scheme / universal link so email links open the app; tests.
 
 ---
 
-## 5. 📋 Squad backend (Supabase)
+## 5. 🚧 Squad backend (Supabase)
+
+**Shipped (2026-10-19):** squads of up to 8 with 6-character invite codes
+(7-day expiry, rate-limited guesses), shared through the share sheet; friends
+see first name, emoji, streak and no-delivery dots; leave a squad (empty
+squads are deleted). Requires Google sign-in rather than anonymous accounts.
+**Next:** invite links + QR codes (need a domain), remove / block / report
+(Apple expects these), synced IOUs, push notifications.
 
 **Why:** Friends, challenges and shared bills need a server. Personal money data does not.
 
@@ -234,11 +278,11 @@ private invite, and accepting it *is* the consent, so nobody waits for approval.
 
 - [Supabase](https://supabase.com): Postgres with **row-level security on every
   table** (you can only read squads you're in).
-- **Anonymous accounts first:** each phone gets an invisible Supabase account
-  automatically, so Squad works without signing up. "Continue with Apple /
-  Google" (#4) later upgrades that same account so it survives a new phone.
-- Sync **only**: squad membership, names, Mochi, streaks, challenge dots, IOUs
-  and settle-ups. **Never sync** balances, expenses or runway numbers.
+- ~~Anonymous accounts first~~: decided against for now; Squad needs Google
+  sign-in (simpler, and the account survives a new phone).
+- Squad shares **only** squad membership, names, emoji, streaks and challenge
+  dots (IOUs and settle-ups later). Balances and expenses only travel inside
+  the end-to-end encrypted budget sync (#4), never readable.
 - Universal links (iOS) / app links (Android) on the domain, so invite links
   open the app; deferred deep link so the invite survives an App Store install.
 - Push notification when a roommate settles up, someone joins your squad, or a
@@ -246,8 +290,9 @@ private invite, and accepting it *is* the consent, so nobody waits for approval.
 
 ### Open decision
 
-- [ ] **Domain** for invite links (e.g. runway.app, ~$10–15/yr). Also hosts the
-      privacy policy and sends email (#4).
+- [ ] **Domain** for invite links (e.g. runway.app, ~$10–15/yr). Also sends
+      email (#4). The website and privacy policy already live on GitHub Pages
+      (kriyansh-shah.github.io/runway).
 
 **Done when:** two phones join the same squad from a link or QR code, see the
 same challenge and IOUs in real time, and neither can see the other's money.
@@ -277,14 +322,15 @@ spring break?") on top of the existing rules.
 - [ ] Daily reminder notification to log expenses (keeps the streak alive)
 - [ ] Home-screen widget showing "Safe to spend today"
 - [x] Recurring costs (phone bill, subscriptions) that auto-reserve
-- [ ] Savings goals from "Not this term" coach verdicts
-- [ ] Custom categories and custom quick picks
+- [ ] Savings goals from "Not this term" coach verdicts (a semester savings goal ✅ shipped)
+- [x] Custom categories (custom quick picks still to do)
 - [ ] Uneven bill splits and "they paid, I owe"
 - [ ] Multi-currency for international students
-- [ ] App icon + native launch screen in Lime & Lilac, App Store screenshots
+- [x] App icon + native launch screen in Lime & Lilac (App Store screenshots still to do)
 - [ ] Accessibility pass: reduce motion, larger text, screen reader labels
 - [ ] Light theme (maybe)
-- [ ] Set up iOS signing + Android SDK for real-device testing
+- [x] Set up iOS signing + Android SDK for real-device testing
+- [ ] Supabase Pro ($25/mo) before launch: backups, no pausing, higher limits
 
 ---
 
