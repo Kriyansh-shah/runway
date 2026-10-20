@@ -553,6 +553,24 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
+  /// Matches the profile to an account that's already signed in at launch:
+  /// on the web, Google's redirect reloads the page signed in. Creates the
+  /// profile from the Google name if there's none yet.
+  void adoptSignedInAccount() {
+    final account = this.account;
+    if (account == null) return;
+    final user = _user;
+    if (user != null && user.email == account.email) return;
+    final name =
+        user?.name ??
+        (validateName(account.firstName) == null
+            ? account.firstName
+            : 'Friend');
+    _user = UserProfile(name: name, email: account.email);
+    notifyListeners();
+    _persist(() => _repo.setCurrentUser(_user));
+  }
+
   /// Unlinks the Google account on this phone. The budget stays.
   Future<void> signOutAccount() async {
     await accounts.signOut();

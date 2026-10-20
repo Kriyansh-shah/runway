@@ -1,8 +1,10 @@
-/// Google sign-in through Supabase Auth. Google shows its own account
-/// picker and returns a signed ID token; Supabase checks it and starts a
-/// session, kept in the Keychain / Keystore.
+/// Google sign-in through Supabase Auth. On phones, Google shows its own
+/// account picker and returns a signed ID token; Supabase checks it and
+/// starts a session, kept in the Keychain / Keystore. On the web the page
+/// goes to Google and comes back signed in.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -35,11 +37,11 @@ class SupabaseAccounts implements AccountService {
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  /// Only iPhone and Android have Google sign-in set up.
+  /// Google sign-in is set up for iPhone, Android and the web app.
   static bool get supported =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.iOS ||
-          defaultTargetPlatform == TargetPlatform.android);
+      kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.android;
 
   /// Connects to Supabase and restores a saved session. Call once at launch
   /// on a [supported] platform. Works offline; the session refreshes later.
@@ -47,12 +49,17 @@ class SupabaseAccounts implements AccountService {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
-      authOptions: const FlutterAuthClientOptions(
-        localStorage: _SecureSessionStorage(),
-        // No email or OAuth links come back into the app yet.
-        detectSessionInUri: false,
-      ),
+      authOptions: kIsWeb
+          // The browser's storage; Google's redirect lands back on the page
+          // with a code that's swapped for a session here.
+          ? const FlutterAuthClientOptions()
+          : const FlutterAuthClientOptions(
+              localStorage: _SecureSessionStorage(),
+              // No email or OAuth links come back into the app yet.
+              detectSessionInUri: false,
+            ),
     );
+    if (kIsWeb) return SupabaseAccounts._('');
     final random = math.Random.secure();
     final nonce = base64Url.encode(
       List.generate(32, (_) => random.nextInt(256)),
@@ -68,13 +75,15 @@ class SupabaseAccounts implements AccountService {
   }
 
   @override
-  bool get canUseGoogle => GoogleSignIn.instance.supportsAuthenticate();
+  bool get canUseGoogle =>
+      kIsWeb || GoogleSignIn.instance.supportsAuthenticate();
 
   @override
   Account? get current => _toAccount(_client.auth.currentUser);
 
   @override
   Future<Account?> signInWithGoogle() async {
+    if (kIsWeb) return _signInOnWeb();
     final GoogleSignInAccount google;
     try {
       google = await GoogleSignIn.instance.authenticate(
@@ -117,6 +126,22 @@ class SupabaseAccounts implements AccountService {
     }
   }
 
+  /// Leaves for Google and comes back to this page, where [start] picks up
+  /// the session. Never completes: the page is gone by then.
+  Future<Account?> _signInOnWeb() async {
+    final here = Uri.base;
+    try {
+      await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: '${here.origin}${here.path}',
+      );
+    } on AuthException catch (e) {
+      debugPrint('Supabase sign-in failed: ${e.message}');
+      throw const AccountException('Couldn\'t sign in right now. Try again.');
+    }
+    return Completer<Account?>().future;
+  }
+
   @override
   Future<void> signOut() async {
     try {
@@ -124,7 +149,7 @@ class SupabaseAccounts implements AccountService {
     } on AuthException {
       // Already signed out on the server; the local session is gone anyway.
     }
-    await GoogleSignIn.instance.signOut();
+    if (!kIsWeb) await GoogleSignIn.instance.signOut();
   }
 
   @override
@@ -144,7 +169,7 @@ class SupabaseAccounts implements AccountService {
     }
     // The server session died with the account; clear it here too.
     await _client.auth.signOut(scope: SignOutScope.local);
-    await GoogleSignIn.instance.disconnect();
+    if (!kIsWeb) await GoogleSignIn.instance.disconnect();
   }
 
   static Account? _toAccount(User? user) {

@@ -39,8 +39,8 @@ Future<void> main() async {
   final repository = DriftBudgetRepository(await RunwayDatabase.onDevice());
   final data = await repository.load();
   final user = await repository.currentUser();
-  // Optional Google sign-in, on iPhone and Android only. If it can't start,
-  // the app still opens, name-only.
+  // Optional Google sign-in (iPhone, Android, web). If it can't start, the
+  // app still opens, name-only.
   AccountService accounts = const NoAccounts();
   SquadService squad = const NoSquad();
   if (SupabaseAccounts.supported) {
@@ -58,6 +58,7 @@ Future<void> main() async {
     accounts: accounts,
     squadService: squad,
   );
+  state.adoptSignedInAccount();
   // A monthly budget moves on once its month is over, also when the app
   // comes back from the background in a new month.
   state.startNewMonthIfDue();

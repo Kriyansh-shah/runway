@@ -1351,6 +1351,18 @@ void main() {
       expect(find.text('Your account was deleted.'), findsOneWidget);
     });
 
+    test('a session found at launch becomes the profile', () {
+      accounts.current = accounts.result;
+      final fresh = stateWith()..adoptSignedInAccount();
+      expect(fresh.user?.name, 'Priya');
+      expect(fresh.user?.email, 'priya@gmail.com');
+
+      final named = stateWith(user: const UserProfile(name: 'Alex'))
+        ..adoptSignedInAccount();
+      expect(named.user?.name, 'Alex');
+      expect(named.user?.email, 'priya@gmail.com');
+    });
+
     test('erasing everything also signs out', () async {
       accounts.current = accounts.result;
       final state = stateWith(user: const UserProfile(name: 'Alex'));

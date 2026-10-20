@@ -166,6 +166,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget build(BuildContext context) {
     final busy = _phase != _Phase.idle || _googleBusy;
     final google = AppScope.read(context).accounts.canUseGoogle;
+    final where = kIsWeb ? 'in this browser' : 'on this phone';
     final sections = <Widget>[
       // The intro hands its logo over to this exact spot when it ends.
       Center(
@@ -271,10 +272,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       const SizedBox(height: 20),
       Text(
         google
-            ? '🔒 No bank linking. Your money data stays on this phone, '
-                  'even when you sign in.'
-            : '🔒 No account, no bank linking. Your money data stays on '
-                  'this phone.',
+            ? '🔒 No bank linking. Your money data stays $where, even when '
+                  'you sign in.'
+            : '🔒 No account, no bank linking. Your money data stays $where.',
         style: AppText.caption.copyWith(fontSize: 12, letterSpacing: 0),
         textAlign: TextAlign.center,
       ),

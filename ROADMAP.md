@@ -172,7 +172,7 @@ screen), and the app lock below protects the data on the phone.
 - [ ] Turn on "Sign in with Apple" for `com.kriyanshshah.runway`; enable Apple,
       Google and Email providers in Supabase.
 - [ ] Email sending service (Resend / Postmark free tier), ideally with your own domain.
-- [ ] Privacy policy at a public URL (can be a GitHub Pages page).
+- [x] Privacy policy at a public URL: https://kriyansh-shah.github.io/runway/privacy.html
 - [ ] App Store privacy label and Play Data safety form.
 - [ ] Decide: sign-in options (recommended: Apple + Google + email codes, no
       passwords), what syncs (recommended: Squad only, never money data), and

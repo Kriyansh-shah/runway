@@ -1,10 +1,11 @@
 # Runway Privacy Policy
 
-_Last updated: October 19, 2026_
+_Last updated: October 20, 2026_
 
 **The short version: your money data stays on your device, and we can't see
-it. Signing in with Google is optional; if you do, only your name, email and
-an account ID are stored on our server.**
+it. Signing in with Google is optional. If you do, only your name, email and an
+account ID are stored on our server, plus your streak if you join a
+squad.**
 
 ## What Runway stores, and where
 
@@ -36,9 +37,9 @@ stay on your device whether or not you sign in.
   Google account ID**. Runway never sees your Google password.
 - Those are stored in Runway's account database, run by
   [Supabase](https://supabase.com/privacy) on servers in the United States,
-  so you can sign in again later and, in the future, use Squad.
+  so you can sign in again later and use Squad.
 - Runway keeps a sign-in session on your device, in the iOS Keychain or
-  Android Keystore.
+  Android Keystore (in the web app, in your browser's storage for the site).
 
 Runway has no analytics, no ads and no tracking. We never sell or share your
 information, and it's used only to run your account.
@@ -90,4 +91,5 @@ If this policy changes, the new version will be posted here with a new date.
 
 ## Contact
 
-Questions about privacy: **[add a contact email before publishing]**
+Questions about privacy: [open an issue on GitHub](https://github.com/Kriyansh-shah/runway/issues/new)
+(please don't include personal money details), or see the [support page](support.html).

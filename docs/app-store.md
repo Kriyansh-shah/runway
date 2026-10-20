@@ -21,8 +21,8 @@ Where Runway stands before its first App Store submission, and what's left.
   sign-in, App Review Guideline 4.8 requires an equivalent privacy-focused
   option. Add Sign in with Apple (needs the paid developer account) before
   the first submission.
-- **Privacy policy:** written in [`privacy.md`](privacy.md). It still needs a
-  contact email and a public web address (see below).
+- **Privacy policy:** [`privacy.md`](privacy.md), published on the website.
+  Contact is a GitHub issue link for now; a contact email is friendlier.
 
 ## App Privacy label (App Store Connect)
 
@@ -72,10 +72,10 @@ before answering. Once decided, add `ITSAppUsesNonExemptEncryption` to
       `com.kriyanshshah.runway`, category **Finance**, age rating questionnaire
       (expected 4+).
 - [ ] **Contact email** for the privacy policy and the support page.
-- [ ] **Publish the privacy policy** at a public URL. The repo is private, so
-      free GitHub Pages won't work from it. Options: a small public repo just
-      for the page, or any free page host.
-- [ ] **Support URL** (it can be the same page with a contact section).
+- [x] **Privacy policy URL:** https://kriyansh-shah.github.io/runway/privacy.html
+      (built from `docs/privacy.md` by `.github/workflows/website.yml`).
+- [x] **Support URL:** https://kriyansh-shah.github.io/runway/support.html
+      (from `docs/support.md`). **Marketing URL:** https://kriyansh-shah.github.io/runway/
 - [ ] **Screenshots:** 6.9" iPhone (1320 × 2868). iPad screenshots too if the
       iPad stays supported (see below).
 - [ ] **Description, subtitle and keywords.**
