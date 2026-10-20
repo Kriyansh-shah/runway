@@ -174,10 +174,11 @@ screen), and the app lock below protects the data on the phone.
 - [ ] Email sending service (Resend / Postmark free tier), ideally with your own domain.
 - [x] Privacy policy at a public URL: https://kriyansh-shah.github.io/runway/privacy.html
 - [ ] App Store privacy label and Play Data safety form.
+- [x] Decide what syncs (2026-10-20): Squad, plus the budget as an opt-in,
+      end-to-end encrypted copy (sync passphrase; the server can't read it).
 - [ ] Decide: sign-in options (recommended: Apple + Google + email codes, no
-      passwords), what syncs (recommended: Squad only, never money data), and
-      what happens to the money data when a different person signs in on the
-      same phone.
+      passwords), and what happens to the money data when a different person
+      signs in on the same phone.
 
 *Build (once the keys exist):*
 - [x] `supabase_flutter` behind a real `AccountService`; sessions in Keychain / Keystore.

@@ -109,6 +109,22 @@ abstract interface class BudgetRepository {
   /// Permanently deletes everything on the device, including the session.
   /// The next [load] starts over as a brand-new install.
   Future<void> eraseEverything();
+
+  /// Everything about the budget (every term, expense, cost, bill, payment,
+  /// split and category, plus settings like the challenge start) as JSON,
+  /// for budget sync. Leaves out what belongs to this device only: the
+  /// signed-in profile and the app lock.
+  Future<Map<String, Object?>> exportSnapshot();
+
+  /// Replaces the budget with an [exportSnapshot] from another device,
+  /// keeping this device's profile and app lock. Throws
+  /// [SnapshotTooNewException] for a snapshot from a newer app version.
+  Future<void> importSnapshot(Map<String, Object?> snapshot);
+}
+
+/// A synced budget saved by a newer version of Runway.
+class SnapshotTooNewException implements Exception {
+  const SnapshotTooNewException();
 }
 
 /// Nothing is saved: every launch starts from the same demo data.
@@ -228,6 +244,16 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> eraseEverything() async => _user = null;
+
+  /// The last snapshot imported, so tests can export it again.
+  Map<String, Object?> snapshot = const {'schema': 0, 'tables': {}};
+
+  @override
+  Future<Map<String, Object?>> exportSnapshot() async => snapshot;
+
+  @override
+  Future<void> importSnapshot(Map<String, Object?> snapshot) async =>
+      this.snapshot = snapshot;
 
   /// Total of the seeded past expenses. Tuned so the demo lands at
   /// "14 days short" with today's coffee included.

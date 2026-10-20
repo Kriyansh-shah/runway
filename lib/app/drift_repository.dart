@@ -552,6 +552,88 @@ class DriftBudgetRepository implements BudgetRepository {
     await _db.customStatement('VACUUM');
   }
 
+  /// Meta keys that stay on this device instead of syncing.
+  static const _deviceOnlyMeta = {_appLockKey};
+
+  /// Synced tables, parents before the children that reference them.
+  List<TableInfo<Table, Object?>> get _syncedTables => [
+    _db.terms,
+    _db.customCategories,
+    _db.repeatingBills,
+    _db.incomes,
+    _db.expenses,
+    _db.upcomingCosts,
+    _db.billSplits,
+    _db.friends,
+    _db.meta,
+  ];
+
+  @override
+  Future<Map<String, Object?>> exportSnapshot() async {
+    final tables = <String, Object?>{};
+    for (final table in _syncedTables) {
+      final rows = await _db.select(table).get();
+      tables[table.actualTableName] = [
+        for (final row in rows)
+          if (row is MetaRow && _deviceOnlyMeta.contains(row.key))
+            null
+          else
+            (row as DataClass).toJson(),
+      ].nonNulls.toList();
+    }
+    return {'schema': _db.schemaVersion, 'tables': tables};
+  }
+
+  @override
+  Future<void> importSnapshot(Map<String, Object?> snapshot) async {
+    final schema = snapshot['schema'] as int? ?? 0;
+    // Older snapshots would need their own upgrade steps here once the
+    // schema moves past 6; sync started at 6.
+    if (schema > _db.schemaVersion) throw const SnapshotTooNewException();
+    final tables = (snapshot['tables'] as Map).cast<String, Object?>();
+    List<Map<String, dynamic>> rows(TableInfo<Table, Object?> t) => [
+      for (final r in (tables[t.actualTableName] as List?) ?? const [])
+        (r as Map).cast<String, dynamic>(),
+    ];
+    final keptMeta = await (_db.select(
+      _db.meta,
+    )..where((m) => m.key.isIn(_deviceOnlyMeta))).get();
+    _termId = null;
+    await _db.transaction(() async {
+      for (final table in _syncedTables.reversed) {
+        await _db.delete(table).go();
+      }
+      await _db.batch((b) {
+        b.insertAll(_db.terms, rows(_db.terms).map(TermRow.fromJson));
+        b.insertAll(
+          _db.customCategories,
+          rows(_db.customCategories).map(CustomCategoryRow.fromJson),
+        );
+        b.insertAll(
+          _db.repeatingBills,
+          rows(_db.repeatingBills).map(RepeatingBillRow.fromJson),
+        );
+        b.insertAll(_db.incomes, rows(_db.incomes).map(IncomeRow.fromJson));
+        b.insertAll(_db.expenses, rows(_db.expenses).map(ExpenseRow.fromJson));
+        b.insertAll(
+          _db.upcomingCosts,
+          rows(_db.upcomingCosts).map(UpcomingCostRow.fromJson),
+        );
+        b.insertAll(
+          _db.billSplits,
+          rows(_db.billSplits).map(BillSplitRow.fromJson),
+        );
+        b.insertAll(_db.friends, rows(_db.friends).map(FriendRow.fromJson));
+        b.insertAll(_db.meta, [
+          ...rows(_db.meta)
+              .map(MetaRow.fromJson)
+              .where((m) => !_deviceOnlyMeta.contains(m.key)),
+          ...keptMeta,
+        ]);
+      });
+    });
+  }
+
   @override
   Future<void> startTerm(
     Term term,

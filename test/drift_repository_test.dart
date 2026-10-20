@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -1301,6 +1302,51 @@ void main() {
     repo = await reopen(repo);
     expect((await repo.load()).appLock, isTrue);
     expect((await repo.currentUser())?.name, 'Alexis');
+  });
+
+  test('a snapshot moves the whole budget to another device', () async {
+    final phone = openRepo();
+    await phone.load();
+    await phone.addExpense(expense('ride', 12, note: 'Airport'));
+    await phone.setAppLock(true);
+    // Through JSON text, like the encrypted upload.
+    final snapshot = jsonDecode(
+      jsonEncode(await phone.exportSnapshot()),
+    ) as Map<String, Object?>;
+
+    final other = DriftBudgetRepository(
+      RunwayDatabase(NativeDatabase(File('${dir.path}/other.sqlite'))),
+      clock: () => now,
+    );
+    addTearDown(other.close);
+    await other.load();
+    await other.setCurrentUser(const UserProfile(name: 'Bea'));
+    await other.importSnapshot(snapshot);
+
+    final mine = await phone.load();
+    final theirs = await other.load();
+    expect(theirs.term.name, mine.term.name);
+    expect(theirs.term.startingBalance, mine.term.startingBalance);
+    expect(
+      theirs.expenses.map((e) => (e.id, e.amount, e.note)),
+      unorderedEquals(mine.expenses.map((e) => (e.id, e.amount, e.note))),
+    );
+    expect(theirs.upcoming.length, mine.upcoming.length);
+    expect(theirs.splits.length, mine.splits.length);
+    expect(theirs.challengeStart, mine.challengeStart);
+    // Device-only things stay put.
+    expect(theirs.appLock, isFalse);
+    expect((await other.currentUser())?.name, 'Bea');
+    expect(await other.exportSnapshot(), snapshot);
+  });
+
+  test('a snapshot from a newer app is refused', () async {
+    final repo = openRepo();
+    await repo.load();
+    await expectLater(
+      repo.importSnapshot({'schema': 999, 'tables': <String, Object?>{}}),
+      throwsA(isA<SnapshotTooNewException>()),
+    );
   });
 
   group('when a save fails', () {

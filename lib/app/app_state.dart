@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'auth.dart';
 import 'budget_math.dart';
 import 'budget_math.dart' as budget show nextIncome, savingsStreak;
+import 'budget_sync.dart';
 import 'coach.dart';
 import 'device_auth.dart';
 import 'format.dart';
@@ -24,6 +25,9 @@ class AppState extends ChangeNotifier {
     this.deviceAuth = const LocalDeviceAuth(),
     this.accounts = const NoAccounts(),
     this.squadService = const NoSquad(),
+    BudgetBackupStore budgetBackups = const NoBudgetBackups(),
+    LocalSyncStore? syncStore,
+    BudgetCipher budgetCipher = const BudgetCipher(),
     UserProfile? user,
     DateTime Function()? clock,
   }) : _repo = repository,
@@ -43,6 +47,28 @@ class AppState extends ChangeNotifier {
        _challengeStart = data.challengeStart {
     _user = user;
     _recompute();
+    sync = BudgetSyncController(
+      store: budgetBackups,
+      local: syncStore ?? MemorySyncStore(),
+      exportBudget: () async {
+        await _lastWrite;
+        return _repo.exportSnapshot();
+      },
+      importBudget: _importBudget,
+      userId: () => account?.id,
+      cipher: budgetCipher,
+    )..addListener(notifyListeners);
+  }
+
+  /// Encrypted budget sync across the person's signed-in devices.
+  late final BudgetSyncController sync;
+
+  /// Replaces everything with a budget synced from another device.
+  Future<void> _importBudget(Map<String, Object?> snapshot) async {
+    await _lastWrite;
+    await _repo.importSnapshot(snapshot);
+    _apply(await _repo.load());
+    _changed();
   }
 
   final BudgetRepository _repo;
@@ -446,7 +472,7 @@ class AppState extends ChangeNotifier {
   void signedIn(UserProfile user) {
     _user = user;
     notifyListeners();
-    _persist(() => _repo.setCurrentUser(user));
+    _persist(() => _repo.setCurrentUser(user), budget: false);
   }
 
   /// Squad with real friends is possible here (sign-in is set up), even if
@@ -548,8 +574,9 @@ class AppState extends ChangeNotifier {
             : 'Friend');
     _user = UserProfile(name: name, email: account.email);
     notifyListeners();
-    _persist(() => _repo.setCurrentUser(_user));
+    _persist(() => _repo.setCurrentUser(_user), budget: false);
     unawaited(refreshSquad());
+    await sync.check();
     return true;
   }
 
@@ -568,7 +595,7 @@ class AppState extends ChangeNotifier {
             : 'Friend');
     _user = UserProfile(name: name, email: account.email);
     notifyListeners();
-    _persist(() => _repo.setCurrentUser(_user));
+    _persist(() => _repo.setCurrentUser(_user), budget: false);
   }
 
   /// Unlinks the Google account on this phone. The budget stays.
@@ -585,12 +612,13 @@ class AppState extends ChangeNotifier {
   }
 
   void _forgetAccount() {
+    unawaited(sync.forget());
     final user = _user;
     if (user != null) _user = UserProfile(name: user.name);
     _squad = null;
     _squadError = null;
     notifyListeners();
-    _persist(() => _repo.setCurrentUser(_user));
+    _persist(() => _repo.setCurrentUser(_user), budget: false);
   }
 
   /// Changes the name shown in the greeting.
@@ -600,7 +628,7 @@ class AppState extends ChangeNotifier {
     if (user == null || validateName(trimmed) != null) return;
     _user = UserProfile(name: trimmed, email: user.email);
     notifyListeners();
-    _persist(() => _repo.setCurrentUser(_user));
+    _persist(() => _repo.setCurrentUser(_user), budget: false);
   }
 
   /// Turns the Face ID / passcode lock on or off. Callers verify the owner
@@ -609,7 +637,7 @@ class AppState extends ChangeNotifier {
     if (on == _appLock) return;
     _appLock = on;
     notifyListeners();
-    _persist(() => _repo.setAppLock(on));
+    _persist(() => _repo.setAppLock(on), budget: false);
   }
 
   void updateTerm(Term term) {
@@ -955,6 +983,7 @@ class AppState extends ChangeNotifier {
         debugPrint('Sign-out while erasing failed: $error');
       }
     }
+    await sync.forget();
     _apply(await _repo.load());
     _user = null;
     _squad = null;
@@ -1024,12 +1053,17 @@ class AppState extends ChangeNotifier {
   /// Saves run one at a time, in the order they were made: a save that
   /// looks something up first (like adding a bill right after setup) can't
   /// be overtaken by the next one.
-  void _persist(Future<void> Function() write) {
+  ///
+  /// [budget] is false for what stays on this device (profile, app lock),
+  /// so it doesn't trigger a sync upload.
+  void _persist(Future<void> Function() write, {bool budget = true}) {
     _pendingWrites++;
     _lastWrite = _lastWrite
         .then((_) => write())
         .then<void>(
-          (_) {},
+          (_) {
+            if (budget && !_disposed) sync.localChanged();
+          },
           onError: (Object error, StackTrace stack) {
             _report(error, stack, 'while saving to the database');
             _resyncNeeded = true;
@@ -1077,6 +1111,7 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    sync.dispose();
     unawaited(_problems.close());
     super.dispose();
   }

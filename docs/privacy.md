@@ -2,10 +2,11 @@
 
 _Last updated: October 20, 2026_
 
-**The short version: your money data stays on your device, and we can't see
-it. Signing in with Google is optional. If you do, only your name, email and an
-account ID are stored on our server, plus your streak if you join a
-squad.**
+**The short version: we can't see your money data. It stays on your device,
+unless you turn on budget sync, and then it's encrypted on your device with a
+passphrase only you know before it's uploaded. Signing in with Google is
+optional. If you do, your name, email and an account ID are stored on our
+server, plus your streak if you join a squad.**
 
 ## What Runway stores, and where
 
@@ -26,8 +27,9 @@ other apps can't open.
 
 ## What leaves your device
 
-**Your money data never does.** Balances, expenses, budgets, bills and splits
-stay on your device whether or not you sign in.
+**Your money data doesn't, unless you turn on budget sync** (see below).
+Without it, balances, expenses, budgets, bills and splits stay on your device
+whether or not you sign in.
 
 **If you don't sign in, nothing leaves your device.**
 
@@ -43,6 +45,29 @@ stay on your device whether or not you sign in.
 
 Runway has no analytics, no ads and no tracking. We never sell or share your
 information, and it's used only to run your account.
+
+## Budget sync (optional, encrypted)
+
+If you're signed in and turn on **Budget sync**, Runway can show the same
+budget on your other devices. Here's how it protects you:
+
+- You choose a **sync passphrase**. Your device turns it into an encryption
+  key (PBKDF2-HMAC-SHA256, 600,000 rounds) and encrypts your whole budget
+  with it (AES-256-GCM) **before** anything is uploaded.
+- Our server only ever receives the encrypted copy. **Nobody but you can
+  read it, including Runway**, Supabase or anyone who got into the server.
+  We never receive your passphrase or the key.
+- Each device remembers the key in the iOS Keychain or Android Keystore (in
+  the web app, in your browser's storage for the site), so you type the
+  passphrase once per device.
+- What the server can see: that you have a synced copy, its size, and when
+  it was last changed.
+- **If you forget your passphrase, we can't recover the synced copy.** The
+  budget on your devices is unaffected, and you can start sync over with a
+  new passphrase.
+
+Your Face ID lock setting and your name stay on each device and aren't
+synced.
 
 ## Face ID, Touch ID and passcode
 
@@ -74,7 +99,10 @@ with it right away, and a squad is deleted when its last member leaves.
 ## Deleting your data
 
 - **Your account:** Settings → Account → **Delete account** deletes your
-  account and everything stored with it on our server, right away.
+  account and everything stored with it on our server (including any synced
+  budget), right away.
+- **Just the synced budget:** Settings → Account → Budget sync → **Delete
+  the synced copy**.
 - **Data on your device:** Settings → **Erase everything on this phone**
   deletes all of it and rewrites the file so nothing is left behind. It also
   signs you out.

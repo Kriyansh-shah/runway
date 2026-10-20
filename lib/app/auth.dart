@@ -1,6 +1,7 @@
 /// Who is using the app. Runway asks only for a name; signing in with
-/// Google is optional and links an account for Squad. Money data stays on
-/// this device either way; see ROADMAP.md.
+/// Google is optional and links an account for Squad and budget sync.
+/// Money data only leaves the device if sync is on, and then encrypted with
+/// a passphrase only the person knows; see budget_sync.dart.
 library;
 
 class UserProfile {

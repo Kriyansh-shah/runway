@@ -20,6 +20,7 @@ import 'welcome_screen.dart';
 import 'history_screen.dart';
 import 'money_actions.dart';
 import 'setup_screen.dart';
+import 'sync_sheets.dart';
 
 /// Account, the current semester, big costs, and your data.
 class SettingsScreen extends StatelessWidget {
@@ -232,7 +233,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Runway keeps your money data on this phone only. '
+                    'Your money data stays on this phone unless you turn on '
+                    'sync, and then it\'s encrypted so only you can read it. '
                     'No bank linking, no ads, no tracking.',
                     style: AppText.caption.copyWith(letterSpacing: 0),
                     textAlign: TextAlign.center,
@@ -399,11 +401,13 @@ class _LinkRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.subtitle,
     this.color = AppColors.text,
   });
 
   final IconData icon;
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
   final Color color;
 
@@ -420,12 +424,22 @@ class _LinkRow extends StatelessWidget {
             Icon(icon, size: 20, color: color),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                label,
-                style: AppText.body.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppText.body.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: AppText.caption.copyWith(letterSpacing: 0),
+                    ),
+                ],
               ),
             ),
             const Icon(PhIcons.caretRight, size: 16, color: AppColors.muted),
@@ -500,7 +514,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
           Text(
             problem ??
                 (widget.signedIn
-                    ? 'Your money data stays on this phone.'
+                    ? 'Your name stays on this phone.'
                     : 'No account needed. Your name and money data stay on '
                           'this phone.'),
             style: (problem == null ? AppText.caption : AppText.label).copyWith(
@@ -514,8 +528,8 @@ class _ProfileEditorState extends State<_ProfileEditor> {
   }
 }
 
-/// Optional Google account: sign in, sign out, or delete it. Money data
-/// stays on the phone whichever you pick.
+/// Optional Google account: budget sync, sign out, or delete it. Money
+/// data only leaves the phone with sync on, encrypted.
 class _AccountCard extends StatefulWidget {
   const _AccountCard();
 
@@ -602,7 +616,8 @@ class _AccountCardState extends State<_AccountCard> {
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
-                'Optional. Squad will need it later. Your money data stays '
+                'Optional. For Squad and syncing your budget (encrypted) to '
+                'other devices. Without sync, your money data stays '
                 'on this phone.',
                 style: AppText.caption.copyWith(letterSpacing: 0),
               ),
@@ -639,6 +654,13 @@ class _AccountCardState extends State<_AccountCard> {
                 ),
               ],
             ),
+          ),
+          Divider(height: 1, color: AppColors.hairline),
+          _LinkRow(
+            icon: PhIcons.lock,
+            label: 'Budget sync',
+            subtitle: syncSummary(AppScope.of(context)),
+            onTap: () => showSyncSheet(context),
           ),
           Divider(height: 1, color: AppColors.hairline),
           _LinkRow(icon: PhIcons.signOut, label: 'Sign out', onTap: _signOut),

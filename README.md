@@ -44,7 +44,7 @@ Runway answers two questions every day:
 2. **If I keep spending like this, when does my money run out?**
 
 There's **no bank linking**. You log expenses by hand, and Runway makes that as quick
-as it can be: two taps for most purchases. Your money data never leaves your phone.
+as it can be: two taps for most purchases. Your money data stays on your phone unless you turn on sync, which is end-to-end encrypted.
 
 ---
 

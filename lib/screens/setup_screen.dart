@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
+import '../app/budget_sync.dart';
 import '../app/device_auth.dart';
 import '../app/format.dart';
 import '../app/models.dart';
@@ -17,10 +18,17 @@ import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
 import 'savings_goal_sheet.dart';
 import 'shell.dart';
+import 'sync_sheets.dart';
 
 /// Where a signed-in user lands: setup until they've entered their own term.
+/// Where the app opens: Home, or setup on a fresh device. A fresh device
+/// signed in to an account with a synced budget offers to unlock it first.
 Widget landingFor(AppState state) =>
-    state.needsSetup ? const SetupScreen() : const Shell();
+    switch ((state.needsSetup, state.sync.status)) {
+      (true, SyncStatus.needsPassphrase) => const RestoreScreen(),
+      (true, _) => const SetupScreen(),
+      (false, _) => const Shell(),
+    };
 
 /// First run: semester or monthly, the dates, money for that stretch, and
 /// big costs coming up. Replaces the demo data with the user's own budget.

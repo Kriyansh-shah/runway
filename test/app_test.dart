@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/app_state.dart';
 import 'package:runway/app/auth.dart';
+import 'package:runway/app/budget_sync.dart';
 import 'package:runway/app/device_auth.dart';
 import 'package:runway/app/models.dart';
 // import 'package:runway/app/purchase_link.dart';
@@ -20,6 +21,8 @@ import 'package:runway/widgets/form_fields.dart';
 import 'package:runway/widgets/list_row.dart';
 import 'package:runway/widgets/mochi_takeoff.dart';
 import 'package:runway/widgets/ph_icons.dart';
+
+import 'fake_budget_server.dart';
 
 /// Pumps frame-by-frame for [d]. The app has endless ambient animations
 /// (aurora, pet), so pumpAndSettle would never return.
@@ -1487,6 +1490,150 @@ void main() {
       expect(state.squad?.name, 'Roomies');
       await state.signOutAccount();
       expect(state.squad, isNull);
+    });
+  });
+
+  group('budget sync', () {
+    late _FakeAccounts accounts;
+    late FakeServer server;
+    late MockBudgetRepository repo;
+    const cipher = BudgetCipher(iterations: 1000);
+
+    setUp(() {
+      accounts = _FakeAccounts()..current = _FakeAccounts().result;
+      server = FakeServer();
+      repo = MockBudgetRepository(now: now);
+    });
+
+    AppState stateWith({bool fresh = false}) {
+      final demo = MockBudgetRepository.seed(now);
+      return AppState(
+        repository: repo,
+        data: fresh
+            ? BudgetData(
+                term: demo.term,
+                expenses: demo.expenses,
+                upcoming: demo.upcoming,
+                friends: demo.friends,
+                splits: demo.splits,
+                challengeStart: demo.challengeStart,
+                needsSetup: true,
+              )
+            : demo,
+        accounts: accounts,
+        budgetBackups: server,
+        budgetCipher: cipher,
+        user: const UserProfile(name: 'Alex', email: 'priya@gmail.com'),
+        clock: () => now,
+      );
+    }
+
+    Future<void> boot(WidgetTester tester, AppState state) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+    }
+
+    /// Puts a synced copy on the server, as another device would.
+    Future<void> syncFromAnotherDevice(String passphrase) async {
+      final other = BudgetSyncController(
+        store: server,
+        local: MemorySyncStore(),
+        exportBudget: () async => {'schema': 6, 'from': 'phone'},
+        importBudget: (_) async {},
+        userId: () => 'u1',
+        cipher: cipher,
+      );
+      await other.turnOn(passphrase);
+    }
+
+    testWidgets('settings: turning sync on uploads an encrypted copy', (
+      tester,
+    ) async {
+      repo.snapshot = {'schema': 6, 'note': 'Rent 900'};
+      final state = stateWith();
+      await boot(tester, state);
+      await tester.tap(find.text('A'));
+      await settle(tester);
+
+      await centerOn(tester, find.text('Budget sync'));
+      expect(find.textContaining('Off. Turn on'), findsOneWidget);
+      await tester.tap(find.text('Budget sync'));
+      await settle(tester);
+
+      final fields = find.byType(TextField);
+      await tester.enterText(
+        fields.at(fields.evaluate().length - 2),
+        'correct horse',
+      );
+      await tester.enterText(fields.last, 'different');
+      await tester.tap(find.text('Turn on sync'));
+      await settle(tester);
+      expect(find.text('The passphrases don\'t match.'), findsOneWidget);
+
+      await tester.enterText(fields.last, 'correct horse');
+      await tester.tap(find.text('Turn on sync'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await settle(tester);
+
+      expect(state.sync.status, SyncStatus.on);
+      expect(server.budget!.ciphertext, isNot(contains('Rent')));
+      expect(find.text('Budget sync is on.'), findsOneWidget);
+    });
+
+    testWidgets('a fresh device unlocks the synced budget before setup', (
+      tester,
+    ) async {
+      await syncFromAnotherDevice('correct horse');
+      final state = stateWith(fresh: true);
+      await state.sync.check();
+      expect(state.sync.status, SyncStatus.needsPassphrase);
+
+      await boot(tester, state);
+      expect(find.text('Welcome back 👋'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'wrong horse');
+      await tester.tap(find.text('Unlock my budget'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await settle(tester);
+      expect(find.textContaining('didn\'t open it'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'correct horse');
+      await tester.tap(find.text('Unlock my budget'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await settle(tester);
+
+      expect(repo.snapshot['from'], 'phone');
+      expect(state.sync.status, SyncStatus.on);
+    });
+
+    testWidgets('a fresh device can start fresh instead', (tester) async {
+      await syncFromAnotherDevice('correct horse');
+      final state = stateWith(fresh: true);
+      await state.sync.check();
+      await boot(tester, state);
+
+      await tester.tap(find.text('Start fresh on this device instead'));
+      await settle(tester);
+      expect(find.text('Set up your semester'), findsOneWidget);
+    });
+
+    test('signing out forgets the key on this device', () async {
+      final state = stateWith();
+      await state.sync.turnOn('correct horse');
+      expect(state.sync.status, SyncStatus.on);
+      await state.signOutAccount();
+      await pumpEventQueue();
+      expect(state.sync.status, SyncStatus.off);
+      expect(server.row, isNotNull); // the copy stays for next time
     });
   });
 

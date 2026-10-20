@@ -22,7 +22,8 @@ enum _Phase { idle, success }
 
 /// First screen on a fresh install (or after erasing everything): asks only
 /// for a name, or signs in with Google where that's set up. No passwords;
-/// the money data never leaves the phone, and the optional app lock
+/// money data leaves the phone only with sync on (encrypted), and the
+/// optional app lock
 /// protects it.
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key, this.playIntro = false});
@@ -272,8 +273,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       const SizedBox(height: 20),
       Text(
         google
-            ? '🔒 No bank linking. Your money data stays $where, even when '
-                  'you sign in.'
+            ? '🔒 No bank linking. Your money data stays $where unless you '
+                  'turn on sync, and then only you can read it.'
             : '🔒 No account, no bank linking. Your money data stays $where.',
         style: AppText.caption.copyWith(fontSize: 12, letterSpacing: 0),
         textAlign: TextAlign.center,

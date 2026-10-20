@@ -10,10 +10,12 @@ import 'package:flutter/material.dart';
 
 import 'app/app_state.dart';
 import 'app/auth.dart';
+import 'app/budget_sync.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
 import 'app/squad.dart';
 import 'app/supabase_accounts.dart';
+import 'app/supabase_budget_backups.dart';
 import 'app/supabase_squad.dart';
 // import 'app/purchase_link.dart';
 import 'app/theme.dart';
@@ -43,10 +45,14 @@ Future<void> main() async {
   // app still opens, name-only.
   AccountService accounts = const NoAccounts();
   SquadService squad = const NoSquad();
+  BudgetBackupStore backups = const NoBudgetBackups();
+  LocalSyncStore? syncStore;
   if (SupabaseAccounts.supported) {
     try {
       accounts = await SupabaseAccounts.start();
       squad = const SupabaseSquad();
+      backups = const SupabaseBudgetBackups();
+      syncStore = const SecureSyncStore();
     } on Object catch (error) {
       debugPrint('Sign-in unavailable: $error');
     }
@@ -57,14 +63,34 @@ Future<void> main() async {
     user: user,
     accounts: accounts,
     squadService: squad,
+    budgetBackups: backups,
+    syncStore: syncStore,
   );
   state.adoptSignedInAccount();
+  // A fresh device that's signed in (the web after Google's redirect) asks
+  // for the sync passphrase before setup, so it checks before showing
+  // anything; otherwise sync catches up in the background.
+  if (state.account != null && state.needsSetup) {
+    await state.sync.check().timeout(
+      const Duration(seconds: 6),
+      onTimeout: () {},
+    );
+  } else {
+    unawaited(state.sync.check());
+  }
   // A monthly budget moves on once its month is over, also when the app
   // comes back from the background in a new month.
   state.startNewMonthIfDue();
   // Offers a recap for a month that just ended (or one never shown).
   unawaited(state.checkForRecap());
-  AppLifecycleListener(onResume: state.startNewMonthIfDue);
+  AppLifecycleListener(
+    onResume: () {
+      state.startNewMonthIfDue();
+      unawaited(state.sync.check());
+    },
+    // Upload a pending change before the app is put away.
+    onHide: () => unawaited(state.sync.flush()),
+  );
 
   // Switched off for now. Apple Pay purchases arrive as runway://log links from a Shortcuts
   // automation, both when they launch the app and while it's open.

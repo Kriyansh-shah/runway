@@ -36,8 +36,13 @@ Where Runway stands before its first App Store submission, and what's left.
 | Usage Data → Product Interaction (Squad streak, challenge days) | Yes | No | App Functionality |
 | User Content → Other User Content (squad names) | Yes | No | App Functionality |
 
-Money data (balances, expenses, budgets) never leaves the phone, so no
-Financial Info is collected. Face ID results come from iOS and aren't stored.
+Money data (balances, expenses, budgets) leaves the phone only with Budget
+sync on, and then end-to-end encrypted with the person's passphrase, so
+Runway can't read it. Apple defines "collect" as sending data off the device
+in a way the developer can access; end-to-end encrypted data Runway can't
+open arguably isn't collected, so Financial Info is left off. This is the
+owner's call: if unsure, add Financial Info → Other Financial Info (linked,
+not tracking, App Functionality). Face ID results come from iOS and aren't stored.
 Squad shares first name, emoji, streak and no-delivery days with squad
 members only (see privacy.md).
 
@@ -60,8 +65,8 @@ before answering. Once decided, add `ITSAppUsesNonExemptEncryption` to
 > in with Google is optional and can be tested from Settings → Account, which
 > also has Delete account. The app lock (Face ID) is optional. Squad needs
 > sign-in: start a squad, then share its invite code; friends see only first
-> names, streaks and challenge days. Money data stays on the device,
-> encrypted, and is never sent to a server.
+> names, streaks and challenge days. Budget sync (Settings → Account) is
+> optional and end-to-end encrypted with a passphrase the person chooses.
 
 ## Owner to-do (needs your accounts or decisions)
 
