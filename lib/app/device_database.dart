@@ -14,6 +14,7 @@ import 'dart:math';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -40,13 +41,15 @@ Future<QueryExecutor> openDeviceDatabase() async {
 /// The database key, created on first use. Written before the file is ever
 /// encrypted with it, so a crash in between can't lock the data away.
 class DatabaseKey {
-  DatabaseKey({required this.read, required this.write});
+  DatabaseKey({required this.read, required this.write, this.reset});
 
   /// The Keychain (iOS) or Keystore-backed storage (Android).
   ///
   /// iOS: readable after the first unlock since restart, and it moves to a
   /// new iPhone with an encrypted backup, along with the file it opens.
-  /// Android: never reset on a read error, which would lose the data.
+  /// Android: not reset on an ordinary read error, which would lose the
+  /// data; only when the Keystore can't open the storage at all (see
+  /// [reset]).
   factory DatabaseKey.secure() {
     const storage = FlutterSecureStorage(
       iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
@@ -55,6 +58,11 @@ class DatabaseKey {
     return DatabaseKey(
       read: () => storage.read(key: _name),
       write: (key) => storage.write(key: _name, value: key),
+      reset: Platform.isAndroid
+          ? () => const FlutterSecureStorage(
+              aOptions: AndroidOptions(resetOnError: true),
+            ).deleteAll()
+          : null,
     );
   }
 
@@ -63,13 +71,38 @@ class DatabaseKey {
   final Future<String?> Function() read;
   final Future<void> Function(String key) write;
 
+  /// Clears storage the Keystore can't open: on Android, data restored from
+  /// a backup or another phone arrives without the Keystore keys that
+  /// unwrap it, and every read fails ("Failed to unwrap key"). The key is
+  /// gone for good then; the file it opened is moved aside by
+  /// [prepareEncryptedFile] and the app starts fresh instead of hanging
+  /// on the launch screen. Null on iOS, where a read can fail for passing
+  /// reasons (before the first unlock) and the key must never be wiped.
+  final Future<void> Function()? reset;
+
   Future<String> readOrCreate() async {
-    final existing = await read();
+    final existing = await _readSurvivingBrokenStorage();
     if (existing != null) return existing;
     final random = Random.secure();
     final key = hex([for (var i = 0; i < 32; i++) random.nextInt(256)]);
     await write(key);
     return key;
+  }
+
+  Future<String?> _readSurvivingBrokenStorage() async {
+    try {
+      return await read();
+    } on PlatformException catch (first) {
+      final reset = this.reset;
+      if (reset == null) rethrow;
+      try {
+        return await read();
+      } on PlatformException {
+        debugPrint('Secure storage unreadable, starting fresh: $first');
+        await reset();
+        return null;
+      }
+    }
   }
 
   @visibleForTesting

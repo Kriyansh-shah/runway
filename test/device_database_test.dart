@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/database.dart';
 import 'package:runway/app/device_database.dart';
@@ -116,5 +117,34 @@ void main() {
       write: (k) async => elsewhere = k,
     );
     expect(await other.readOrCreate(), isNot(first));
+  });
+
+  test('unreadable Android storage is cleared and a new key made', () async {
+    var stored = 'old';
+    var broken = true;
+    var resets = 0;
+    final key = DatabaseKey(
+      read: () async {
+        if (broken) throw PlatformException(code: 'Failed to unwrap key');
+        return stored;
+      },
+      write: (k) async => stored = k,
+      reset: () async {
+        resets++;
+        broken = false;
+      },
+    );
+    final fresh = await key.readOrCreate();
+    expect(resets, 1);
+    expect(fresh, hasLength(64));
+    expect(stored, fresh);
+  });
+
+  test('without a reset (iOS), a read error is never wiped away', () async {
+    final key = DatabaseKey(
+      read: () async => throw PlatformException(code: 'locked'),
+      write: (_) async => fail('must not write a new key'),
+    );
+    await expectLater(key.readOrCreate(), throwsA(isA<PlatformException>()));
   });
 }
