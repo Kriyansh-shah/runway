@@ -36,7 +36,8 @@ abstract interface class BudgetRepository {
   Future<void> deleteCustomCategory(String id);
 
   /// Saves every roommate IOU plus your own share together — all or nothing.
-  Future<void> splitBill(List<BillSplit> splits, Expense myShare);
+  /// [myShare] is null when your part is counted elsewhere (a synced split).
+  Future<void> splitBill(List<BillSplit> splits, Expense? myShare);
   Future<void> settleSplit(String splitId);
 
   /// Saves the edited term; [added] are bills reserved for days it gained.
@@ -120,6 +121,10 @@ abstract interface class BudgetRepository {
   /// keeping this device's profile and app lock. Throws
   /// [SnapshotTooNewException] for a snapshot from a newer app version.
   Future<void> importSnapshot(Map<String, Object?> snapshot);
+
+  /// IDs of expenses made from friends' splits (`sx-…`), deleted ones
+  /// included, so a split you deleted from your budget isn't added again.
+  Future<Set<String>> sharedExpenseIds();
 }
 
 /// A synced budget saved by a newer version of Runway.
@@ -147,7 +152,14 @@ class MockBudgetRepository implements BudgetRepository {
   Future<void> setAppLock(bool on) async {}
 
   @override
-  Future<void> addExpense(Expense expense) async {}
+  Future<void> addExpense(Expense expense) async {
+    if (expense.id.startsWith('sx-')) _shared.add(expense.id);
+  }
+
+  final _shared = <String>{};
+
+  @override
+  Future<Set<String>> sharedExpenseIds() async => {..._shared};
 
   @override
   Future<void> updateExpense(Expense expense) async {}
@@ -168,7 +180,7 @@ class MockBudgetRepository implements BudgetRepository {
   Future<void> deleteCustomCategory(String id) async {}
 
   @override
-  Future<void> splitBill(List<BillSplit> splits, Expense myShare) async {}
+  Future<void> splitBill(List<BillSplit> splits, Expense? myShare) async {}
 
   @override
   Future<void> settleSplit(String splitId) async {}

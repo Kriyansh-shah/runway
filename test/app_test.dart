@@ -8,6 +8,7 @@ import 'package:runway/app/device_auth.dart';
 import 'package:runway/app/models.dart';
 // import 'package:runway/app/purchase_link.dart';
 import 'package:runway/app/repository.dart';
+import 'package:runway/app/split_math.dart';
 import 'package:runway/app/squad.dart';
 import 'package:runway/main.dart';
 import 'package:runway/screens/add_income_sheet.dart';
@@ -1433,7 +1434,7 @@ void main() {
       await tester.tap(find.text('Start squad'));
       await settle(tester, const Duration(seconds: 2));
 
-      expect(find.text('Apt 4B'), findsOneWidget);
+      expect(find.text('Apt 4B'), findsWidgets); // switcher + header
       expect(find.text('Just you so far'), findsOneWidget);
       expect(find.text('Invite friends'), findsOneWidget);
       expect(find.text('No-delivery week'), findsOneWidget);
@@ -1455,9 +1456,10 @@ void main() {
       await settle(tester, const Duration(seconds: 2));
 
       expect(squads.joinedWith, 'k7m-2qx');
-      expect(find.text('Roomies'), findsOneWidget);
+      expect(find.text('Roomies'), findsWidgets); // switcher + header
       expect(find.text('2 of 8 people'), findsOneWidget);
-      expect(find.text('Priya'), findsNWidgets(2)); // challenge + leaderboard
+      // Challenge, leaderboard and the friends list.
+      expect(find.text('Priya'), findsNWidgets(3));
       expect(find.text('Start a squad'), findsNothing);
     });
 
@@ -1465,7 +1467,7 @@ void main() {
       squads.squad = _FakeSquad.roomies;
       final state = stateWith();
       await openSquad(tester, state);
-      expect(find.text('Roomies'), findsOneWidget);
+      expect(find.text('Roomies'), findsWidgets); // switcher + header
 
       await tester.tap(find.bySemanticsLabel('Leave squad'));
       await settle(tester);
@@ -1514,10 +1516,160 @@ void main() {
       await tester.tap(find.text('Split \$30.00'));
       await settle(tester, const Duration(seconds: 2));
 
+      // Priya's part is synced; Sam isn't on Runway, so his stays here.
+      final synced = squads.expenses.single;
+      expect(synced.description, 'Groceries');
+      expect(synced.paidBy, 'u1');
+      expect(synced.shares, {'u1': 1000, 'u2': 1000});
       expect(
         state.splits.where((s) => s.note == 'Groceries').map((s) => s.person),
-        unorderedEquals(['Priya', 'Sam']),
+        ['Sam'],
       );
+      // Your part counts once, as a synced split's expense.
+      expect(
+        state.allExpenses.where((e) => e.note == 'Groceries').single.amount,
+        10,
+      );
+      expect(state.friendBalances, {'u2': 1000});
+    });
+
+    testWidgets('they paid, split by exact amounts: you owe them', (
+      tester,
+    ) async {
+      squads.squad = _FakeSquad.roomies;
+      final state = stateWith();
+      await openSquad(tester, state);
+      await tester.ensureVisible(find.text('Split a bill'));
+      await settle(tester, const Duration(milliseconds: 300));
+      await tester.tap(find.text('Split a bill'));
+      await settle(tester);
+
+      await tester.enterText(find.byType(TextField).at(0), 'Concert');
+      await tester.enterText(find.byType(TextField).at(1), '100');
+      await tester.tap(find.text('🐼 Priya'));
+      await settle(tester);
+      await tester.ensureVisible(find.text('Priya').last);
+      await tester.tap(find.text('Priya').last); // who paid
+      await tester.ensureVisible(find.text('Exact amounts'));
+      await tester.tap(find.text('Exact amounts'));
+      await settle(tester);
+      final fields = find.byType(TextField);
+      final n = fields.evaluate().length;
+      await tester.enterText(fields.at(n - 2), '60'); // you
+      await tester.enterText(fields.at(n - 1), '30'); // Priya
+      await settle(tester, const Duration(milliseconds: 300));
+      expect(find.text('\$10.00 still to assign.'), findsOneWidget);
+      await tester.enterText(fields.at(n - 1), '40');
+      await settle(tester, const Duration(milliseconds: 300));
+      expect(find.text('You owe Priya'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Split \$100.00'));
+      await tester.tap(find.text('Split \$100.00'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(squads.expenses.single.paidBy, 'u2');
+      expect(squads.expenses.single.kind, SplitKind.exact);
+      expect(state.friendBalances, {'u2': -6000});
+      expect(
+        state.allExpenses.where((e) => e.note == 'Concert').single.amount,
+        60,
+      );
+    });
+
+    testWidgets('settle up with a friend', (tester) async {
+      squads.squad = _FakeSquad.roomies;
+      squads.expenses.add(
+        SharedExpense(
+          id: 'x9',
+          paidBy: 'u1',
+          description: 'Pizza',
+          totalCents: 3000,
+          shares: const {'u1': 1500, 'u2': 1500},
+          createdAt: DateTime(2026, 10, 2, 9),
+        ),
+      );
+      final state = stateWith();
+      await openSquad(tester, state);
+      expect(find.text('owes you \$15.00'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('owes you \$15.00'));
+      await tester.tap(find.text('owes you \$15.00'));
+      await settle(tester);
+      expect(find.text('Priya owes you \$15.00'), findsOneWidget);
+      await tester.tap(find.text('Settle up'));
+      await settle(tester);
+      await tester.tap(find.text('Record'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(squads.settlements, [
+        const SettlementItem(
+          squadId: null,
+          from: 'u2',
+          to: 'u1',
+          amountCents: 1500,
+        ),
+      ]);
+      expect(state.friendBalances, isEmpty);
+      expect(find.text('All settled up'), findsOneWidget);
+    });
+
+    testWidgets('a friend\'s split shows up in your budget once', (
+      tester,
+    ) async {
+      squads.squad = _FakeSquad.roomies;
+      squads.expenses.add(
+        SharedExpense(
+          id: 'x7',
+          paidBy: 'u2',
+          description: 'Uber home',
+          category: 'rideshare',
+          totalCents: 2400,
+          shares: const {'u1': 1200, 'u2': 1200},
+          createdAt: DateTime(2026, 10, 2, 9),
+        ),
+      );
+      final state = stateWith();
+      await openSquad(tester, state);
+      await state.refreshSquad();
+      await tester.pump();
+
+      final mine = state.allExpenses.where((e) => e.note == 'Uber home');
+      expect(mine.single.amount, 12);
+      expect(mine.single.category, ExpenseCategory.rideshare);
+      expect(state.friendBalances, {'u2': -1200});
+    });
+
+    testWidgets('several squads: switch between them', (tester) async {
+      squads.joined.addAll([_FakeSquad.roomies, _FakeSquad.trip]);
+      final state = stateWith();
+      await openSquad(tester, state);
+      expect(state.squad?.name, 'Roomies');
+      expect(find.text('Jordan'), findsWidgets); // a friend via the trip
+
+      await tester.tap(find.text('Spring trip').first);
+      await settle(tester);
+      expect(state.squad?.name, 'Spring trip');
+      expect(find.text('New squad'), findsOneWidget);
+    });
+
+    testWidgets('add a friend with their code', (tester) async {
+      final state = stateWith();
+      await openSquad(tester, state);
+      await tester.ensureVisible(find.text('Add friend'));
+      await tester.tap(find.text('Add friend'));
+      await settle(tester);
+      expect(find.text('FRND22'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).last, 'nope00');
+      await tester.tap(find.text('Add friend').last);
+      await settle(tester);
+      expect(find.textContaining('didn\'t work'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).last, 'sam-123');
+      await tester.tap(find.text('Add friend').last);
+      await settle(tester, const Duration(seconds: 2));
+      expect(squads.friendCodeUsed, 'sam-123');
+      expect(state.friendPeople.map((p) => p.name), contains('Sam'));
     });
 
     test('signing out forgets the squad', () async {
@@ -2007,14 +2159,26 @@ class _FakeAccounts implements AccountService {
   }
 }
 
-/// Squad without a server. [squad] is what you're in; [error] makes the
-/// next load fail.
+/// Squads, friends and splits without a server; you are `u1`. [squad]
+/// sets the one squad you're in; [error] makes the next load fail.
 class _FakeSquad implements SquadService {
-  Squad? squad;
+  final joined = <Squad>[];
+  final direct = <String, Person>{};
+  final expenses = <SharedExpense>[];
+  final settlements = <SettlementItem>[];
   SquadException? error;
   SquadStats? published;
   String? joinedWith;
   bool left = false;
+  String? friendCodeUsed;
+
+  set squad(Squad? s) {
+    joined
+      ..clear()
+      ..addAll([?s]);
+  }
+
+  static const me = 'u1';
 
   static const roomies = Squad(
     id: 's1',
@@ -2038,37 +2202,100 @@ class _FakeSquad implements SquadService {
     ],
   );
 
-  @override
-  Future<Squad?> sync(SquadStats stats) async {
-    published = stats;
-    if (error case final e?) throw e;
-    return squad;
-  }
+  static const trip = Squad(
+    id: 's3',
+    name: 'Spring trip',
+    members: [
+      SquadMember(
+        userId: 'u1',
+        name: 'Alex',
+        emoji: '🦊',
+        streak: 3,
+        noDeliveryDays: [true],
+        isMe: true,
+      ),
+      SquadMember(
+        userId: 'u3',
+        name: 'Jordan',
+        emoji: '🐸',
+        streak: 1,
+        noDeliveryDays: [false],
+      ),
+    ],
+  );
 
   @override
-  Future<Squad> create(String name, SquadStats stats) async {
+  Future<SocialData?> sync(SquadStats stats) async {
     published = stats;
-    return squad = Squad(
-      id: 's2',
-      name: name,
-      members: [
-        SquadMember(
-          userId: 'u1',
-          name: stats.name,
-          emoji: '🦊',
-          streak: stats.streak,
-          noDeliveryDays: stats.noDeliveryDays,
-          isMe: true,
-        ),
+    if (error case final e?) throw e;
+    final people = <String, Person>{};
+    for (final sq in joined) {
+      for (final m in sq.members) {
+        if (m.isMe) continue;
+        final had = people[m.userId];
+        people[m.userId] = Person(
+          id: m.userId,
+          name: m.name,
+          emoji: m.emoji,
+          squadIds: {...?had?.squadIds, sq.id},
+          direct: direct.containsKey(m.userId),
+        );
+      }
+    }
+    for (final f in direct.values) {
+      people.putIfAbsent(
+        f.id,
+        () => Person(id: f.id, name: f.name, emoji: f.emoji, direct: true),
+      );
+    }
+    var n = 0;
+    return SocialData(
+      me: me,
+      squads: [...joined],
+      people: people,
+      expenses: [...expenses],
+      settlements: [
+        for (final i in settlements)
+          Settlement(
+            id: 'st${n++}',
+            from: i.from,
+            to: i.to,
+            amountCents: i.amountCents,
+            squadId: i.squadId,
+            createdAt: DateTime(2026, 10, 2),
+          ),
       ],
     );
   }
 
   @override
-  Future<Squad?> join(String code, SquadStats stats) async {
+  Future<String> create(String name, SquadStats stats) async {
+    published = stats;
+    joined.add(
+      Squad(
+        id: 's2',
+        name: name,
+        members: [
+          SquadMember(
+            userId: me,
+            name: stats.name,
+            emoji: '🦊',
+            streak: stats.streak,
+            noDeliveryDays: stats.noDeliveryDays,
+            isMe: true,
+          ),
+        ],
+      ),
+    );
+    return 's2';
+  }
+
+  @override
+  Future<String?> join(String code, SquadStats stats) async {
     if (cleanInviteCode(code) != 'K7M2QX') return null;
     joinedWith = code;
-    return squad = roomies;
+    squad = roomies;
+    return roomies.id;
   }
 
   @override
@@ -2077,6 +2304,74 @@ class _FakeSquad implements SquadService {
   @override
   Future<void> leave(String squadId) async {
     left = true;
-    squad = null;
+    joined.removeWhere((s) => s.id == squadId);
   }
+
+  @override
+  Future<String> friendCode() async => 'FRND22';
+
+  @override
+  Future<bool> addFriend(String code, SquadStats stats) async {
+    if (cleanInviteCode(code) != 'SAM123') return false;
+    friendCodeUsed = code;
+    direct['u4'] = const Person(id: 'u4', name: 'Sam', emoji: '🐙');
+    return true;
+  }
+
+  @override
+  Future<void> removeFriend(String personId) async => direct.remove(personId);
+
+  @override
+  Future<String> addSharedExpense({
+    required String? squadId,
+    required String description,
+    required String category,
+    required int totalCents,
+    required String paidBy,
+    required SplitKind kind,
+    required Map<String, int> shares,
+  }) async {
+    final id = 'x${expenses.length + 1}';
+    expenses.add(
+      SharedExpense(
+        id: id,
+        squadId: squadId,
+        createdBy: me,
+        paidBy: paidBy,
+        description: description,
+        category: category,
+        kind: kind,
+        totalCents: totalCents,
+        shares: shares,
+        createdAt: DateTime(2026, 10, 2, 12),
+      ),
+    );
+    return id;
+  }
+
+  @override
+  Future<void> deleteSharedExpense(String id) async {
+    final i = expenses.indexWhere((e) => e.id == id);
+    final e = expenses[i];
+    expenses[i] = SharedExpense(
+      id: e.id,
+      squadId: e.squadId,
+      createdBy: e.createdBy,
+      paidBy: e.paidBy,
+      description: e.description,
+      category: e.category,
+      kind: e.kind,
+      totalCents: e.totalCents,
+      shares: e.shares,
+      createdAt: e.createdAt,
+      deleted: true,
+    );
+  }
+
+  @override
+  Future<void> recordSettlements(List<SettlementItem> items) async =>
+      settlements.addAll(items);
+
+  @override
+  Future<void> setSimplifyDebts(String squadId, bool on) async {}
 }

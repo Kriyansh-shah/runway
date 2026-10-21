@@ -338,7 +338,7 @@ class DriftBudgetRepository implements BudgetRepository {
   }
 
   @override
-  Future<void> splitBill(List<BillSplit> splits, Expense myShare) async {
+  Future<void> splitBill(List<BillSplit> splits, Expense? myShare) async {
     final termId = await _currentTermId();
     final now = _clock();
     await _db.transaction(() async {
@@ -348,9 +348,21 @@ class DriftBudgetRepository implements BudgetRepository {
           for (var i = 0; i < splits.length; i++)
             _splitRow(splits[i], now.subtract(Duration(microseconds: i))),
         ]);
-        b.insert(_db.expenses, _expenseRow(myShare, termId));
+        if (myShare != null) {
+          b.insert(_db.expenses, _expenseRow(myShare, termId));
+        }
       });
     });
+  }
+
+  @override
+  Future<Set<String>> sharedExpenseIds() async {
+    final rows =
+        await (_db.selectOnly(_db.expenses)
+              ..addColumns([_db.expenses.id])
+              ..where(_db.expenses.id.like('sx-%')))
+            .get();
+    return {for (final r in rows) r.read(_db.expenses.id)!};
   }
 
   @override

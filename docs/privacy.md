@@ -1,6 +1,6 @@
 # Runway Privacy Policy
 
-_Last updated: October 20, 2026_
+_Last updated: October 21, 2026_
 
 **The short version: we can't see your money data. It stays on your device,
 unless you turn on budget sync, and then it's encrypted on your device with a
@@ -92,9 +92,24 @@ our server and shows **only to people in your squads**:
 - which days of the current no-delivery week you skipped delivery
 - the squads you're in, their names, and their invite codes
 
-Friends **never** see your balances, expenses, budget or any amounts. Bill
-splits with roommates stay on your device. Leaving a squad stops sharing
-with it right away, and a squad is deleted when its last member leaves.
+Leaving a squad stops sharing with it right away, and a squad is deleted
+when its last member leaves.
+
+## Friends and split bills
+
+You can add friends with a friend code (people in your squads are your
+friends too) and split bills with them. When you split a bill with friends,
+Runway stores on our server, and shows **only to the people in that split**:
+
+- what it was ("Groceries"), its category, the total and who paid
+- each person's part
+- settle-ups between two people ("Priya paid you $15")
+
+That's the only money information Runway's server can read, and it's what
+you chose to share with the people in that split. Nobody else sees it, and
+friends **never** see your budget, balance, other expenses or savings.
+Whoever added or paid a split can delete it for everyone in it. Splits with
+someone who isn't on Runway stay on your device only.
 
 ## Deleting your data
 

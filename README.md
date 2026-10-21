@@ -10,7 +10,7 @@ and tells you how much you can safely spend **today**.
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20Web%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-191%20passing-C6FF3D)
+![Tests](https://img.shields.io/badge/tests-214%20passing-C6FF3D)
 ![Status](https://img.shields.io/badge/status-beta-FFB547)
 
 **[Website](https://kriyansh-shah.github.io/runway/) · [Try it in your browser](https://kriyansh-shah.github.io/runway/app/) · [Privacy](https://kriyansh-shah.github.io/runway/privacy.html)**
@@ -154,9 +154,18 @@ as it can be: two taps for most purchases. Your money data stays on your phone u
 - **No-delivery week challenge** with 7-day progress dots per friend.
 - **Streak leaderboard:** streaks only, **never dollar amounts**.
 - Without sign-in (macOS preview, tests) Squad shows sample friends.
-- **Roommate splits:** "Aarav owes you $12.40 · Pizza night" with an animated *Settle up*.
-- **Split a bill:** enter what it was and what you paid, pick roommates, and it
-  splits evenly. They get IOUs; only **your share** counts as spending.
+- **Friends & split bills (Splitwise-style):** friends are your squadmates plus
+  anyone you add with a friend code. **Split a bill** with any of them,
+  optionally inside a squad: pick **who paid** (you or a friend) and split it
+  **equally, by exact amounts, percentages or shares**. It shows up in their
+  app too, and **your part counts as spending** in your budget either way.
+- **One balance per friend** ("Priya owes you $18"), netted across every split;
+  tap a friend to **settle up** (full or partial) or see your history.
+- **Simplify debts** per squad: the squad's IOUs are redrawn as the fewest
+  payments ("Ann → Cat $10").
+- **Several squads** with a switcher (roommates, a trip, a study group).
+- Someone not on Runway? Add them by name; that IOU stays on your phone, with
+  an animated *Settle up*.
 
 ### 🎬 Launch intro: "Mochi's Takeoff"
 A ~4-second intro on launch, in the spirit of Pixar's lamp:
@@ -304,7 +313,8 @@ lib/
 │   ├── auth.dart             # UserProfile, AccountService interface, name validation
 │   ├── supabase_accounts.dart # Google sign-in via Supabase (phones + web)
 │   ├── squad.dart            # Squad models + SquadService interface
-│   ├── supabase_squad.dart   # squads, members and invites on Supabase
+│   ├── supabase_squad.dart   # squads, friends, splits and settle-ups on Supabase
+│   ├── split_math.dart       # uneven splits, balances, simplify debts, settle up (pure)
 │   ├── budget_sync.dart      # end-to-end encrypted budget sync (cipher + controller)
 │   ├── supabase_budget_backups.dart # encrypted copy on Supabase + key in Keychain
 │   ├── device_auth.dart      # Face ID / passcode behind DeviceAuth (local_auth)
@@ -325,6 +335,7 @@ lib/
     ├── coach_screen.dart     squad_screen.dart    quick_add_sheet.dart  add_income_sheet.dart
     ├── split_bill_sheet.dart money_actions.dart  savings_screen.dart  savings_goal_sheet.dart
     ├── history_screen.dart   recap_sheet.dart     category_sheet.dart  sync_sheets.dart
+    ├── friends_sheets.dart   # add friend, a friend's balance / settle up / history
 supabase/
 ├── migrations/               # Squad + budget_backups tables, row-level security on all
 └── functions/delete-account/ # Edge Function behind "Delete account"
@@ -334,6 +345,7 @@ test/
 ├── coach_test.dart           # verdicts, boundaries, amount parsing
 ├── drift_repository_test.dart # real SQLite file: save → close → reopen, snapshots
 ├── budget_sync_test.dart     # encryption, two devices, conflicts, offline, start over
+├── split_math_test.dart      # equal/exact/%/shares, balances, simplify debts, settle up
 └── app_test.dart             # app state + widget flows (welcome, app lock, quick add, settings…)
 ```
 
@@ -453,8 +465,9 @@ This is an early prototype:
   starts on payday (say the 25th) isn't supported yet.
 - **Starting a new semester stops monthly bills.** Add them again during setup.
 - **The coach is rule-based.** It uses no AI and no API keys, and makes no network calls.
-- **Squad joins by code only.** Invite links, QR codes, remove/block/report
-  and synced IOUs are still to do. Bill splits stay on your device.
+- **Joins by code only.** Invite links, QR codes, remove/block/report and
+  push notifications ("Priya settled up") are still to do. Splits can't be
+  edited yet (delete and add again), and everything is in dollars.
 
 ---
 
@@ -468,7 +481,7 @@ The full roadmap, with details for each item, is in **[ROADMAP.md](ROADMAP.md)**
 | 2 | **Onboarding & setup:** term dates, starting balance, upcoming costs, money coming in, settings | ✅ Done |
 | 3 | **History by semester:** past terms and months ✅, undo delete ✅, recap ✅, encrypted sync ✅ | ✅ Mostly done |
 | 4 | **Real accounts:** Google ✅, account deletion ✅, encrypted budget sync ✅; Sign in with Apple + email codes next | 🚧 In progress |
-| 5 | **Squad backend (Supabase):** squads + invite codes ✅; invite links, QR codes, block/report, synced IOUs | 🚧 In progress |
+| 5 | **Squad backend (Supabase):** squads + invite codes ✅, friends + synced splits + settle up + simplify debts ✅; invite links, QR codes, block/report | 🚧 In progress |
 | 6 | **Gemini coach:** AI replies grounded in your real numbers, via a server proxy | 📋 Planned |
 | 7 | **Polish:** notifications, home-screen widget, ~~recurring costs~~ ✅, app icon | 💡 Ideas |
 
@@ -509,7 +522,9 @@ The full policy is in [docs/privacy.md](docs/privacy.md); the App Store checklis
   unless you turn on sync, and the synced copy is **end-to-end encrypted**
   with a passphrase only you know.
 - Signing in is optional; the server stores your name, email and account ID.
-- Friends only ever see **first name, emoji, streak and challenge progress**, never amounts.
+- Friends see your **first name, emoji, streak and challenge progress**. A bill
+  you split is seen only by the people in it (with its amounts); nobody sees
+  your budget.
 - When the AI coach arrives, it will receive only summary numbers (available,
   daily allowance, days left), never your expense list, and the API key will stay on a server.
 

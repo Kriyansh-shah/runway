@@ -13,6 +13,7 @@ import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
 import 'repository.dart';
+import 'split_math.dart';
 import 'squad.dart';
 
 /// Single source of truth for the app. Derived numbers are cached and
@@ -84,7 +85,9 @@ class AppState extends ChangeNotifier {
   /// Real squads on the server. [NoSquad] shows sample friends instead.
   final SquadService squadService;
 
-  Squad? _squad;
+  SocialData? _social;
+  String? _selectedSquadId;
+  Map<String, Map<String?, int>> _byScope = const {};
   bool _squadLoading = false;
   String? _squadError;
 
@@ -210,23 +213,9 @@ class AppState extends ChangeNotifier {
 
   static const _sampleSplitIds = {'pizza', 'wifi'};
 
-  /// Who a bill can be split with: your squad (not you) when Squad is real,
-  /// otherwise the sample friends. Anyone else can be added by name in the
-  /// sheet; they don't need the app.
-  List<Friend> get splitPeople {
-    if (!realSquad) return friends;
-    return [
-      for (final m in _squad?.members ?? const <SquadMember>[])
-        if (!m.isMe)
-          Friend(
-            id: 'u:${m.userId}',
-            name: m.name,
-            emoji: m.emoji,
-            streak: m.streak,
-            noDeliveryDays: m.noDeliveryDays,
-          ),
-    ];
-  }
+  /// Who a bill can be split with when Squad isn't real: the sample
+  /// friends (IOUs stay on the phone). With real squads see [friendPeople].
+  List<Friend> get splitPeople => realSquad ? const [] : friends;
 
   DateTime get challengeStart => _challengeStart;
 
@@ -508,8 +497,79 @@ class AppState extends ChangeNotifier {
   /// the person hasn't signed in yet. Otherwise Squad shows sample friends.
   bool get realSquad => accounts.canUseGoogle || account != null;
 
-  /// Your squad, once loaded; null when you're in none or signed out.
-  Squad? get squad => _squad;
+  /// Your account ID with squads and friends loaded; null otherwise.
+  String? get me => _social?.me;
+
+  /// Every squad you're in, oldest first.
+  List<Squad> get squads => _social?.squads ?? const [];
+
+  /// The squad Squad's tab is showing: the one picked, else the first.
+  Squad? get squad {
+    final all = squads;
+    if (all.isEmpty) return null;
+    return all.firstWhere(
+      (s) => s.id == _selectedSquadId,
+      orElse: () => all.first,
+    );
+  }
+
+  /// Shows [squadId]'s challenge and leaderboard.
+  void selectSquad(String squadId) {
+    if (_selectedSquadId == squadId) return;
+    _selectedSquadId = squadId;
+    notifyListeners();
+  }
+
+  /// Friends (squadmates and people added with a code), by name.
+  List<Person> get friendPeople =>
+      [...?_social?.friends]..sort((a, b) => a.name.compareTo(b.name));
+
+  /// Anyone you know or have split with, by account ID.
+  Person? person(String id) => _social?.people[id];
+
+  /// The balance with each friend in cents: positive means they owe you.
+  Map<String, int> get friendBalances => {
+    for (final e in _byScope.entries)
+      e.key: e.value.values.fold(0, (a, b) => a + b),
+  }..removeWhere((_, v) => v == 0);
+
+  /// Splits and settle-ups between you and [friendId], newest first.
+  List<Object> activityWith(String friendId) {
+    final social = _social;
+    if (social == null) return const [];
+    final items = <(DateTime, Object)>[
+      for (final e in social.expenses)
+        if (!e.deleted &&
+            (e.shares.containsKey(friendId) || e.paidBy == friendId) &&
+            (e.shares.containsKey(social.me) || e.paidBy == social.me))
+          (e.createdAt, e),
+      for (final s in social.settlements)
+        if ({s.from, s.to}.containsAll({friendId, social.me})) (s.createdAt, s),
+    ]..sort((a, b) => b.$1.compareTo(a.$1));
+    return [for (final i in items) i.$2];
+  }
+
+  /// The fewest payments that would settle [squad] (when it simplifies).
+  List<SettlementItem> simplifiedPayments(Squad squad) {
+    final social = _social;
+    if (social == null) return const [];
+    final net = <String, int>{};
+    void add(String who, int cents) => net[who] = (net[who] ?? 0) + cents;
+    for (final e in social.expenses) {
+      if (e.deleted || e.squadId != squad.id) continue;
+      for (final share in e.shares.entries) {
+        if (share.key == e.paidBy) continue;
+        add(e.paidBy, share.value);
+        add(share.key, -share.value);
+      }
+    }
+    for (final st in social.settlements) {
+      if (st.squadId != squad.id) continue;
+      add(st.from, st.amountCents);
+      add(st.to, -st.amountCents);
+    }
+    return simplifyDebts(net, squadId: squad.id);
+  }
 
   /// A squad request is on its way.
   bool get squadLoading => _squadLoading;
@@ -523,50 +583,267 @@ class AppState extends ChangeNotifier {
     noDeliveryDays: myNoDeliveryDays,
   );
 
-  /// Shares your streak and challenge dots, then loads your squad. Errors
-  /// end up in [squadError] instead of being thrown.
+  /// Shares your streak and challenge dots, then loads squads, friends,
+  /// splits and settle-ups. Errors end up in [squadError].
   Future<void> refreshSquad() async {
     if (account == null) {
-      _squad = null;
+      _setSocial(null);
       _squadError = null;
       notifyListeners();
       return;
     }
-    await _squadCall(() async => _squad = await squadService.sync(_squadStats));
+    await _squadCall(_reload);
   }
 
-  /// Starts a squad. Throws [SquadException] when it fails.
-  Future<void> createSquad(String name) => _squadCall(
-    () async => _squad = await squadService.create(name, _squadStats),
-    rethrowErrors: true,
-  );
+  Future<void> _reload() async =>
+      _setSocial(await squadService.sync(_squadStats));
+
+  void _setSocial(SocialData? social) {
+    _social = social;
+    _byScope = social == null
+        ? const {}
+        : balancesByScope(
+            me: social.me,
+            expenses: social.expenses,
+            settlements: social.settlements,
+            simplified: {
+              for (final s in social.squads)
+                if (s.simplifyDebts) s.id,
+            },
+          );
+    if (social != null) unawaited(_bringInSplits(social));
+  }
+
+  /// Your part of each split from a friend becomes an expense in your
+  /// budget (once: `sx-<split id>`), and leaves again if the split is
+  /// deleted. Only for splits dated in this term.
+  Future<void> _bringInSplits(SocialData social) async {
+    final known = await _repo.sharedExpenseIds();
+    if (_disposed) return;
+    var changed = false;
+    for (final e in social.expenses) {
+      final id = sharedExpenseId(e.id);
+      if (e.deleted) {
+        if (_expenses.any((x) => x.id == id)) {
+          deleteExpense(id);
+          changed = true;
+        }
+        continue;
+      }
+      final mine = e.shares[social.me] ?? 0;
+      final date = e.createdAt.toLocal();
+      if (mine <= 0 ||
+          known.contains(id) ||
+          date.isBefore(_term.start) ||
+          dateOnly(date).isAfter(_term.end)) {
+        continue;
+      }
+      final expense = Expense(
+        id: id,
+        amount: mine / 100,
+        category:
+            ExpenseCategory.values.asNameMap()[e.category] ??
+            ExpenseCategory.other,
+        isNeed: true,
+        date: date,
+        note: e.description,
+      );
+      _expenses.add(expense);
+      _persist(() => _repo.addExpense(expense));
+      changed = true;
+    }
+    if (changed) _changed();
+  }
+
+  /// The local expense ID for your part of split [splitId].
+  static String sharedExpenseId(String splitId) => 'sx-$splitId';
+
+  /// Starts a squad and shows it. Throws [SquadException] when it fails.
+  Future<void> createSquad(String name) => _squadCall(() async {
+    _selectedSquadId = await squadService.create(name, _squadStats);
+    await _reload();
+  }, rethrowErrors: true);
 
   /// Joins with an invite code; false when the code doesn't work. Throws
   /// [SquadException] for other problems.
   Future<bool> joinSquad(String code) async {
     var joined = false;
     await _squadCall(() async {
-      final squad = await squadService.join(code, _squadStats);
-      if (squad != null) _squad = squad;
-      joined = squad != null;
+      final id = await squadService.join(code, _squadStats);
+      joined = id != null;
+      if (id != null) {
+        _selectedSquadId = id;
+        await _reload();
+      }
     }, rethrowErrors: true);
     return joined;
   }
 
-  /// A code to share so friends can join your squad.
+  /// A code to share so friends can join the squad on screen.
   Future<String> squadInviteCode() {
-    final squad = _squad;
+    final squad = this.squad;
     if (squad == null) throw StateError('not in a squad');
     return squadService.inviteCode(squad.id);
   }
 
+  /// Leaves the squad on screen.
   Future<void> leaveSquad() async {
-    final squad = _squad;
+    final squad = this.squad;
     if (squad == null) return;
     await _squadCall(() async {
       await squadService.leave(squad.id);
-      _squad = await squadService.sync(_squadStats);
+      _selectedSquadId = null;
+      await _reload();
     }, rethrowErrors: true);
+  }
+
+  /// Turns "simplify debts" on or off for the squad on screen.
+  Future<void> setSimplifyDebts(bool on) async {
+    final squad = this.squad;
+    if (squad == null) return;
+    await _squadCall(() async {
+      await squadService.setSimplifyDebts(squad.id, on);
+      await _reload();
+    }, rethrowErrors: true);
+  }
+
+  /// Your friend code, to share.
+  Future<String> friendCode() => squadService.friendCode();
+
+  /// Adds a friend by their code; false when it doesn't work.
+  Future<bool> addFriend(String code) async {
+    var added = false;
+    await _squadCall(() async {
+      added = await squadService.addFriend(code, _squadStats);
+      if (added) await _reload();
+    }, rethrowErrors: true);
+    return added;
+  }
+
+  Future<void> removeFriend(String personId) => _squadCall(() async {
+    await squadService.removeFriend(personId);
+    await _reload();
+  }, rethrowErrors: true);
+
+  /// Splits [totalCents] between you and friends ([shares] by account ID,
+  /// yours included, adding up to the total), paid by [paidBy]. Your part
+  /// counts as spending whoever paid; their parts are what they owe the
+  /// payer. Throws [SquadException].
+  Future<void> splitWithFriends({
+    required String description,
+    required int totalCents,
+    required String paidBy,
+    required SplitKind kind,
+    required Map<String, int> shares,
+    required ExpenseCategory category,
+    required bool isNeed,
+    String? squadId,
+    CustomCategory? custom,
+  }) async {
+    final me = this.me;
+    if (me == null) {
+      throw const SquadException('Sign in to split with friends.');
+    }
+    await _squadCall(() async {
+      final id = await squadService.addSharedExpense(
+        squadId: squadId,
+        description: description,
+        category: (custom == null ? category : ExpenseCategory.other).name,
+        totalCents: totalCents,
+        paidBy: paidBy,
+        kind: kind,
+        shares: shares,
+      );
+      final mine = shares[me] ?? 0;
+      if (mine > 0) {
+        final expense = Expense(
+          id: sharedExpenseId(id),
+          amount: mine / 100,
+          category: custom == null ? category : ExpenseCategory.other,
+          custom: custom,
+          isNeed: isNeed,
+          date: _clock(),
+          note: description,
+        );
+        _expenses.add(expense);
+        if (custom != null) _moveToFront(custom.id);
+        _changed();
+        _persist(() => _repo.addExpense(expense));
+      }
+      await _reload();
+    }, rethrowErrors: true);
+  }
+
+  /// Deletes a split for everyone in it, and your part from your budget.
+  Future<void> deleteSharedExpense(String splitId) => _squadCall(() async {
+    await squadService.deleteSharedExpense(splitId);
+    deleteExpense(sharedExpenseId(splitId));
+    await _reload();
+  }, rethrowErrors: true);
+
+  /// Records [amountCents] paid between you and [friendId] (whichever way
+  /// it's owed); everything when null. Settle-ups don't touch the budget:
+  /// the spending was counted when the split was added.
+  Future<void> settleUpWith(String friendId, {int? amountCents}) async {
+    final me = this.me;
+    if (me == null) return;
+    final items = settleUp(
+      me: me,
+      friend: friendId,
+      byScope: _byScope[friendId] ?? const {},
+      amountCents: amountCents,
+    );
+    if (items.isEmpty) return;
+    await _squadCall(() async {
+      await squadService.recordSettlements(items);
+      await _reload();
+    }, rethrowErrors: true);
+  }
+
+  /// IOUs with people who don't use Runway: they stay on this phone. You
+  /// paid; [owed] is what each owes you. Your part was counted elsewhere
+  /// (or is [myShare], counted here).
+  void addLocalIous({
+    required String description,
+    required Map<String, double> owed,
+    double myShare = 0,
+    ExpenseCategory category = ExpenseCategory.other,
+    CustomCategory? custom,
+    bool isNeed = true,
+  }) {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final added = [
+      for (final e in owed.entries)
+        if (e.value > 0)
+          BillSplit(
+            id: 's$stamp-${e.key.toLowerCase()}',
+            person: e.key,
+            amount: e.value,
+            note: description,
+            theyOweYou: true,
+          ),
+    ];
+    if (myShare <= 0) {
+      if (added.isEmpty) return;
+      _splits.insertAll(0, added);
+      notifyListeners();
+      for (final split in added) {
+        _persist(() => _repo.splitBill([split], null));
+      }
+      return;
+    }
+    final share = _newExpense(
+      myShare,
+      custom == null ? category : ExpenseCategory.other,
+      isNeed,
+      description,
+      custom: custom,
+    );
+    _splits.insertAll(0, added);
+    _expenses.add(share);
+    if (custom != null) _moveToFront(custom.id);
+    _changed();
+    _persist(() => _repo.splitBill(added, share));
   }
 
   Future<void> _squadCall(
@@ -644,7 +921,7 @@ class AppState extends ChangeNotifier {
     unawaited(sync.forget());
     final user = _user;
     if (user != null) _user = UserProfile(name: user.name);
-    _squad = null;
+    _setSocial(null);
     _squadError = null;
     notifyListeners();
     _persist(() => _repo.setCurrentUser(_user), budget: false);
@@ -1015,7 +1292,7 @@ class AppState extends ChangeNotifier {
     await sync.forget();
     _apply(await _repo.load());
     _user = null;
-    _squad = null;
+    _setSocial(null);
     _squadError = null;
     _changed();
   }

@@ -30,7 +30,15 @@ sync.
 
 **What do my squad friends see?**
 Your first name, a squad emoji, your logging streak and your no-delivery
-week. Never your balances, expenses or any amounts.
+week. Never your budget, balance or other expenses.
+
+**How do split bills work?**
+Squad → Split a bill. Pick who paid (you or a friend), who's in, and how to
+split it: equally, by exact amounts, percentages or shares. Your part counts
+as spending in your budget; each friend sees the split and what they owe in
+their app. Tap a friend to settle up. Only the people in a split see its
+amounts. Someone not on Runway? Add them by name; that IOU stays on your
+phone.
 
 **How do I delete my account?**
 Settings → Account → **Delete account**. It's deleted right away. Your budget

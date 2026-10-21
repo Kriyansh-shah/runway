@@ -35,6 +35,8 @@ Next plans for Runway, in the order we intend to build them. Each item says
 - [x] Real Squad: start a squad, invite codes, up to 8 people, never money
 - [x] End-to-end encrypted budget sync across signed-in devices
 - [x] Website + web app on GitHub Pages, deployed on every push
+- [x] Friends + several squads, synced split bills (equal / exact / % / shares,
+      who paid), one balance per friend, settle up, simplify debts
 - [x] 191 tests (maths, coach, intro, motion, widget flows, save → reopen, migrations, encryption, sync between two devices)
 
 ---
@@ -232,8 +234,14 @@ owner-only row-level security, deleted with the account).
 (7-day expiry, rate-limited guesses), shared through the share sheet; friends
 see first name, emoji, streak and no-delivery dots; leave a squad (empty
 squads are deleted). Requires Google sign-in rather than anonymous accounts.
+**Shipped (2026-10-21):** Splitwise-style friends (squadmates + friend codes),
+several squads with a switcher, synced split bills between friends (who
+paid; equal, exact, percentages or shares; optionally inside a squad), one
+balance per friend, settle up (full or partial), and "simplify debts" per
+squad. Only the people in a split can read it; your part is added to your
+budget on every phone in it.
 **Next:** invite links + QR codes (need a domain), remove / block / report
-(Apple expects these), synced IOUs, push notifications.
+(Apple expects these), push notifications, editing a split, currencies.
 
 **Why:** Friends, challenges and shared bills need a server. Personal money data does not.
 
@@ -324,7 +332,7 @@ spring break?") on top of the existing rules.
 - [x] Recurring costs (phone bill, subscriptions) that auto-reserve
 - [ ] Savings goals from "Not this term" coach verdicts (a semester savings goal ✅ shipped)
 - [x] Custom categories (custom quick picks still to do)
-- [ ] Uneven bill splits and "they paid, I owe"
+- [x] Uneven bill splits and "they paid, I owe"
 - [ ] Multi-currency for international students
 - [x] App icon + native launch screen in Lime & Lilac (App Store screenshots still to do)
 - [ ] Accessibility pass: reduce motion, larger text, screen reader labels

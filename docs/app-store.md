@@ -35,6 +35,7 @@ Where Runway stands before its first App Store submission, and what's left.
 | Identifiers → User ID | Yes | No | App Functionality |
 | Usage Data → Product Interaction (Squad streak, challenge days) | Yes | No | App Functionality |
 | User Content → Other User Content (squad names) | Yes | No | App Functionality |
+| Financial Info → Other Financial Info (split bills: amounts, who paid, settle-ups) | Yes | No | App Functionality |
 
 Money data (balances, expenses, budgets) leaves the phone only with Budget
 sync on, and then end-to-end encrypted with the person's passphrase, so
@@ -44,7 +45,9 @@ open arguably isn't collected, so Financial Info is left off. This is the
 owner's call: if unsure, add Financial Info → Other Financial Info (linked,
 not tracking, App Functionality). Face ID results come from iOS and aren't stored.
 Squad shares first name, emoji, streak and no-delivery days with squad
-members only (see privacy.md).
+members only. Split bills with friends are stored readable (amounts, who
+paid, settle-ups), visible only to the people in each split, so Financial
+Info → Other Financial Info is declared for those (see privacy.md).
 
 ## Export compliance (encryption question)
 

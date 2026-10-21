@@ -18,6 +18,7 @@ import '../widgets/mochi.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import 'shell.dart';
+import 'friends_sheets.dart';
 import 'split_bill_sheet.dart';
 import '../widgets/ph_icons.dart';
 
@@ -99,17 +100,27 @@ class _SquadScreenState extends State<SquadScreen> {
       if (state.realSquad)
         if (state.account == null)
           const _SquadSignIn()
-        else if (squad != null)
-          _SquadHeader(squad: squad)
-        else if (state.squadLoading)
-          const _SquadLoading()
-        else
-          _StartOrJoin(error: state.squadError),
+        else ...[
+          if (state.squads.isNotEmpty) const _SquadSwitcher(),
+          if (squad != null)
+            _SquadHeader(key: ValueKey(squad.id), squad: squad)
+          else if (state.squadLoading)
+            const _SquadLoading()
+          else
+            _StartOrJoin(error: state.squadError),
+        ],
       if (people != null) ...[
         _ChallengeCard(state: state, people: people),
         _Leaderboard(people: people),
       ],
-      _Splits(splits: state.splits),
+      if (state.realSquad && state.account != null) ...[
+        if (squad != null && squad.simplifyDebts) _FewestPayments(squad: squad),
+        const _FriendsCard(),
+      ],
+      _Splits(
+        splits: state.splits,
+        real: state.realSquad && state.account != null,
+      ),
     ];
     final scroll = SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(
@@ -222,10 +233,13 @@ class _SquadLoading extends StatelessWidget {
 
 /// Signed in but in no squad: start one, or join with a friend's code.
 class _StartOrJoin extends StatefulWidget {
-  const _StartOrJoin({this.error});
+  const _StartOrJoin({this.error, this.onDone});
 
   /// Why loading the squad failed, if it did.
   final String? error;
+
+  /// Called after starting or joining one (closes the sheet it's in).
+  final VoidCallback? onDone;
 
   @override
   State<_StartOrJoin> createState() => _StartOrJoinState();
@@ -261,6 +275,7 @@ class _StartOrJoinState extends State<_StartOrJoin> {
     if (!mounted) return;
     if (problem == null) {
       HapticFeedback.mediumImpact();
+      widget.onDone?.call();
     } else {
       HapticFeedback.heavyImpact();
     }
@@ -360,7 +375,7 @@ class _StartOrJoinState extends State<_StartOrJoin> {
 
 /// Your squad's name and faces, with Invite and Leave.
 class _SquadHeader extends StatefulWidget {
-  const _SquadHeader({required this.squad});
+  const _SquadHeader({super.key, required this.squad});
   final Squad squad;
 
   @override
@@ -477,6 +492,37 @@ class _SquadHeaderState extends State<_SquadHeader> {
                 Text(m.emoji, style: const TextStyle(fontSize: 24)),
             ],
           ),
+          if (count > 1)
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Simplify debts', style: AppText.body),
+                      Text(
+                        'Settle the squad in the fewest payments.',
+                        style: AppText.caption.copyWith(letterSpacing: 0),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(
+                  value: squad.simplifyDebts,
+                  activeTrackColor: AppColors.lime,
+                  onChanged: (on) async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      await AppScope.read(context).setSimplifyDebts(on);
+                    } on SquadException catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(e.message)),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           if (count < maxSquadSize) ...[
             const SizedBox(height: 14),
             GradientButton(
@@ -785,52 +831,287 @@ class _Leaderboard extends StatelessWidget {
   }
 }
 
-class _Splits extends StatelessWidget {
-  const _Splits({required this.splits});
-  final List<BillSplit> splits;
+/// A small lime pill button for section headers.
+class _HeaderPill extends StatelessWidget {
+  const _HeaderPill({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          gradient: AppGradients.brand,
+          borderRadius: BorderRadius.circular(99),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.lime.withValues(alpha: 0.28),
+              blurRadius: 14,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(PhIcons.plusBold, size: 16, color: AppColors.onLime),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppText.label.copyWith(
+                color: AppColors.onLime,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Your squads side by side; tap one to see it, or start/join another.
+class _SquadSwitcher extends StatelessWidget {
+  const _SquadSwitcher();
+
+  void _newSquad(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.55),
+    elevation: 0,
+    builder: (sheet) => SheetFrame(
+      children: [_StartOrJoin(onDone: () => Navigator.of(sheet).pop())],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final current = state.squad?.id;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final s in state.squads)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChipPill(
+                key: ValueKey('switch-${s.id}'),
+                selected: s.id == current,
+                color: AppColors.lime,
+                onTap: () => state.selectSquad(s.id),
+                child: Text(s.name),
+              ),
+            ),
+          if (state.squads.length < 5)
+            ChoiceChipPill(
+              key: const ValueKey('new-squad'),
+              selected: false,
+              color: AppColors.lilac,
+              onTap: () => _newSquad(context),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(PhIcons.plusBold, size: 14),
+                  SizedBox(width: 6),
+                  Text('New squad'),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Everyone you can split with and where you stand with each.
+class _FriendsCard extends StatelessWidget {
+  const _FriendsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final friends = state.friendPeople;
+    final balances = state.friendBalances;
+    final owedToYou = balances.values
+        .where((v) => v > 0)
+        .fold(0, (a, b) => a + b);
+    final youOwe = -balances.values
+        .where((v) => v < 0)
+        .fold(0, (a, b) => a + b);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionHeader(
-          'Roommate splits',
-          trailing: Pressable(
-            onTap: () => showSplitBillSheet(context),
-            semanticLabel: 'Split a bill',
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                gradient: AppGradients.brand,
-                borderRadius: BorderRadius.circular(99),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.lime.withValues(alpha: 0.28),
-                    blurRadius: 14,
+          'Friends & balances',
+          trailing: _HeaderPill(
+            label: 'Split a bill',
+            onTap: () => showSplitBillSheet(context, inSquad: null),
+          ),
+        ),
+        GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (owedToYou > 0 || youOwe > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    [
+                      if (owedToYou > 0)
+                        'You\'re owed ${money(owedToYou / 100)}',
+                      if (youOwe > 0)
+                        '${owedToYou > 0 ? 'you' : 'You'} owe '
+                            '${money(youOwe / 100)}',
+                    ].join(' · '),
+                    style: AppText.label,
                   ),
-                ],
+                ),
+              if (friends.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    'Add a friend with their code, or start a squad, to split '
+                    'bills that show up for both of you.',
+                    style: AppText.label,
+                  ),
+                ),
+              for (final f in friends)
+                Pressable(
+                  key: ValueKey('friend-${f.id}'),
+                  onTap: () => showFriendSheet(context, f.id),
+                  scale: 0.98,
+                  semanticLabel: f.name,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Text(f.emoji, style: const TextStyle(fontSize: 22)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            f.name,
+                            style: AppText.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          switch (balances[f.id] ?? 0) {
+                            0 => 'settled',
+                            final c when c > 0 => 'owes you ${money(c / 100)}',
+                            final c => 'you owe ${money(-c / 100)}',
+                          },
+                          style: AppText.label.copyWith(
+                            color: balanceColor(balances[f.id] ?? 0),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          PhIcons.caretRight,
+                          size: 16,
+                          color: AppColors.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => showAddFriendSheet(context),
+                  icon: const Icon(PhIcons.plusBold, size: 16),
+                  label: const Text('Add friend'),
+                ),
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// With "simplify debts" on: who pays whom so the squad is square.
+class _FewestPayments extends StatelessWidget {
+  const _FewestPayments({required this.squad});
+  final Squad squad;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final payments = state.simplifiedPayments(squad);
+    if (payments.isEmpty) return const SizedBox.shrink();
+    String name(String id) =>
+        id == state.me ? 'You' : state.person(id)?.name ?? 'Someone';
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('To settle ${squad.name}', style: AppText.heading),
+          const SizedBox(height: 4),
+          Text(
+            'The fewest payments that square everyone up.',
+            style: AppText.label,
+          ),
+          const SizedBox(height: 10),
+          for (final p in payments)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    PhIcons.plusBold,
-                    size: 16,
-                    color: AppColors.onLime,
+                  Expanded(
+                    child: Text(
+                      '${name(p.from)} → ${name(p.to)}',
+                      style: AppText.body,
+                    ),
                   ),
-                  const SizedBox(width: 4),
                   Text(
-                    'Split a bill',
-                    style: AppText.label.copyWith(
-                      color: AppColors.onLime,
-                      fontWeight: FontWeight.w700,
+                    money(p.amountCents / 100),
+                    style: AppText.number.copyWith(
+                      fontSize: 16,
+                      color: p.to == state.me
+                          ? AppColors.lime
+                          : p.from == state.me
+                          ? AppColors.red
+                          : AppColors.text,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Splits extends StatelessWidget {
+  const _Splits({required this.splits, this.real = false});
+  final List<BillSplit> splits;
+
+  /// Signed in with real friends: these are only the IOUs with people not
+  /// on Runway, and they're hidden when there are none.
+  final bool real;
+
+  @override
+  Widget build(BuildContext context) {
+    if (real && splits.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          real ? 'Not on Runway' : 'Roommate splits',
+          trailing: real
+              ? null
+              : _HeaderPill(
+                  label: 'Split a bill',
+                  onTap: () => showSplitBillSheet(context),
+                ),
         ),
         AnimatedSwitcher(
           duration: Motion.med,
