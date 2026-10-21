@@ -34,6 +34,12 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // No R8 shrinking: shared_preferences (used by Supabase) and
+            // path_provider are called from Dart through JNI, which R8 can't
+            // see, so it stripped their methods and Kotlin coroutine classes
+            // and the APK failed at launch.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

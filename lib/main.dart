@@ -49,7 +49,10 @@ Future<void> main() async {
   LocalSyncStore? syncStore;
   if (SupabaseAccounts.supported) {
     try {
-      accounts = await SupabaseAccounts.start();
+      // Bounded, so a stuck plugin or network can't leave a blank screen.
+      accounts = await SupabaseAccounts.start().timeout(
+        const Duration(seconds: 8),
+      );
       squad = const SupabaseSquad();
       backups = const SupabaseBudgetBackups();
       syncStore = const SecureSyncStore();
