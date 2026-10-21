@@ -81,6 +81,8 @@ Future<void> main() async {
   } else {
     unawaited(state.sync.check());
   }
+  // Loaded early so Split a bill can offer your squad from any tab.
+  if (state.account != null) unawaited(state.refreshSquad());
   // A monthly budget moves on once its month is over, also when the app
   // comes back from the background in a new month.
   state.startNewMonthIfDue();

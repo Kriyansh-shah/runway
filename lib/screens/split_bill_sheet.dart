@@ -9,6 +9,7 @@ import '../app/theme.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/ph_icons.dart';
+import '../widgets/pressable.dart';
 
 Future<void> showSplitBillSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -38,6 +39,40 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
   final _description = TextEditingController();
   final _amount = TextEditingController();
   final _selected = <String>{};
+
+  /// Roommates added by name here, for people who aren't in your squad.
+  final _added = <Friend>[];
+  final _newName = TextEditingController();
+  bool _adding = false;
+
+  List<Friend> _people(AppState state) => [...state.splitPeople, ..._added];
+
+  void _addName() {
+    final name = _newName.text.trim();
+    if (name.isEmpty) {
+      setState(() => _adding = false);
+      return;
+    }
+    final id = 'n:${name.toLowerCase()}';
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (!_people(AppScope.read(context)).any((f) => f.id == id)) {
+        _added.add(
+          Friend(
+            id: id,
+            name: name,
+            emoji: '🙂',
+            streak: 0,
+            noDeliveryDays: const [],
+          ),
+        );
+      }
+      _selected.add(id);
+      _newName.clear();
+      _adding = false;
+    });
+  }
+
   CategoryRef _category = const CategoryRef(ExpenseCategory.groceries);
   bool _isNeed = true;
 
@@ -45,6 +80,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
   void dispose() {
     _description.dispose();
     _amount.dispose();
+    _newName.dispose();
     super.dispose();
   }
 
@@ -66,7 +102,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
     state.splitBill(
       description: _description.text.trim(),
       total: _total,
-      roommates: state.friends.where((f) => _selected.contains(f.id)).toList(),
+      roommates: _people(state).where((f) => _selected.contains(f.id)).toList(),
       category: _category.category,
       custom: _category.custom,
       isNeed: _isNeed,
@@ -77,7 +113,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final friends = AppScope.of(context).friends;
+    final friends = _people(AppScope.of(context));
     final chosen = friends.where((f) => _selected.contains(f.id)).toList();
     final shares = splitEvenly(_total, chosen.length);
 
@@ -144,8 +180,52 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
                   ],
                 ),
               ),
+            if (!_adding)
+              ChoiceChipPill(
+                key: const ValueKey('add'),
+                selected: false,
+                color: AppColors.lilac,
+                onTap: () => setState(() => _adding = true),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(PhIcons.plusBold, size: 14),
+                    SizedBox(width: 6),
+                    Text('Someone else'),
+                  ],
+                ),
+              ),
           ],
         ),
+        if (_adding) ...[
+          const SizedBox(height: 10),
+          GlassTextField(
+            controller: _newName,
+            hint: 'Their first name',
+            icon: PhIcons.user,
+            maxLength: 30,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _addName(),
+            suffix: Pressable(
+              onTap: _addName,
+              semanticLabel: 'Add',
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(PhIcons.checkBold, size: 20, color: AppColors.lime),
+              ),
+            ),
+          ),
+        ],
+        if (friends.isEmpty && !_adding)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Your squad shows up here. Splitting with someone who isn\'t '
+              'in it? Add them by name; they don\'t need the app.',
+              style: AppText.label,
+            ),
+          ),
         const SizedBox(height: 16),
         const FieldLabel('Category (for your share)'),
         CategoryPicker(

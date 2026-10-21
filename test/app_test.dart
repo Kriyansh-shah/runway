@@ -1483,6 +1483,43 @@ void main() {
       expect(find.text('Couldn\'t reach Squad.'), findsOneWidget);
     });
 
+    testWidgets('split a bill: your squad, plus anyone by name', (
+      tester,
+    ) async {
+      squads.squad = _FakeSquad.roomies;
+      final state = stateWith();
+      await openSquad(tester, state);
+      // The sample IOUs from first launch aren't real people.
+      expect(find.text('Pizza night'), findsNothing);
+
+      await tester.ensureVisible(find.text('Split a bill'));
+      await settle(tester, const Duration(milliseconds: 300));
+      await tester.tap(find.text('Split a bill'));
+      await settle(tester);
+
+      expect(find.text('🦊 Maya'), findsNothing);
+      expect(find.text('🐼 Priya'), findsOneWidget);
+      await tester.enterText(find.byType(TextField).at(0), 'Groceries');
+      await tester.enterText(find.byType(TextField).at(1), '30');
+      await tester.tap(find.text('🐼 Priya'));
+      await tester.tap(find.text('Someone else'));
+      await settle(tester);
+      await tester.enterText(find.byType(TextField).last, 'Sam');
+      await tester.tap(find.bySemanticsLabel('Add'));
+      await settle(tester, const Duration(milliseconds: 400));
+      expect(find.text('Sam owes you'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Split \$30.00'));
+      await settle(tester, const Duration(milliseconds: 300));
+      await tester.tap(find.text('Split \$30.00'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(
+        state.splits.where((s) => s.note == 'Groceries').map((s) => s.person),
+        unorderedEquals(['Priya', 'Sam']),
+      );
+    });
+
     test('signing out forgets the squad', () async {
       squads.squad = _FakeSquad.roomies;
       final state = stateWith();

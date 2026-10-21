@@ -197,8 +197,37 @@ class AppState extends ChangeNotifier {
   PetMood get mood => moodFor(_snapshot);
   PetLevel get petLevel => PetLevel.fromStreak(_streak);
   NeedWantSplit get thisWeek => weekSplit(_expenses, today);
+
+  /// Sample friends for Squad's preview (macOS, tests). With real squads
+  /// see [splitPeople] and [squad].
   List<Friend> get friends => List.unmodifiable(_friends);
-  List<BillSplit> get splits => List.unmodifiable(_splits);
+
+  /// IOUs, newest first. With real squads the sample IOUs seeded on first
+  /// launch ("Aarav owes you…") are left out: those people don't exist.
+  List<BillSplit> get splits => List.unmodifiable(
+    realSquad ? _splits.where((s) => !_sampleSplitIds.contains(s.id)) : _splits,
+  );
+
+  static const _sampleSplitIds = {'pizza', 'wifi'};
+
+  /// Who a bill can be split with: your squad (not you) when Squad is real,
+  /// otherwise the sample friends. Anyone else can be added by name in the
+  /// sheet; they don't need the app.
+  List<Friend> get splitPeople {
+    if (!realSquad) return friends;
+    return [
+      for (final m in _squad?.members ?? const <SquadMember>[])
+        if (!m.isMe)
+          Friend(
+            id: 'u:${m.userId}',
+            name: m.name,
+            emoji: m.emoji,
+            streak: m.streak,
+            noDeliveryDays: m.noDeliveryDays,
+          ),
+    ];
+  }
+
   DateTime get challengeStart => _challengeStart;
 
   /// Money coming in this term, oldest first.
