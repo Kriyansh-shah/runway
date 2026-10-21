@@ -7,11 +7,6 @@
 A budgeting app built for college students: it plans by **semester**, not by month,
 and tells you how much you can safely spend **today**.
 
-![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
-![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
-![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android%20%7C%20Web%20%7C%20macOS-8B6CFF)
-![Tests](https://img.shields.io/badge/tests-214%20passing-C6FF3D)
-![Status](https://img.shields.io/badge/status-beta-FFB547)
 
 **[Website](https://kriyansh-shah.github.io/runway/) · [Try it in your browser](https://kriyansh-shah.github.io/runway/app/) · [Privacy](https://kriyansh-shah.github.io/runway/privacy.html)**
 
