@@ -27,7 +27,9 @@ PY
 page docs/privacy.md _site/privacy.html "Privacy policy"
 page docs/support.md _site/support.html "Support"
 
-flutter build web --release --base-href "$base"
+# The rendering engine is served from this site, not Google's CDN, so the
+# Content-Security-Policy in web/index.html can stay "this site only".
+flutter build web --release --no-web-resources-cdn --base-href "$base"
 cp -r build/web _site/app
 touch _site/.nojekyll
 echo "Built _site/ (web app base href $base)"

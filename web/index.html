@@ -17,6 +17,16 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <!--
+    Only Runway's own files can run here. Network requests go to this
+    site, Runway's Supabase project and Google's font server (for emoji and
+    other symbols the bundled fonts don't have); nothing else. Built with
+    --no-web-resources-cdn so the rendering engine is served from this site
+    too. 'wasm-unsafe-eval' lets the browser run SQLite's and the engine's
+    WebAssembly; Flutter adds its own style tags, so styles allow inline.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://slvwntpzgjpqzmojzdus.supabase.co wss://slvwntpzgjpqzmojzdus.supabase.co https://fonts.gstatic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
 
