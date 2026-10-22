@@ -158,9 +158,13 @@ abstract interface class SquadService {
     required Map<String, int> shares,
   });
 
+  /// Anyone in the split can delete it, for everyone.
   Future<void> deleteSharedExpense(String id);
 
   Future<void> recordSettlements(List<SettlementItem> items);
+
+  /// Either person in a settle-up can remove it.
+  Future<void> deleteSettlement(String id);
 
   Future<void> setSimplifyDebts(String squadId, bool on);
 }
@@ -211,6 +215,9 @@ class NoSquad implements SquadService {
 
   @override
   Future<void> recordSettlements(List<SettlementItem> items) => throw _offline;
+
+  @override
+  Future<void> deleteSettlement(String id) => throw _offline;
 
   @override
   Future<void> setSimplifyDebts(String squadId, bool on) => throw _offline;

@@ -4527,6 +4527,737 @@ class MetaCompanion extends UpdateCompanion<MetaRow> {
   }
 }
 
+class $SavingsJarsTable extends SavingsJars
+    with TableInfo<$SavingsJarsTable, SavingsJarRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SavingsJarsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetCentsMeta = const VerificationMeta(
+    'targetCents',
+  );
+  @override
+  late final GeneratedColumn<int> targetCents = GeneratedColumn<int>(
+    'target_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _outcomeMeta = const VerificationMeta(
+    'outcome',
+  );
+  @override
+  late final GeneratedColumn<String> outcome = GeneratedColumn<String>(
+    'outcome',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    targetCents,
+    createdAt,
+    endedAt,
+    outcome,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'savings_jars';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SavingsJarRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('target_cents')) {
+      context.handle(
+        _targetCentsMeta,
+        targetCents.isAcceptableOrUnknown(
+          data['target_cents']!,
+          _targetCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_targetCentsMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    if (data.containsKey('outcome')) {
+      context.handle(
+        _outcomeMeta,
+        outcome.isAcceptableOrUnknown(data['outcome']!, _outcomeMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SavingsJarRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SavingsJarRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      targetCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_cents'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+      outcome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}outcome'],
+      ),
+    );
+  }
+
+  @override
+  $SavingsJarsTable createAlias(String alias) {
+    return $SavingsJarsTable(attachedDatabase, alias);
+  }
+}
+
+class SavingsJarRow extends DataClass implements Insertable<SavingsJarRow> {
+  final String id;
+  final String name;
+  final int targetCents;
+  final DateTime createdAt;
+  final DateTime? endedAt;
+
+  /// 'bought' or 'dropped'.
+  final String? outcome;
+  const SavingsJarRow({
+    required this.id,
+    required this.name,
+    required this.targetCents,
+    required this.createdAt,
+    this.endedAt,
+    this.outcome,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['target_cents'] = Variable<int>(targetCents);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    if (!nullToAbsent || outcome != null) {
+      map['outcome'] = Variable<String>(outcome);
+    }
+    return map;
+  }
+
+  SavingsJarsCompanion toCompanion(bool nullToAbsent) {
+    return SavingsJarsCompanion(
+      id: Value(id),
+      name: Value(name),
+      targetCents: Value(targetCents),
+      createdAt: Value(createdAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      outcome: outcome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(outcome),
+    );
+  }
+
+  factory SavingsJarRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SavingsJarRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      targetCents: serializer.fromJson<int>(json['targetCents']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      outcome: serializer.fromJson<String?>(json['outcome']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'targetCents': serializer.toJson<int>(targetCents),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'outcome': serializer.toJson<String?>(outcome),
+    };
+  }
+
+  SavingsJarRow copyWith({
+    String? id,
+    String? name,
+    int? targetCents,
+    DateTime? createdAt,
+    Value<DateTime?> endedAt = const Value.absent(),
+    Value<String?> outcome = const Value.absent(),
+  }) => SavingsJarRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    targetCents: targetCents ?? this.targetCents,
+    createdAt: createdAt ?? this.createdAt,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    outcome: outcome.present ? outcome.value : this.outcome,
+  );
+  SavingsJarRow copyWithCompanion(SavingsJarsCompanion data) {
+    return SavingsJarRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      targetCents: data.targetCents.present
+          ? data.targetCents.value
+          : this.targetCents,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      outcome: data.outcome.present ? data.outcome.value : this.outcome,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavingsJarRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('targetCents: $targetCents, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('outcome: $outcome')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, targetCents, createdAt, endedAt, outcome);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SavingsJarRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.targetCents == this.targetCents &&
+          other.createdAt == this.createdAt &&
+          other.endedAt == this.endedAt &&
+          other.outcome == this.outcome);
+}
+
+class SavingsJarsCompanion extends UpdateCompanion<SavingsJarRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<int> targetCents;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> endedAt;
+  final Value<String?> outcome;
+  final Value<int> rowid;
+  const SavingsJarsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.targetCents = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SavingsJarsCompanion.insert({
+    required String id,
+    required String name,
+    required int targetCents,
+    required DateTime createdAt,
+    this.endedAt = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       targetCents = Value(targetCents),
+       createdAt = Value(createdAt);
+  static Insertable<SavingsJarRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<int>? targetCents,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? endedAt,
+    Expression<String>? outcome,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (targetCents != null) 'target_cents': targetCents,
+      if (createdAt != null) 'created_at': createdAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (outcome != null) 'outcome': outcome,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SavingsJarsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<int>? targetCents,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? endedAt,
+    Value<String?>? outcome,
+    Value<int>? rowid,
+  }) {
+    return SavingsJarsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      targetCents: targetCents ?? this.targetCents,
+      createdAt: createdAt ?? this.createdAt,
+      endedAt: endedAt ?? this.endedAt,
+      outcome: outcome ?? this.outcome,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (targetCents.present) {
+      map['target_cents'] = Variable<int>(targetCents.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (outcome.present) {
+      map['outcome'] = Variable<String>(outcome.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavingsJarsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('targetCents: $targetCents, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('outcome: $outcome, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $JarDepositsTable extends JarDeposits
+    with TableInfo<$JarDepositsTable, JarDepositRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $JarDepositsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _jarIdMeta = const VerificationMeta('jarId');
+  @override
+  late final GeneratedColumn<String> jarId = GeneratedColumn<String>(
+    'jar_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES savings_jars (id)',
+    ),
+  );
+  static const VerificationMeta _amountCentsMeta = const VerificationMeta(
+    'amountCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountCents = GeneratedColumn<int>(
+    'amount_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, jarId, amountCents, date];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'jar_deposits';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<JarDepositRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('jar_id')) {
+      context.handle(
+        _jarIdMeta,
+        jarId.isAcceptableOrUnknown(data['jar_id']!, _jarIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_jarIdMeta);
+    }
+    if (data.containsKey('amount_cents')) {
+      context.handle(
+        _amountCentsMeta,
+        amountCents.isAcceptableOrUnknown(
+          data['amount_cents']!,
+          _amountCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountCentsMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  JarDepositRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return JarDepositRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      jarId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}jar_id'],
+      )!,
+      amountCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_cents'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      )!,
+    );
+  }
+
+  @override
+  $JarDepositsTable createAlias(String alias) {
+    return $JarDepositsTable(attachedDatabase, alias);
+  }
+}
+
+class JarDepositRow extends DataClass implements Insertable<JarDepositRow> {
+  final String id;
+  final String jarId;
+  final int amountCents;
+  final DateTime date;
+  const JarDepositRow({
+    required this.id,
+    required this.jarId,
+    required this.amountCents,
+    required this.date,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['jar_id'] = Variable<String>(jarId);
+    map['amount_cents'] = Variable<int>(amountCents);
+    map['date'] = Variable<DateTime>(date);
+    return map;
+  }
+
+  JarDepositsCompanion toCompanion(bool nullToAbsent) {
+    return JarDepositsCompanion(
+      id: Value(id),
+      jarId: Value(jarId),
+      amountCents: Value(amountCents),
+      date: Value(date),
+    );
+  }
+
+  factory JarDepositRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return JarDepositRow(
+      id: serializer.fromJson<String>(json['id']),
+      jarId: serializer.fromJson<String>(json['jarId']),
+      amountCents: serializer.fromJson<int>(json['amountCents']),
+      date: serializer.fromJson<DateTime>(json['date']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'jarId': serializer.toJson<String>(jarId),
+      'amountCents': serializer.toJson<int>(amountCents),
+      'date': serializer.toJson<DateTime>(date),
+    };
+  }
+
+  JarDepositRow copyWith({
+    String? id,
+    String? jarId,
+    int? amountCents,
+    DateTime? date,
+  }) => JarDepositRow(
+    id: id ?? this.id,
+    jarId: jarId ?? this.jarId,
+    amountCents: amountCents ?? this.amountCents,
+    date: date ?? this.date,
+  );
+  JarDepositRow copyWithCompanion(JarDepositsCompanion data) {
+    return JarDepositRow(
+      id: data.id.present ? data.id.value : this.id,
+      jarId: data.jarId.present ? data.jarId.value : this.jarId,
+      amountCents: data.amountCents.present
+          ? data.amountCents.value
+          : this.amountCents,
+      date: data.date.present ? data.date.value : this.date,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JarDepositRow(')
+          ..write('id: $id, ')
+          ..write('jarId: $jarId, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('date: $date')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, jarId, amountCents, date);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is JarDepositRow &&
+          other.id == this.id &&
+          other.jarId == this.jarId &&
+          other.amountCents == this.amountCents &&
+          other.date == this.date);
+}
+
+class JarDepositsCompanion extends UpdateCompanion<JarDepositRow> {
+  final Value<String> id;
+  final Value<String> jarId;
+  final Value<int> amountCents;
+  final Value<DateTime> date;
+  final Value<int> rowid;
+  const JarDepositsCompanion({
+    this.id = const Value.absent(),
+    this.jarId = const Value.absent(),
+    this.amountCents = const Value.absent(),
+    this.date = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  JarDepositsCompanion.insert({
+    required String id,
+    required String jarId,
+    required int amountCents,
+    required DateTime date,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       jarId = Value(jarId),
+       amountCents = Value(amountCents),
+       date = Value(date);
+  static Insertable<JarDepositRow> custom({
+    Expression<String>? id,
+    Expression<String>? jarId,
+    Expression<int>? amountCents,
+    Expression<DateTime>? date,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (jarId != null) 'jar_id': jarId,
+      if (amountCents != null) 'amount_cents': amountCents,
+      if (date != null) 'date': date,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  JarDepositsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? jarId,
+    Value<int>? amountCents,
+    Value<DateTime>? date,
+    Value<int>? rowid,
+  }) {
+    return JarDepositsCompanion(
+      id: id ?? this.id,
+      jarId: jarId ?? this.jarId,
+      amountCents: amountCents ?? this.amountCents,
+      date: date ?? this.date,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (jarId.present) {
+      map['jar_id'] = Variable<String>(jarId.value);
+    }
+    if (amountCents.present) {
+      map['amount_cents'] = Variable<int>(amountCents.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JarDepositsCompanion(')
+          ..write('id: $id, ')
+          ..write('jarId: $jarId, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('date: $date, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RunwayDatabase extends GeneratedDatabase {
   _$RunwayDatabase(QueryExecutor e) : super(e);
   $RunwayDatabaseManager get managers => $RunwayDatabaseManager(this);
@@ -4542,6 +5273,8 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
   late final $FriendsTable friends = $FriendsTable(this);
   late final $SessionsTable sessions = $SessionsTable(this);
   late final $MetaTable meta = $MetaTable(this);
+  late final $SavingsJarsTable savingsJars = $SavingsJarsTable(this);
+  late final $JarDepositsTable jarDeposits = $JarDepositsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4557,6 +5290,8 @@ abstract class _$RunwayDatabase extends GeneratedDatabase {
     friends,
     sessions,
     meta,
+    savingsJars,
+    jarDeposits,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -7952,6 +8687,626 @@ typedef $$MetaTableProcessedTableManager =
       MetaRow,
       PrefetchHooks Function()
     >;
+typedef $$SavingsJarsTableCreateCompanionBuilder =
+    SavingsJarsCompanion Function({
+      required String id,
+      required String name,
+      required int targetCents,
+      required DateTime createdAt,
+      Value<DateTime?> endedAt,
+      Value<String?> outcome,
+      Value<int> rowid,
+    });
+typedef $$SavingsJarsTableUpdateCompanionBuilder =
+    SavingsJarsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<int> targetCents,
+      Value<DateTime> createdAt,
+      Value<DateTime?> endedAt,
+      Value<String?> outcome,
+      Value<int> rowid,
+    });
+
+final class $$SavingsJarsTableReferences
+    extends BaseReferences<_$RunwayDatabase, $SavingsJarsTable, SavingsJarRow> {
+  $$SavingsJarsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$JarDepositsTable, List<JarDepositRow>>
+  _jarDepositsRefsTable(_$RunwayDatabase db) => MultiTypedResultKey.fromTable(
+    db.jarDeposits,
+    aliasName: 'savings_jars__id__jar_deposits__jar_id',
+  );
+
+  $$JarDepositsTableProcessedTableManager get jarDepositsRefs {
+    final manager = $$JarDepositsTableTableManager(
+      $_db,
+      $_db.jarDeposits,
+    ).filter((f) => f.jarId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_jarDepositsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$SavingsJarsTableFilterComposer
+    extends Composer<_$RunwayDatabase, $SavingsJarsTable> {
+  $$SavingsJarsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetCents => $composableBuilder(
+    column: $table.targetCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> jarDepositsRefs(
+    Expression<bool> Function($$JarDepositsTableFilterComposer f) f,
+  ) {
+    final $$JarDepositsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.jarDeposits,
+      getReferencedColumn: (t) => t.jarId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JarDepositsTableFilterComposer(
+            $db: $db,
+            $table: $db.jarDeposits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SavingsJarsTableOrderingComposer
+    extends Composer<_$RunwayDatabase, $SavingsJarsTable> {
+  $$SavingsJarsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetCents => $composableBuilder(
+    column: $table.targetCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SavingsJarsTableAnnotationComposer
+    extends Composer<_$RunwayDatabase, $SavingsJarsTable> {
+  $$SavingsJarsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get targetCents => $composableBuilder(
+    column: $table.targetCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get outcome =>
+      $composableBuilder(column: $table.outcome, builder: (column) => column);
+
+  Expression<T> jarDepositsRefs<T extends Object>(
+    Expression<T> Function($$JarDepositsTableAnnotationComposer a) f,
+  ) {
+    final $$JarDepositsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.jarDeposits,
+      getReferencedColumn: (t) => t.jarId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JarDepositsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.jarDeposits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SavingsJarsTableTableManager
+    extends
+        RootTableManager<
+          _$RunwayDatabase,
+          $SavingsJarsTable,
+          SavingsJarRow,
+          $$SavingsJarsTableFilterComposer,
+          $$SavingsJarsTableOrderingComposer,
+          $$SavingsJarsTableAnnotationComposer,
+          $$SavingsJarsTableCreateCompanionBuilder,
+          $$SavingsJarsTableUpdateCompanionBuilder,
+          (SavingsJarRow, $$SavingsJarsTableReferences),
+          SavingsJarRow,
+          PrefetchHooks Function({bool jarDepositsRefs})
+        > {
+  $$SavingsJarsTableTableManager(_$RunwayDatabase db, $SavingsJarsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavingsJarsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavingsJarsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavingsJarsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> targetCents = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> outcome = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavingsJarsCompanion(
+                id: id,
+                name: name,
+                targetCents: targetCents,
+                createdAt: createdAt,
+                endedAt: endedAt,
+                outcome: outcome,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required int targetCents,
+                required DateTime createdAt,
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> outcome = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavingsJarsCompanion.insert(
+                id: id,
+                name: name,
+                targetCents: targetCents,
+                createdAt: createdAt,
+                endedAt: endedAt,
+                outcome: outcome,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SavingsJarsTable, SavingsJarRow>(table),
+                  $$SavingsJarsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({jarDepositsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (jarDepositsRefs) db.jarDeposits],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (jarDepositsRefs)
+                    await $_getPrefetchedData<
+                      SavingsJarRow,
+                      $SavingsJarsTable,
+                      JarDepositRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$SavingsJarsTableReferences
+                          ._jarDepositsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$SavingsJarsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).jarDepositsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.jarId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SavingsJarsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RunwayDatabase,
+      $SavingsJarsTable,
+      SavingsJarRow,
+      $$SavingsJarsTableFilterComposer,
+      $$SavingsJarsTableOrderingComposer,
+      $$SavingsJarsTableAnnotationComposer,
+      $$SavingsJarsTableCreateCompanionBuilder,
+      $$SavingsJarsTableUpdateCompanionBuilder,
+      (SavingsJarRow, $$SavingsJarsTableReferences),
+      SavingsJarRow,
+      PrefetchHooks Function({bool jarDepositsRefs})
+    >;
+typedef $$JarDepositsTableCreateCompanionBuilder =
+    JarDepositsCompanion Function({
+      required String id,
+      required String jarId,
+      required int amountCents,
+      required DateTime date,
+      Value<int> rowid,
+    });
+typedef $$JarDepositsTableUpdateCompanionBuilder =
+    JarDepositsCompanion Function({
+      Value<String> id,
+      Value<String> jarId,
+      Value<int> amountCents,
+      Value<DateTime> date,
+      Value<int> rowid,
+    });
+
+final class $$JarDepositsTableReferences
+    extends BaseReferences<_$RunwayDatabase, $JarDepositsTable, JarDepositRow> {
+  $$JarDepositsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SavingsJarsTable _jarIdTable(_$RunwayDatabase db) =>
+      db.savingsJars.createAlias('jar_deposits__jar_id__savings_jars__id');
+
+  $$SavingsJarsTableProcessedTableManager get jarId {
+    final $_column = $_itemColumn<String>('jar_id')!;
+
+    final manager = $$SavingsJarsTableTableManager(
+      $_db,
+      $_db.savingsJars,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jarIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$JarDepositsTableFilterComposer
+    extends Composer<_$RunwayDatabase, $JarDepositsTable> {
+  $$JarDepositsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SavingsJarsTableFilterComposer get jarId {
+    final $$SavingsJarsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jarId,
+      referencedTable: $db.savingsJars,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SavingsJarsTableFilterComposer(
+            $db: $db,
+            $table: $db.savingsJars,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JarDepositsTableOrderingComposer
+    extends Composer<_$RunwayDatabase, $JarDepositsTable> {
+  $$JarDepositsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SavingsJarsTableOrderingComposer get jarId {
+    final $$SavingsJarsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jarId,
+      referencedTable: $db.savingsJars,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SavingsJarsTableOrderingComposer(
+            $db: $db,
+            $table: $db.savingsJars,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JarDepositsTableAnnotationComposer
+    extends Composer<_$RunwayDatabase, $JarDepositsTable> {
+  $$JarDepositsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  $$SavingsJarsTableAnnotationComposer get jarId {
+    final $$SavingsJarsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jarId,
+      referencedTable: $db.savingsJars,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SavingsJarsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.savingsJars,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JarDepositsTableTableManager
+    extends
+        RootTableManager<
+          _$RunwayDatabase,
+          $JarDepositsTable,
+          JarDepositRow,
+          $$JarDepositsTableFilterComposer,
+          $$JarDepositsTableOrderingComposer,
+          $$JarDepositsTableAnnotationComposer,
+          $$JarDepositsTableCreateCompanionBuilder,
+          $$JarDepositsTableUpdateCompanionBuilder,
+          (JarDepositRow, $$JarDepositsTableReferences),
+          JarDepositRow,
+          PrefetchHooks Function({bool jarId})
+        > {
+  $$JarDepositsTableTableManager(_$RunwayDatabase db, $JarDepositsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$JarDepositsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$JarDepositsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$JarDepositsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> jarId = const Value.absent(),
+                Value<int> amountCents = const Value.absent(),
+                Value<DateTime> date = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => JarDepositsCompanion(
+                id: id,
+                jarId: jarId,
+                amountCents: amountCents,
+                date: date,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String jarId,
+                required int amountCents,
+                required DateTime date,
+                Value<int> rowid = const Value.absent(),
+              }) => JarDepositsCompanion.insert(
+                id: id,
+                jarId: jarId,
+                amountCents: amountCents,
+                date: date,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$JarDepositsTable, JarDepositRow>(table),
+                  $$JarDepositsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({jarId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jarId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.jarId,
+                        referencedTable: $$JarDepositsTableReferences
+                            ._jarIdTable(db),
+                        referencedColumn: $$JarDepositsTableReferences
+                            ._jarIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$JarDepositsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RunwayDatabase,
+      $JarDepositsTable,
+      JarDepositRow,
+      $$JarDepositsTableFilterComposer,
+      $$JarDepositsTableOrderingComposer,
+      $$JarDepositsTableAnnotationComposer,
+      $$JarDepositsTableCreateCompanionBuilder,
+      $$JarDepositsTableUpdateCompanionBuilder,
+      (JarDepositRow, $$JarDepositsTableReferences),
+      JarDepositRow,
+      PrefetchHooks Function({bool jarId})
+    >;
 
 class $RunwayDatabaseManager {
   final _$RunwayDatabase _db;
@@ -7975,4 +9330,8 @@ class $RunwayDatabaseManager {
   $$SessionsTableTableManager get sessions =>
       $$SessionsTableTableManager(_db, _db.sessions);
   $$MetaTableTableManager get meta => $$MetaTableTableManager(_db, _db.meta);
+  $$SavingsJarsTableTableManager get savingsJars =>
+      $$SavingsJarsTableTableManager(_db, _db.savingsJars);
+  $$JarDepositsTableTableManager get jarDeposits =>
+      $$JarDepositsTableTableManager(_db, _db.jarDeposits);
 }

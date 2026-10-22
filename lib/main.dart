@@ -11,8 +11,10 @@ import 'package:flutter/material.dart';
 import 'app/app_state.dart';
 import 'app/auth.dart';
 import 'app/budget_sync.dart';
+import 'app/coach.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
+import 'app/on_device_coach.dart';
 import 'app/squad.dart';
 import 'app/supabase_accounts.dart';
 import 'app/supabase_budget_backups.dart';
@@ -68,6 +70,11 @@ Future<void> main() async {
     squadService: squad,
     budgetBackups: backups,
     syncStore: syncStore,
+    // Apple Intelligence words the coach's answers on iPhone; everywhere
+    // else (and whenever it's off) the rule-based coach answers alone.
+    coach: AppleCoachModel.supported
+        ? const OnDeviceCoach(AppleCoachModel())
+        : const LocalCoach(),
   );
   state.adoptSignedInAccount();
   // A fresh device that's signed in (the web after Google's redirect) asks

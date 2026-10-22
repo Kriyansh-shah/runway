@@ -1,6 +1,6 @@
-/// "Can I afford it?" coach. The UI only talks to [AffordabilityCoach], so the
-/// local rules below can later be swapped for (or wrapped by) a Gemini-backed
-/// coach that receives [CoachGrounding] as context.
+/// "Can I afford it?" coach. The UI only talks to [AffordabilityCoach]: the
+/// local rules below run everywhere, and on iPhones with Apple Intelligence
+/// [OnDeviceCoach] (on_device_coach.dart) puts them into words.
 library;
 
 import 'dart:math' as math;
@@ -23,11 +23,19 @@ class CoachGrounding {
     required this.burnRate,
     required this.daysShort,
     this.period = BudgetPeriod.semester,
+    this.savingsGoal = 0,
+    this.reserved = 0,
+    this.spentSoFar = 0,
+    this.byCategory = const [],
+    this.savingFor = const [],
+    this.putAsideToday = 0,
   });
 
   factory CoachGrounding.fromSnapshot(
     RunwaySnapshot s, {
     BudgetPeriod period = BudgetPeriod.semester,
+    List<({String category, double spent})> byCategory = const [],
+    List<({String name, double saved, double target})> savingFor = const [],
   }) => CoachGrounding(
     available: s.available,
     safeToSpendToday: s.safeToSpendToday,
@@ -37,6 +45,12 @@ class CoachGrounding {
     burnRate: s.burnRate,
     daysShort: s.daysShort,
     period: period,
+    savingsGoal: s.savingsGoal,
+    reserved: s.reserved,
+    spentSoFar: s.everydaySpent,
+    byCategory: byCategory,
+    savingFor: savingFor,
+    putAsideToday: s.putInJarsToday,
   );
 
   final double available;
@@ -50,15 +64,43 @@ class CoachGrounding {
   /// What [daysLeft] counts down to: the end of the semester or the month.
   final BudgetPeriod period;
 
+  /// Set aside for savings this term, like [reserved].
+  final double savingsGoal;
+
+  /// Upcoming bills and costs still to pay, already taken out of [available].
+  final double reserved;
+
+  /// Day-to-day spending this term so far.
+  final double spentSoFar;
+
+  /// This term's spending per category, biggest first.
+  final List<({String category, double spent})> byCategory;
+
+  /// Put into savings jars today; comes out of today's money like
+  /// [spentToday].
+  final double putAsideToday;
+
+  /// Things being saved up for, apart from the savings goal.
+  final List<({String name, double saved, double target})> savingFor;
+
   Map<String, Object> toJson() => {
     'period': period.noun,
     'available': available,
     'safeToSpendToday': safeToSpendToday,
     'dailyAllowance': dailyAllowance,
     'spentToday': spentToday,
+    'putAsideToday': putAsideToday,
     'daysLeftInTerm': daysLeft,
     'burnRatePerDay': burnRate,
     'daysShort': daysShort,
+    'savingsGoal': savingsGoal,
+    'setAsideForBills': reserved,
+    'spentSoFarThisTerm': spentSoFar,
+    'spentByCategory': {for (final c in byCategory) c.category: c.spent},
+    'savingUpFor': {
+      for (final j in savingFor)
+        j.name: {'savedSoFar': j.saved, 'price': j.target},
+    },
   };
 }
 
@@ -72,6 +114,8 @@ class Assessment {
     required this.runwayDaysLost,
     required this.message,
     this.period = BudgetPeriod.semester,
+    this.plan,
+    this.fasterPlan,
   });
 
   final Verdict verdict;
@@ -82,6 +126,13 @@ class Assessment {
   final double runwayDaysLost;
   final String message;
   final BudgetPeriod period;
+
+  /// How to save up for it, when it's not affordable now.
+  final SavingsPlan? plan;
+
+  /// A quicker way, putting more aside each day. Null when it isn't
+  /// meaningfully quicker.
+  final SavingsPlan? fasterPlan;
 
   String get headline => switch (verdict) {
     Verdict.yes => 'Yes',
@@ -114,7 +165,11 @@ final double deliveryOrderCost = ExpensePreset.all
     .amount;
 
 final _dollarAmount = RegExp(r'\$\s*(\d[\d,]*(?:\.\d{1,2})?)');
-final _bareAmount = RegExp(r'(\d[\d,]*(?:\.\d{1,2})?)');
+
+/// A number on its own, not part of a name like "PS5" or "Air Max 90s".
+final _bareAmount = RegExp(
+  r'(?<![A-Za-z\d])(\d[\d,]*(?:\.\d{1,2})?)(?![A-Za-z\d])',
+);
 
 /// Pulls the first money amount out of free text. Prefers `$`-prefixed numbers.
 ({double amount, String item})? parseQuestion(String text) {
@@ -122,24 +177,61 @@ final _bareAmount = RegExp(r'(\d[\d,]*(?:\.\d{1,2})?)');
   if (match == null) return null;
   final amount = double.tryParse(match.group(1)!.replaceAll(',', ''));
   if (amount == null || amount <= 0) return null;
-  var item = text.replaceRange(match.start, match.end, ' ');
-  item = item
-      .replaceAll(RegExp(r'[?!.]'), ' ')
-      .replaceAll(
-        RegExp(
-          r'\b(can|could|i|afford|it|a|an|the|for|buy|get|should)\b',
-          caseSensitive: false,
-        ),
-        ' ',
-      )
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
+  final item = _itemName(text.replaceRange(match.start, match.end, ' '));
   return (amount: amount, item: item.isEmpty ? 'that' : item);
 }
 
+String _itemName(String text) => text
+    .replaceAll(RegExp(r'[?!.,]'), ' ')
+    .replaceAll(
+      RegExp(
+        r"\b(can|could|i|i'm|im|afford|it|a|an|the|for|buy|get|should|"
+        r'purchase|is|it|ok|okay|to|me|my|myself|want|wanna|thinking|about|'
+        r'of|getting|buying|new|some|pair|on|splurge|treat|worth)\b',
+        caseSensitive: false,
+      ),
+      ' ',
+    )
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .trim();
+
+final _purchaseWords = RegExp(
+  r'\b(afford|buy|buying|purchase|splurge|treat myself|worth it|spend on)\b'
+  r"|\b(should|can|could|may) i (get|order|grab)\b|\bis it ok to (get|order)\b",
+  caseSensitive: false,
+);
+
+/// Questions about the budget itself ("How much can I afford to spend this
+/// week?"), not about one thing to buy.
+final _budgetQuestion = RegExp(
+  r'^\s*(how much|how many|what|when|why|where|which)\b',
+  caseSensitive: false,
+);
+
+/// The thing being asked about when a question is about buying something
+/// but gives no price ("Can I afford a Dior wallet?"), else null. Without a
+/// price nobody can say yes or no, so the coach asks for it.
+String? purchaseWithoutPrice(String text) {
+  if (parseQuestion(text) != null ||
+      !_purchaseWords.hasMatch(text) ||
+      _budgetQuestion.hasMatch(text)) {
+    return null;
+  }
+  final item = _itemName(text);
+  return item.isEmpty ? 'it' : item;
+}
+
+/// Asks for the price of [item] instead of guessing.
+String askForPrice(String item) => item == 'it'
+    ? 'How much does it cost? Tell me the price, like "Shoes \$80", and '
+          'I\'ll check it against your runway.'
+    : 'How much is the $item? Tell me the price, like "$item \$80", and '
+          'I\'ll check it against your runway.';
+
 Assessment assess(double amount, String item, CoachGrounding g) {
   final dailyBefore = g.dailyAllowance;
-  final dailyAfter = (g.available - amount + g.spentToday) / g.daysLeft;
+  final dailyAfter =
+      (g.available - amount + g.spentToday + g.putAsideToday) / g.daysLeft;
   final daysLost = g.burnRate > 0 ? amount / g.burnRate : 0.0;
 
   if (amount <= g.safeToSpendToday) {
@@ -174,9 +266,34 @@ Assessment assess(double amount, String item, CoachGrounding g) {
     );
   }
 
-  final perWeek = math.max(10.0, (g.dailyAllowance * 7 * 0.2).roundToDouble());
-  final weeks = (amount / perWeek).ceil();
+  final share = amount > g.available
+      ? 'That\'s more than the ${money(math.max(0, g.available), cents: false)} '
+            'you have left this ${g.period.noun}.'
+      : 'That would eat ${(amount / g.available * 100).round()}% of what you '
+            'have left.';
+  final steady = SavingsPlan.forShare(amount, g, 0.2);
+  final quick = SavingsPlan.forShare(amount, g, 1 / 3);
+  final faster = steady != null && quick != null && quick.days < steady.days
+      ? quick
+      : null;
+  final String plan;
+  if (steady == null) {
+    plan =
+        ' There\'s nothing spare to save from right now. Get back under your '
+        'daily number first, then put a little aside for it.';
+  } else {
+    final ready = steady.days <= g.daysLeft
+        ? ', before this ${g.period.noun} ends'
+        : '';
+    plan =
+        ' Put ${money(steady.perDay, cents: false)} a day aside and you\'ll '
+        'have it in ${steady.howLong}$ready'
+        '${faster == null ? '' : ', or ${money(faster.perDay, cents: false)} '
+                  'a day to get it in ${faster.howLong}'}.';
+  }
   return Assessment(
+    plan: steady,
+    fasterPlan: faster,
     period: g.period,
     verdict: Verdict.no,
     item: item,
@@ -184,11 +301,36 @@ Assessment assess(double amount, String item, CoachGrounding g) {
     dailyBefore: dailyBefore,
     dailyAfter: dailyAfter,
     runwayDaysLost: daysLost,
-    message:
-        'That would eat ${(amount / math.max(1, g.available) * 100).round()}% '
-        'of what you have left. Make it a goal: put ${money(perWeek, cents: false)}'
-        '/week aside and you\'ll have it in ${plural(weeks, 'week')}.',
+    message: '$share$plan',
   );
+}
+
+/// Saving [perDay] out of the daily allowance pays for something in [days].
+class SavingsPlan {
+  const SavingsPlan({required this.perDay, required this.days});
+
+  /// Putting [share] of the daily allowance aside each day, rounded to a
+  /// friendly amount. Null when there's no allowance left to save from.
+  static SavingsPlan? forShare(double amount, CoachGrounding g, double share) {
+    if (g.dailyAllowance < 1) return null;
+    final raw = g.dailyAllowance * share;
+    final perDay = raw < 10
+        ? math.max(1.0, raw.roundToDouble())
+        : math.max(10.0, (raw / 5).round() * 5.0);
+    return SavingsPlan(perDay: perDay, days: (amount / perDay).ceil());
+  }
+
+  final double perDay;
+  final int days;
+
+  double get perWeek => perDay * 7;
+
+  /// "5 days", "3 weeks", "4 months".
+  String get howLong => days < 14
+      ? plural(days, 'day')
+      : days < 60
+      ? plural((days / 7).ceil(), 'week')
+      : plural((days / 30).ceil(), 'month');
 }
 
 /// Rule-based coach that runs entirely on-device.
@@ -198,6 +340,8 @@ class LocalCoach implements AffordabilityCoach {
   @override
   Future<CoachReply> ask(String question, CoachGrounding grounding) async {
     final parsed = parseQuestion(question);
+    final unpriced = purchaseWithoutPrice(question);
+    if (unpriced != null) return CoachReply.text(askForPrice(unpriced));
     if (parsed == null) {
       return const CoachReply.text(
         'Tell me what it costs — like "Concert ticket \$60" — and I\'ll run '

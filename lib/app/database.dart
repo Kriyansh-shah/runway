@@ -184,6 +184,36 @@ class Sessions extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Something the person is saving up for (added in schema 7). Open while
+/// [endedAt] is null; then [outcome] says whether it was bought or dropped.
+@DataClassName('SavingsJarRow')
+class SavingsJars extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get targetCents => integer()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get endedAt => dateTime().nullable()();
+
+  /// 'bought' or 'dropped'.
+  TextColumn get outcome => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Money moved into a jar on [date]; negative when taken back out
+/// (added in schema 7).
+@DataClassName('JarDepositRow')
+class JarDeposits extends Table {
+  TextColumn get id => text()();
+  TextColumn get jarId => text().references(SavingsJars, #id)();
+  IntColumn get amountCents => integer()();
+  DateTimeColumn get date => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Small key/value settings (e.g. when demo data was seeded).
 @DataClassName('MetaRow')
 class Meta extends Table {
@@ -206,6 +236,8 @@ class Meta extends Table {
     Friends,
     Sessions,
     Meta,
+    SavingsJars,
+    JarDeposits,
   ],
 )
 class RunwayDatabase extends _$RunwayDatabase {
@@ -218,7 +250,7 @@ class RunwayDatabase extends _$RunwayDatabase {
       RunwayDatabase(await openDeviceDatabase());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -243,6 +275,10 @@ class RunwayDatabase extends _$RunwayDatabase {
       if (from < 6) {
         await m.addColumn(terms, terms.savingsGoalCents);
         await m.addColumn(terms, terms.savedCents);
+      }
+      if (from < 7) {
+        await m.createTable(savingsJars);
+        await m.createTable(jarDeposits);
       }
     },
     beforeOpen: (details) async {

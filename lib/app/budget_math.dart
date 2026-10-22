@@ -16,6 +16,8 @@ class RunwaySnapshot {
     required this.received,
     required this.reserved,
     this.savingsGoal = 0,
+    this.putInJars = 0,
+    this.putInJarsToday = 0,
     required this.spentToday,
     required this.totalSpent,
     required this.everydaySpent,
@@ -27,8 +29,21 @@ class RunwaySnapshot {
   final DateTime termStart;
   final DateTime termEnd;
 
-  /// Starting balance plus money received so far, minus everything spent.
+  /// Starting balance plus money received so far, minus everything spent
+  /// and everything put into savings jars this term.
   final double balance;
+
+  /// Money moved into savings jars this term (less any taken back out).
+  /// It's already out of [balance]: it isn't spending money any more.
+  final double putInJars;
+
+  /// Put into jars today. It comes out of today's money, like spending,
+  /// so "put \$80 aside today" lowers today's safe-to-spend by \$80; but
+  /// it isn't spending, so the burn rate and streak leave it alone.
+  final double putInJarsToday;
+
+  /// Spent today plus put aside today: what today's allowance has gone to.
+  double get usedTodayAmount => spentToday + putInJarsToday;
 
   /// Money that has come in this term so far (paychecks, one-off payments).
   final double received;
@@ -88,15 +103,15 @@ class RunwaySnapshot {
   /// promised to a big cost.
   double get maxSavingsGoal => math.max(0, balance - reserved);
 
-  /// daily allowance = (available + spentToday) / daysLeftInTerm
-  double get dailyAllowance => (available + spentToday) / daysLeft;
+  /// daily allowance = (available + used today) / daysLeftInTerm
+  double get dailyAllowance => (available + usedTodayAmount) / daysLeft;
 
-  /// safe to spend today = daily allowance − spentToday
-  double get safeToSpendToday => dailyAllowance - spentToday;
+  /// safe to spend today = daily allowance − used today
+  double get safeToSpendToday => dailyAllowance - usedTodayAmount;
 
   /// Fraction of today's allowance already used (can exceed 1).
   double get usedToday =>
-      dailyAllowance <= 0 ? 1 : (spentToday / dailyAllowance).clamp(0, 2);
+      dailyAllowance <= 0 ? 1 : (usedTodayAmount / dailyAllowance).clamp(0, 2);
 
   /// Average everyday spend per day so far.
   double get burnRate => everydaySpent / daysElapsed;
@@ -138,6 +153,7 @@ RunwaySnapshot computeRunway({
   required List<Expense> expenses,
   required List<UpcomingCost> upcoming,
   List<Income> incomes = const [],
+  List<JarDeposit> jarDeposits = const [],
   required DateTime today,
 }) {
   final day = dateOnly(today);
@@ -155,13 +171,22 @@ RunwaySnapshot computeRunway({
     reserved += c.amount;
   }
   final received = incomeReceived(incomes, term: term, today: day);
+  final jars = putInJarsDuring(jarDeposits, term);
+  var jarsToday = 0.0;
+  for (final d in jarDeposits) {
+    if (sameDay(d.date, day)) jarsToday += d.amount;
+  }
   return RunwaySnapshot(
     today: day,
     termStart: dateOnly(term.start),
     termEnd: dateOnly(term.end),
-    balance: term.startingBalance + received - total,
+    balance: term.startingBalance + received - total - jars,
     received: received,
     reserved: reserved,
+    putInJars: jars,
+    // Money taken back out (bought or stopped) spreads over the days left,
+    // like any money coming in; only what went in today counts as today's.
+    putInJarsToday: jarsToday > 0 ? jarsToday : 0,
     savingsGoal: term.savingsGoal,
     spentToday: todaySpend,
     totalSpent: total,
@@ -169,6 +194,20 @@ RunwaySnapshot computeRunway({
     daysLeft: math.max(1, daysBetween(day, term.end) + 1),
     daysElapsed: math.max(1, daysBetween(term.start, day) + 1),
   );
+}
+
+/// Money moved into jars (less money taken out) on the days of [term].
+/// Earlier deposits came out of earlier terms' money, which is why they
+/// don't count again here.
+double putInJarsDuring(List<JarDeposit> deposits, Term term) {
+  final start = dateOnly(term.start);
+  final end = dateOnly(term.end);
+  var sum = 0.0;
+  for (final d in deposits) {
+    final day = dateOnly(d.date);
+    if (!day.isBefore(start) && !day.isAfter(end)) sum += d.amount;
+  }
+  return sum;
 }
 
 /// Every payday of [income] from [from] to [to], inclusive, in order.
@@ -293,6 +332,7 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
   required List<Expense> expenses,
   required List<Income> incomes,
   List<UpcomingCost> upcoming = const [],
+  List<JarDeposit> jarDeposits = const [],
   required DateTime today,
 }) {
   final day = dateOnly(today);
@@ -307,6 +347,7 @@ List<Income> continuingIncomes(List<Income> incomes, DateTime after) => [
     expenses: expenses,
     upcoming: upcoming,
     incomes: incomes,
+    jarDeposits: jarDeposits,
     today: term.end,
   );
   final saved = cents(end.savingsKept);

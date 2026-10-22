@@ -10,6 +10,8 @@ import '../widgets/glass.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/motion.dart';
 import '../widgets/ph_icons.dart';
+import '../widgets/pressable.dart';
+import 'jar_sheets.dart';
 import 'savings_goal_sheet.dart';
 import 'shell.dart';
 
@@ -27,6 +29,7 @@ class SavingsScreen extends StatelessWidget {
         child: Text('Savings', style: AppText.title),
       ),
       _GoalCard(state: state),
+      _Jars(state: state),
       _TotalCard(state: state),
       if (state.savingsHistory.isNotEmpty)
         _PastSavings(history: state.savingsHistory),
@@ -187,6 +190,108 @@ class _GoalCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Things being saved up for, each apart from the savings goal.
+class _Jars extends StatelessWidget {
+  const _Jars({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final jars = state.jars;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(child: SectionHeader('Saving for')),
+            TextButton.icon(
+              onPressed: () => showNewJarSheet(context),
+              icon: const Icon(
+                PhIcons.plusBold,
+                size: 18,
+                color: AppColors.lime,
+              ),
+              label: Text(
+                'Add',
+                style: AppText.body.copyWith(
+                  color: AppColors.lime,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (jars.isEmpty)
+          GlassCard(
+            child: Text(
+              'Want something big, like new headphones or a trip? Save for '
+              'it here, a little at a time, apart from your savings goal.',
+              style: AppText.label,
+            ),
+          )
+        else
+          for (final jar in jars)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _JarCard(state: state, jar: jar),
+            ),
+      ],
+    );
+  }
+}
+
+class _JarCard extends StatelessWidget {
+  const _JarCard({required this.state, required this.jar});
+  final AppState state;
+  final SavingsJar jar;
+
+  @override
+  Widget build(BuildContext context) {
+    final suggested = state.suggestedJarDeposit(jar);
+    return Pressable(
+      onTap: () => showJarSheet(context, jar.id),
+      semanticLabel: 'Saving for ${jar.name}',
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    jar.name,
+                    style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Text(
+                  '${money(jar.saved, cents: false)} of '
+                  '${money(jar.target, cents: false)}',
+                  style: AppText.label,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            JarProgressBar(
+              progress: jar.target == 0 ? 0 : jar.saved / jar.target,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              jar.full
+                  ? 'Ready to buy 🎉 Tap when you\'ve bought it.'
+                  : suggested > 0
+                  ? 'Tap to put ${money(suggested, cents: false)} in today'
+                  : 'Tap to put money in',
+              style: AppText.label.copyWith(
+                color: jar.full ? AppColors.lime : AppColors.muted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

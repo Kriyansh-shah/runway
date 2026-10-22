@@ -27,6 +27,97 @@ void main() {
     startingBalance: 1000,
   );
 
+  group('savings jars', () {
+    JarDeposit deposit(double amount, int dayOffset) => JarDeposit(
+      id: 'd$amount@$dayOffset',
+      jarId: 'jar',
+      amount: amount,
+      date: day(dayOffset).add(const Duration(hours: 9)),
+    );
+
+    test('money put in this term is no longer spending money', () {
+      final before = computeRunway(
+        term: term,
+        expenses: [spend(100, -5)],
+        upcoming: const [],
+        today: today,
+      );
+      final after = computeRunway(
+        term: term,
+        expenses: [spend(100, -5)],
+        upcoming: const [],
+        jarDeposits: [deposit(80, -2), deposit(20, 0)],
+        today: today,
+      );
+      expect(after.putInJars, 100);
+      expect(after.balance, before.balance - 100);
+      expect(after.available, before.available - 100);
+      // Not spending: the burn rate and today's spend don't move.
+      expect(after.burnRate, before.burnRate);
+      expect(after.spentToday, before.spentToday);
+    });
+
+    test('putting money in today comes out of today, like spending', () {
+      final before = computeRunway(
+        term: term,
+        expenses: [spend(10, 0)],
+        upcoming: const [],
+        today: today,
+      );
+      final after = computeRunway(
+        term: term,
+        expenses: [spend(10, 0)],
+        upcoming: const [],
+        jarDeposits: [deposit(80, 0)],
+        today: today,
+      );
+      expect(after.putInJarsToday, 80);
+      expect(after.usedTodayAmount, 90);
+      expect(after.dailyAllowance, closeTo(before.dailyAllowance, 1e-9));
+      expect(
+        after.safeToSpendToday,
+        closeTo(before.safeToSpendToday - 80, 1e-9),
+      );
+      expect(after.spentToday, 10); // still not spending
+    });
+
+    test('money taken out today spreads over the days left', () {
+      final s = computeRunway(
+        term: term,
+        expenses: const [],
+        upcoming: const [],
+        jarDeposits: [deposit(300, -30), deposit(-300, 0)],
+        today: today,
+      );
+      expect(s.putInJarsToday, 0);
+    });
+
+    test('deposits from before this term already came out of it', () {
+      final s = computeRunway(
+        term: term,
+        expenses: const [],
+        upcoming: const [],
+        jarDeposits: [deposit(200, -30), deposit(50, -1)],
+        today: today,
+      );
+      expect(s.putInJars, 50);
+      expect(s.balance, 950);
+    });
+
+    test('taking money out (buying or stopping) brings it back', () {
+      final s = computeRunway(
+        term: term,
+        expenses: const [],
+        upcoming: const [],
+        // Saved 300 last term, took it all out today.
+        jarDeposits: [deposit(300, -30), deposit(-300, 0)],
+        today: today,
+      );
+      expect(s.putInJars, -300);
+      expect(s.balance, 1300);
+    });
+  });
+
   group('computeRunway', () {
     test('implements the spec formulas', () {
       final s = computeRunway(
@@ -425,6 +516,25 @@ void main() {
       expect(next.term.startingBalance, 40); // 500 − 360 − 100 saved
       expect(next.term.savingsGoal, 100); // the goal carries on
       expect(next.overspent, 0);
+    });
+
+    test('money put into a jar stays out of next month', () {
+      final next = nextMonth(
+        term: month(500),
+        expenses: [spent(360)],
+        incomes: const [],
+        jarDeposits: [
+          JarDeposit(
+            id: 'd1',
+            jarId: 'wallet',
+            amount: 80,
+            date: DateTime(2026, 10, 20),
+          ),
+        ],
+        today: DateTime(2026, 11, 3),
+      )!;
+      expect(next.saved, 0);
+      expect(next.term.startingBalance, 60); // 500 − 360 − 80 in the jar
     });
 
     test('leftover with no goal is spending money, not savings', () {

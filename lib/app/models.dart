@@ -334,6 +334,59 @@ class PastTerm {
   final List<Income> incomes;
 }
 
+/// Something the person is saving up for, like a Dior wallet, apart from
+/// the term's savings goal. Money put in is set aside from spending money
+/// (and stays set aside when the term or month rolls over) until the
+/// thing is bought or the goal is dropped.
+class SavingsJar {
+  const SavingsJar({
+    required this.id,
+    required this.name,
+    required this.target,
+    required this.createdAt,
+    this.deposits = const [],
+  });
+
+  final String id;
+  final String name;
+  final double target;
+  final DateTime createdAt;
+
+  /// Every time money went in, oldest first.
+  final List<JarDeposit> deposits;
+
+  double get saved => deposits.fold(0, (sum, d) => sum + d.amount);
+
+  /// Still to put in; 0 once it's full.
+  double get remaining => target - saved > 0.005 ? target - saved : 0;
+
+  bool get full => remaining == 0;
+
+  SavingsJar withDeposit(JarDeposit deposit) => SavingsJar(
+    id: id,
+    name: name,
+    target: target,
+    createdAt: createdAt,
+    deposits: [...deposits, deposit],
+  );
+}
+
+/// Money moved into a [SavingsJar] on [date]; negative when it was taken
+/// back out (the goal was bought or dropped).
+class JarDeposit {
+  const JarDeposit({
+    required this.id,
+    required this.jarId,
+    required this.amount,
+    required this.date,
+  });
+
+  final String id;
+  final String jarId;
+  final double amount;
+  final DateTime date;
+}
+
 class Friend {
   const Friend({
     required this.id,
@@ -379,6 +432,8 @@ class BudgetData {
     this.customCategories = const [],
     this.savingsHistory = const [],
     this.savingsAsked = false,
+    this.jars = const [],
+    this.jarDeposits = const [],
     required this.friends,
     required this.splits,
     required this.challengeStart,
@@ -403,6 +458,14 @@ class BudgetData {
   /// The person has been asked for a savings goal (at setup, or by the
   /// card on Home), so Home stops asking.
   final bool savingsAsked;
+
+  /// What the person is saving up for, oldest first. Bought and dropped
+  /// ones aren't included.
+  final List<SavingsJar> jars;
+
+  /// Every deposit into any jar, open or not, oldest first: a jar bought
+  /// this month still moved money this month.
+  final List<JarDeposit> jarDeposits;
   final List<Friend> friends;
   final List<BillSplit> splits;
   final DateTime challengeStart;

@@ -44,8 +44,46 @@ void main() {
       final a = assess(600, 'trip', g);
       expect(a.verdict, Verdict.no);
       expect(a.headline, 'Not this term');
-      expect(a.message, contains('/week'));
+      // $25/day allowance: $5 a day steady (120 days), $8 a day faster.
+      expect(a.plan!.perDay, 5);
+      expect(a.plan!.howLong, '4 months');
+      expect(a.fasterPlan!.perDay, 8);
+      expect(a.fasterPlan!.howLong, '3 months');
+      expect(
+        a.message,
+        'That would eat 60% of what you have left. Put \$5 a day aside and '
+        'you\'ll have it in 4 months, or \$8 a day to get it in 3 months.',
+      );
       expect(a.runwayDaysLost, closeTo(20, 1e-9));
+    });
+
+    test('a big daily allowance never plans more than the price', () {
+      // The old rule said "put \$557/week aside, have it in 1 week" here.
+      const flush = CoachGrounding(
+        available: 3600,
+        safeToSpendToday: 400,
+        dailyAllowance: 400,
+        spentToday: 0,
+        daysLeft: 9,
+        burnRate: 100,
+        daysShort: 0,
+        period: BudgetPeriod.monthly,
+      );
+      final a = assess(500, 'Dior wallet', flush);
+      expect(a.verdict, Verdict.no);
+      expect(a.plan!.perDay, 80);
+      expect(a.plan!.howLong, '7 days');
+      expect(
+        a.message,
+        'That would eat 14% of what you have left. Put \$80 a day aside and '
+        'you\'ll have it in 7 days, before this month ends, or \$135 a day '
+        'to get it in 4 days.',
+      );
+    });
+
+    test('more than everything left says so', () {
+      final a = assess(5000, 'car', g);
+      expect(a.message, startsWith('That\'s more than the \$1,000 you have'));
     });
 
     test('a monthly budget says "not this month"', () {
@@ -73,7 +111,10 @@ void main() {
         burnRate: 30,
         daysShort: 30,
       );
-      expect(assess(1, 'gum', broke).verdict, Verdict.no);
+      final a = assess(1, 'gum', broke);
+      expect(a.verdict, Verdict.no);
+      expect(a.plan, isNull);
+      expect(a.message, contains('nothing spare to save'));
     });
   });
 
@@ -99,6 +140,43 @@ void main() {
       expect(parseQuestion('should I buy shoes'), isNull);
       expect(parseQuestion('\$0'), isNull);
     });
+  });
+
+  group('purchaseWithoutPrice', () {
+    test('finds the item when a purchase has no price', () {
+      expect(
+        purchaseWithoutPrice('Can I afford a Dior wallet?'),
+        'Dior wallet',
+      );
+      expect(purchaseWithoutPrice('should i get boba'), 'boba');
+      expect(purchaseWithoutPrice('is it worth it to buy a ps5?'), 'ps5');
+      expect(purchaseWithoutPrice('can I afford it'), 'it');
+    });
+
+    test('leaves priced and budget questions alone', () {
+      expect(purchaseWithoutPrice('Dior wallet \$450'), isNull);
+      expect(purchaseWithoutPrice('AirPods 129'), isNull);
+      expect(
+        purchaseWithoutPrice('How much can I afford to spend this week?'),
+        isNull,
+      );
+      expect(purchaseWithoutPrice('how do i get my savings up?'), isNull);
+      expect(purchaseWithoutPrice('How am I doing on food?'), isNull);
+    });
+  });
+
+  test('a number inside a name isn\'t a price', () {
+    expect(parseQuestion('is it worth it to buy a ps5?'), isNull);
+    expect(parseQuestion('ps5 400')?.amount, 400);
+  });
+
+  test('LocalCoach asks what an unpriced purchase costs', () async {
+    final reply = await const LocalCoach().ask(
+      'Can I afford a Dior wallet?',
+      g,
+    );
+    expect(reply.assessment, isNull);
+    expect(reply.text, startsWith('How much is the Dior wallet?'));
   });
 
   test('LocalCoach asks for a price when none is given', () async {

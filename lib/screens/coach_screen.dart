@@ -12,6 +12,7 @@ import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import 'shell.dart';
 import '../widgets/ph_icons.dart';
+import 'jar_sheets.dart';
 
 class CoachScreen extends StatefulWidget {
   const CoachScreen({super.key});
@@ -539,9 +540,82 @@ class _VerdictCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (a.verdict == Verdict.no && a.plan != null) ...[
+                  const SizedBox(height: 12),
+                  _SaveForIt(a),
+                ],
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Save for it" on a not-now answer: starts a savings goal named after
+/// what was asked about. Once there is one, it points to the Savings tab.
+class _SaveForIt extends StatelessWidget {
+  const _SaveForIt(this.a);
+  final Assessment a;
+
+  String get _name => a.item == 'that' ? '' : a.item;
+
+  Future<void> _start(BuildContext context) async {
+    final state = AppScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final jar = await showNewJarSheet(context, name: _name, price: a.amount);
+    if (jar == null) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Saving for ${jar.name}. Put money in from Savings.'),
+        action: SnackBarAction(
+          label: 'See it',
+          onPressed: () => state.requestedTab.value = 1,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final name = _name.toLowerCase();
+    final saving =
+        name.isNotEmpty && state.jars.any((j) => j.name.toLowerCase() == name);
+    return Pressable(
+      onTap: saving
+          ? () => state.requestedTab.value = 1
+          : () => _start(context),
+      semanticLabel: saving ? 'See it in Savings' : 'Save for it',
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.lime.withValues(alpha: 0.5)),
+          color: AppColors.lime.withValues(alpha: 0.08),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              saving ? PhIcons.checkBold : PhIcons.piggyBank,
+              size: 18,
+              color: AppColors.lime,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                saving ? 'Saving for it · See it' : 'Save for it',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body.copyWith(
+                  color: AppColors.lime,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

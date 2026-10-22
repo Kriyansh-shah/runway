@@ -125,6 +125,10 @@ class SupabaseSquad implements SquadService {
   );
 
   @override
+  Future<void> deleteSettlement(String id) =>
+      _guard(() => _client.rpc('delete_settlement', params: {'target': id}));
+
+  @override
   Future<void> recordSettlements(List<SettlementItem> items) => _guard(
     () => _client.rpc(
       'record_settlements',
@@ -322,9 +326,16 @@ class SupabaseSquad implements SquadService {
         'too_many_friends' => 'You\'ve reached 500 friends.',
         'own_code' => 'That\'s your own friend code.',
         'not_friends' => 'You can only split with friends.',
+        'not_all_friends' =>
+          'Everyone in a split has to be friends with each other. '
+              'Add each other as friends, or split inside a squad.',
+        'too_many_splits' => 'That\'s a lot of splits. Try again in an hour.',
+        'too_many_settlements' =>
+          'That\'s a lot of settle-ups. Try again in an hour.',
         'not_in_squad' => 'Everyone has to be in the squad for a squad split.',
         'shares_dont_add_up' => 'The parts don\'t add up to the total.',
-        'not_allowed' => 'Only whoever added or paid it can delete it.',
+        'not_allowed' =>
+          'You can only remove splits and settle-ups you\'re in.',
         _ => 'Something went wrong with Squad. Try again.',
       });
     } on Exception catch (e) {

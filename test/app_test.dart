@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +15,7 @@ import 'package:runway/app/squad.dart';
 import 'package:runway/main.dart';
 import 'package:runway/screens/add_income_sheet.dart';
 import 'package:runway/screens/edit_cost_sheet.dart';
+import 'package:runway/screens/friends_sheets.dart';
 import 'package:runway/screens/history_screen.dart';
 import 'package:runway/screens/quick_add_sheet.dart';
 import 'package:runway/screens/settings_screen.dart';
@@ -488,6 +491,131 @@ void main() {
     final e = state.recentExpenses(1).single;
     expect(e.custom, isNull);
     expect(e.title, 'Vaping'); // kept as its note
+  });
+
+  test('money put into a jar is set aside until it\'s bought', () {
+    final state = buildState();
+    final start = state.snapshot.available;
+    final burn = state.snapshot.burnRate;
+    final jar = state.startJar(name: '  dior   wallet ', target: 500);
+    expect(jar.name, 'Dior wallet');
+    expect(state.snapshot.available, start); // nothing set aside yet
+
+    final safe = state.snapshot.safeToSpendToday;
+    state.putIntoJar(jar.id, 80);
+    expect(state.jar(jar.id)!.saved, 80);
+    // Out of today's money, all of it, not spread over the term.
+    expect(state.snapshot.safeToSpendToday, closeTo(safe - 80, 1e-9));
+    expect(state.recentJarDeposits().single.deposit.amount, 80);
+    expect(state.snapshot.available, closeTo(start - 80, 1e-9));
+    expect(state.snapshot.burnRate, burn); // saving isn't spending
+    expect(state.grounding.savingFor.single.saved, 80);
+
+    state.putIntoJar(jar.id, 1e5); // capped at what it still needs
+    expect(state.jar(jar.id)!.saved, 500);
+    expect(state.jar(jar.id)!.full, isTrue);
+    expect(state.maxJarDeposit(state.jar(jar.id)!), 0);
+
+    final before = state.snapshot.available;
+    state.buyJar(jar.id);
+    expect(state.jars, isEmpty);
+    final bought = state.recentExpenses(1).single;
+    expect(
+      (bought.amount, bought.title, bought.category, bought.planned),
+      (500.0, 'Dior wallet', ExpenseCategory.shopping, true),
+    );
+    // Paid with the 500 that was set aside: spending money doesn't move.
+    expect(state.snapshot.available, closeTo(before, 1e-9));
+  });
+
+  test('taking money out the same day gives today all of it back', () {
+    final state = buildState();
+    final safe = state.snapshot.safeToSpendToday;
+    final jar = state.startJar(name: 'Trip', target: 300);
+    state.putIntoJar(jar.id, 80);
+    state.takeOutOfJar(jar.id, 30);
+    expect(state.jar(jar.id)!.saved, 50);
+    expect(state.snapshot.safeToSpendToday, closeTo(safe - 50, 1e-9));
+    expect(
+      state.recentJarDeposits().map((d) => d.deposit.amount),
+      unorderedEquals([-30, 80]),
+    );
+
+    state.takeOutOfJar(jar.id, 1e5); // never more than what's in it
+    expect(state.jar(jar.id)!.saved, 0);
+    expect(state.snapshot.safeToSpendToday, closeTo(safe, 1e-9));
+    expect(state.jars, hasLength(1)); // still saving for it
+  });
+
+  test('stopping a jar gives its money back', () {
+    final state = buildState();
+    final start = state.snapshot.available;
+    final jar = state.startJar(name: 'Trip', target: 300);
+    state.putIntoJar(jar.id, 45);
+    state.dropJar(jar.id);
+    expect(state.jars, isEmpty);
+    expect(state.snapshot.available, closeTo(start, 1e-9));
+    expect(state.recentExpenses(1).single.title, isNot('Trip'));
+  });
+
+  testWidgets('save for something from the coach, then put money in', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1290, 2796);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+
+    await tester.tap(find.text('Coach'));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).last, 'Car \$5000');
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await settle(tester, const Duration(seconds: 2));
+
+    await tester.ensureVisible(find.text('Save for it'));
+    await tester.tap(find.text('Save for it'));
+    await settle(tester);
+    expect(find.text('Save for something'), findsOneWidget);
+    await tester.tap(find.text('Start saving'));
+    await settle(tester);
+
+    final jar = state.jars.single;
+    expect((jar.name, jar.target, jar.saved), ('Car', 5000.0, 0.0));
+    expect(find.text('Saving for it · See it'), findsOneWidget);
+
+    await tester.tap(find.text('See it'));
+    await settle(tester, const Duration(seconds: 1));
+    expect(find.text('Saving for'), findsOneWidget);
+    await tester.ensureVisible(find.text('Car'));
+    await tester.tap(find.text('Car'));
+    await settle(tester);
+    final put = find.textContaining(RegExp(r'^Put \$\d+ in$'));
+    expect(put, findsOneWidget);
+    await tester.tap(put);
+    await settle(tester);
+    // Logged on Home's Recent list too.
+    await tester.tap(find.text('Home'));
+    await settle(tester, const Duration(seconds: 1));
+    await tester.scrollUntilVisible(
+      find.text('Put aside · Car'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Put aside · Car'), findsOneWidget);
+
+    // Take it back out from the goal.
+    await tester.tap(find.text('Put aside · Car'));
+    await settle(tester);
+    await tester.tap(find.text('Take out'));
+    await settle(tester);
+    final take = find.textContaining(RegExp(r'^Take \$\d+ out$'));
+    expect(take, findsOneWidget);
+    await tester.tap(take);
+    await settle(tester);
+    expect(state.jars.single.saved, 0);
+    expect(find.text('Took out · Car'), findsOneWidget);
   });
 
   test('the savings goal is capped, and Home asks only once', () {
@@ -1613,6 +1741,74 @@ void main() {
       expect(find.text('All settled up'), findsOneWidget);
     });
 
+    testWidgets('you can remove a settle-up from the history', (tester) async {
+      squads.squad = _FakeSquad.roomies;
+      squads.expenses.add(
+        SharedExpense(
+          id: 'x9',
+          paidBy: 'u1',
+          description: 'Pizza',
+          totalCents: 3000,
+          shares: const {'u1': 1500, 'u2': 1500},
+          createdAt: DateTime(2026, 10, 2, 9),
+        ),
+      );
+      squads.settlements.add(
+        const SettlementItem(
+          squadId: null,
+          from: 'u2',
+          to: 'u1',
+          amountCents: 1500,
+        ),
+      );
+      final state = stateWith();
+      await openSquad(tester, state);
+      expect(state.friendBalances, isEmpty);
+
+      unawaited(
+        showFriendSheet(tester.element(find.text('Squad').first), 'u2'),
+      );
+      await settle(tester);
+      await tester.longPress(find.textContaining('paid you'));
+      await settle(tester);
+      await tester.tap(find.text('Remove settle-up'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(squads.removedSettlements, {'st0'});
+      expect(state.friendBalances, {'u2': 1500});
+      expect(find.text('Priya owes you \$15.00'), findsOneWidget);
+    });
+
+    testWidgets('you can delete a split a friend added', (tester) async {
+      squads.squad = _FakeSquad.roomies;
+      squads.expenses.add(
+        SharedExpense(
+          id: 'x9',
+          createdBy: 'u2',
+          paidBy: 'u2',
+          description: 'Mystery bill',
+          totalCents: 3000,
+          shares: const {'u1': 1500, 'u2': 1500},
+          createdAt: DateTime(2026, 10, 2, 9),
+        ),
+      );
+      final state = stateWith();
+      await openSquad(tester, state);
+      expect(state.friendBalances, {'u2': -1500});
+
+      unawaited(
+        showFriendSheet(tester.element(find.text('Squad').first), 'u2'),
+      );
+      await settle(tester);
+      await tester.longPress(find.text('Mystery bill').last);
+      await settle(tester);
+      await tester.tap(find.text('Delete split'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(squads.expenses.single.deleted, isTrue);
+      expect(state.friendBalances, isEmpty);
+    });
+
     testWidgets('a friend\'s split shows up in your budget once', (
       tester,
     ) async {
@@ -2166,6 +2362,7 @@ class _FakeSquad implements SquadService {
   final direct = <String, Person>{};
   final expenses = <SharedExpense>[];
   final settlements = <SettlementItem>[];
+  final removedSettlements = <String>{};
   SquadException? error;
   SquadStats? published;
   String? joinedWith;
@@ -2256,14 +2453,15 @@ class _FakeSquad implements SquadService {
       expenses: [...expenses],
       settlements: [
         for (final i in settlements)
-          Settlement(
-            id: 'st${n++}',
-            from: i.from,
-            to: i.to,
-            amountCents: i.amountCents,
-            squadId: i.squadId,
-            createdAt: DateTime(2026, 10, 2),
-          ),
+          if (!removedSettlements.contains('st${n++}'))
+            Settlement(
+              id: 'st${n - 1}',
+              from: i.from,
+              to: i.to,
+              amountCents: i.amountCents,
+              squadId: i.squadId,
+              createdAt: DateTime(2026, 10, 2),
+            ),
       ],
     );
   }
@@ -2371,6 +2569,9 @@ class _FakeSquad implements SquadService {
   @override
   Future<void> recordSettlements(List<SettlementItem> items) async =>
       settlements.addAll(items);
+
+  @override
+  Future<void> deleteSettlement(String id) async => removedSettlements.add(id);
 
   @override
   Future<void> setSimplifyDebts(String squadId, bool on) async {}

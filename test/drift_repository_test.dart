@@ -1340,6 +1340,114 @@ void main() {
     expect(await other.exportSnapshot(), snapshot);
   });
 
+  group('savings jars', () {
+    SavingsJar wallet() => SavingsJar(
+      id: 'wallet',
+      name: 'Dior wallet',
+      target: 500,
+      createdAt: now,
+    );
+    JarDeposit deposit(String id, double amount) => JarDeposit(
+      id: id,
+      jarId: 'wallet',
+      amount: amount,
+      date: now.add(const Duration(minutes: 1)),
+    );
+
+    test('a jar and its money survive a relaunch', () async {
+      var repo = openRepo();
+      await repo.load();
+      await repo.addJar(wallet());
+      await repo.addJarDeposit(deposit('d1', 80));
+      await repo.addJarDeposit(deposit('d2', 45.5));
+
+      repo = await reopen(repo);
+      final data = await repo.load();
+      final jar = data.jars.single;
+      expect((jar.name, jar.target, jar.saved), ('Dior wallet', 500, 125.5));
+      expect(data.jarDeposits.map((d) => d.amount), [80, 45.5]);
+    });
+
+    test('buying ends the jar and logs the purchase, together', () async {
+      final repo = openRepo();
+      await repo.load();
+      await repo.addJar(wallet());
+      await repo.addJarDeposit(deposit('d1', 500));
+      await repo.endJar(
+        'wallet',
+        bought: true,
+        takenOut: deposit('out', -500),
+        purchase: expense('wallet-buy', 500, note: 'Dior wallet'),
+      );
+
+      final data = await repo.load();
+      expect(data.jars, isEmpty);
+      // The money that came back still counts for this term's numbers.
+      expect(data.jarDeposits.map((d) => d.amount), [500, -500]);
+      expect(data.expenses.where((e) => e.note == 'Dior wallet'), hasLength(1));
+    });
+
+    test('jars move to another device with the budget', () async {
+      final phone = openRepo();
+      await phone.load();
+      await phone.addJar(wallet());
+      await phone.addJarDeposit(deposit('d1', 80));
+      final snapshot = jsonDecode(
+        jsonEncode(await phone.exportSnapshot()),
+      ) as Map<String, Object?>;
+
+      final other = DriftBudgetRepository(
+        RunwayDatabase(NativeDatabase(File('${dir.path}/other.sqlite'))),
+        clock: () => now,
+      );
+      addTearDown(other.close);
+      await other.load();
+      await other.importSnapshot(snapshot);
+      final jar = (await other.load()).jars.single;
+      expect((jar.name, jar.saved), ('Dior wallet', 80));
+    });
+
+    test('a schema 6 snapshot (before jars) still imports', () async {
+      final repo = openRepo();
+      await repo.load();
+      final snapshot = await repo.exportSnapshot();
+      final tables = Map.of(snapshot['tables']! as Map<String, Object?>)
+        ..remove('savings_jars')
+        ..remove('jar_deposits');
+      await repo.importSnapshot({'schema': 6, 'tables': tables});
+      expect((await repo.load()).jars, isEmpty);
+    });
+
+    test('a version 6 database upgrades and can save jars', () async {
+      var repo = openRepo();
+      await repo.load();
+      await repo.close();
+      open.remove(repo);
+
+      final db = RunwayDatabase(NativeDatabase(file));
+      await db.customStatement('DROP TABLE jar_deposits');
+      await db.customStatement('DROP TABLE savings_jars');
+      await db.customStatement('PRAGMA user_version = 6');
+      await db.close();
+
+      repo = openRepo();
+      expect((await repo.load()).jars, isEmpty);
+      await repo.addJar(wallet());
+      expect((await repo.load()).jars.single.name, 'Dior wallet');
+    });
+
+    test('erasing everything removes jars too', () async {
+      final repo = openRepo();
+      await repo.load();
+      await repo.addJar(wallet());
+      await repo.addJarDeposit(deposit('d1', 80));
+      await repo.eraseEverything();
+      final data = await repo.load();
+      expect(data.jars, isEmpty);
+      expect(data.jarDeposits, isEmpty);
+    });
+  });
+
   test('a snapshot from a newer app is refused', () async {
     final repo = openRepo();
     await repo.load();

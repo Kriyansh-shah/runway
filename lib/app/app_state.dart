@@ -44,6 +44,8 @@ class AppState extends ChangeNotifier {
        _needsSetup = data.needsSetup,
        _savingsHistory = [...data.savingsHistory],
        _savingsAsked = data.savingsAsked,
+       _jars = [...data.jars],
+       _jarDeposits = [...data.jarDeposits],
        _appLock = data.appLock,
        _challengeStart = data.challengeStart {
     _user = user;
@@ -109,6 +111,10 @@ class AppState extends ChangeNotifier {
   /// [checkForRecap]; the shell shows it once Home is on screen.
   final pendingRecap = ValueNotifier<Recap?>(null);
 
+  /// A tab another screen wants shown (0 Home, 1 Savings, 2 Coach,
+  /// 3 Squad); the shell switches to it and clears this.
+  final requestedTab = ValueNotifier<int?>(null);
+
   /// When the last offered recap's term ended, so it's offered only once.
   DateTime? _recapOffered;
 
@@ -117,6 +123,10 @@ class AppState extends ChangeNotifier {
   bool _appLock;
   final List<SavedTerm> _savingsHistory;
   bool _savingsAsked;
+  final List<SavingsJar> _jars;
+
+  /// Every jar deposit, open jars or not, for this term's numbers.
+  final List<JarDeposit> _jarDeposits;
 
   final _problems = StreamController<SaveProblem>.broadcast();
   int _pendingWrites = 0;
@@ -165,6 +175,7 @@ class AppState extends ChangeNotifier {
     expenses: _expenses,
     upcoming: _upcoming,
     incomes: _incomes,
+    jarDeposits: _jarDeposits,
     today: today,
   );
 
@@ -185,6 +196,135 @@ class AppState extends ChangeNotifier {
       if (!asked) await _repo.setSavingsAsked();
     });
   }
+
+  /// What the person is saving up for, oldest first.
+  List<SavingsJar> get jars => List.unmodifiable(_jars);
+
+  SavingsJar? jar(String id) => _jars.where((j) => j.id == id).firstOrNull;
+
+  /// Money put into (or taken out of) jars that are still open, newest
+  /// first, for Home's Recent list next to expenses.
+  List<({JarDeposit deposit, SavingsJar jar})> recentJarDeposits([
+    int count = 6,
+  ]) => [
+    for (final jar in _jars)
+      for (final d in jar.deposits)
+        if (!dateOnly(d.date).isBefore(dateOnly(_term.start)))
+          (deposit: d, jar: jar),
+  ]..sort((a, b) => b.deposit.date.compareTo(a.deposit.date));
+
+  /// Starts saving up for [name], which costs [target]. Nothing is set
+  /// aside until money is put in.
+  SavingsJar startJar({required String name, required double target}) {
+    _checkAmount(target);
+    var clean = name.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (clean.isEmpty) throw ArgumentError.value(name, 'name', 'is empty');
+    if (clean.length > 40) clean = clean.substring(0, 40).trim();
+    final jar = SavingsJar(
+      id: 'j${DateTime.now().microsecondsSinceEpoch}',
+      name: '${clean[0].toUpperCase()}${clean.substring(1)}',
+      target: _roundCents(target),
+      createdAt: _clock(),
+    );
+    _jars.add(jar);
+    _changed();
+    _persist(() => _repo.addJar(jar));
+    return jar;
+  }
+
+  /// The most that can go into [jar] now: what it still needs, and no more
+  /// than the spending money there is.
+  double maxJarDeposit(SavingsJar jar) =>
+      _roundCents(math.max(0, math.min(jar.remaining, _snapshot.available)));
+
+  /// A friendly amount to put into [jar] today: about a fifth of the daily
+  /// allowance, never more than [maxJarDeposit]. 0 when nothing can go in.
+  double suggestedJarDeposit(SavingsJar jar) {
+    final max = maxJarDeposit(jar);
+    final plan = SavingsPlan.forShare(jar.remaining, grounding, 0.2);
+    return plan == null ? 0 : math.min(plan.perDay, max);
+  }
+
+  /// Moves [amount] of spending money into a jar (capped at
+  /// [maxJarDeposit]). It stays set aside until the jar is bought or
+  /// dropped, across months and terms.
+  void putIntoJar(String jarId, double amount) {
+    _checkAmount(amount);
+    final i = _jars.indexWhere((j) => j.id == jarId);
+    if (i < 0) return;
+    final moved = math.min(_roundCents(amount), maxJarDeposit(_jars[i]));
+    if (moved <= 0) return;
+    _addJarDeposit(i, moved);
+  }
+
+  /// Takes [amount] back out of a jar (at most what's in it) and makes it
+  /// spending money again. Taken out the same day it went in, today's
+  /// safe-to-spend gets it all back; money saved on earlier days spreads
+  /// over the days left, like any money coming in.
+  void takeOutOfJar(String jarId, double amount) {
+    _checkAmount(amount);
+    final i = _jars.indexWhere((j) => j.id == jarId);
+    if (i < 0) return;
+    final taken = math.min(_roundCents(amount), _roundCents(_jars[i].saved));
+    if (taken <= 0) return;
+    _addJarDeposit(i, -taken);
+  }
+
+  /// Money in (positive) or out (negative) of the jar at [i].
+  void _addJarDeposit(int i, double amount) {
+    final deposit = JarDeposit(
+      id: 'jd${DateTime.now().microsecondsSinceEpoch}',
+      jarId: _jars[i].id,
+      amount: amount,
+      date: _clock(),
+    );
+    _jars[i] = _jars[i].withDeposit(deposit);
+    _jarDeposits.add(deposit);
+    _changed();
+    _persist(() => _repo.addJarDeposit(deposit));
+  }
+
+  /// Bought it: the jar's money comes back and pays for it, logged as a
+  /// planned Shopping expense. If it wasn't full, the rest comes out of
+  /// spending money.
+  void buyJar(String jarId) => _endJar(jarId, bought: true);
+
+  /// Not saving for it any more: its money goes back to spending.
+  void dropJar(String jarId) => _endJar(jarId, bought: false);
+
+  void _endJar(String jarId, {required bool bought}) {
+    final i = _jars.indexWhere((j) => j.id == jarId);
+    if (i < 0) return;
+    final jar = _jars.removeAt(i);
+    final takenOut = JarDeposit(
+      id: 'jd${DateTime.now().microsecondsSinceEpoch}',
+      jarId: jarId,
+      amount: -jar.saved,
+      date: _clock(),
+    );
+    if (jar.saved != 0) _jarDeposits.add(takenOut);
+    final purchase = bought
+        ? _newExpense(
+            jar.target,
+            ExpenseCategory.shopping,
+            false,
+            jar.name,
+            planned: true,
+          )
+        : null;
+    if (purchase != null) _expenses.add(purchase);
+    _changed();
+    _persist(
+      () => _repo.endJar(
+        jarId,
+        bought: bought,
+        takenOut: takenOut,
+        purchase: purchase,
+      ),
+    );
+  }
+
+  static double _roundCents(double v) => (v * 100).round() / 100;
 
   /// "Not now" on Home's savings card: it won't ask again.
   void skipSavingsGoal() {
@@ -257,8 +397,25 @@ class AppState extends ChangeNotifier {
       ),
   ];
 
-  CoachGrounding get grounding =>
-      CoachGrounding.fromSnapshot(_snapshot, period: _term.period);
+  CoachGrounding get grounding {
+    final totals = <String, double>{};
+    for (final e in _expenses) {
+      final label = e.filedUnder.label;
+      totals[label] = (totals[label] ?? 0) + e.amount;
+    }
+    final byCategory = [
+      for (final MapEntry(:key, :value) in totals.entries)
+        (category: key, spent: value),
+    ]..sort((a, b) => b.spent.compareTo(a.spent));
+    return CoachGrounding.fromSnapshot(
+      _snapshot,
+      period: _term.period,
+      byCategory: byCategory,
+      savingFor: [
+        for (final j in _jars) (name: j.name, saved: j.saved, target: j.target),
+      ],
+    );
+  }
 
   /// Updates the screen immediately, then saves in the background.
   /// With [custom], the expense is filed under it (and [category] is Other).
@@ -781,6 +938,13 @@ class AppState extends ChangeNotifier {
     await _reload();
   }, rethrowErrors: true);
 
+  /// Removes a settle-up for both people: what they owe each other goes
+  /// back to how it was. The budget doesn't change.
+  Future<void> deleteSettlement(String settlementId) => _squadCall(() async {
+    await squadService.deleteSettlement(settlementId);
+    await _reload();
+  }, rethrowErrors: true);
+
   /// Records [amountCents] paid between you and [friendId] (whichever way
   /// it's owed); everything when null. Settle-ups don't touch the budget:
   /// the spending was counted when the split was added.
@@ -1234,6 +1398,7 @@ class AppState extends ChangeNotifier {
       expenses: _expenses,
       incomes: _incomes,
       upcoming: _upcoming,
+      jarDeposits: _jarDeposits,
       today: today,
     );
     if (next == null) return;
@@ -1312,6 +1477,8 @@ class AppState extends ChangeNotifier {
     _appLock = data.appLock;
     _replace(_savingsHistory, data.savingsHistory);
     _savingsAsked = data.savingsAsked;
+    _replace(_jars, data.jars);
+    _replace(_jarDeposits, data.jarDeposits);
   }
 
   static void _replace<T>(List<T> list, List<T> items) => list
@@ -1429,6 +1596,7 @@ class AppState extends ChangeNotifier {
       expenses: _expenses,
       upcoming: _upcoming,
       incomes: _incomes,
+      jarDeposits: _jarDeposits,
       today: now,
     );
     _streak = computeStreak(_expenses, now);

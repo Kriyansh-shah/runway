@@ -68,6 +68,10 @@ class DriftBudgetRepository implements BudgetRepository {
     final appLock = await _getMeta(_appLockKey);
     final savingsAsked = await _getMeta(_savingsAskedKey);
     final past = await _pastTerms();
+    final jars = await _openJars();
+    final deposits = await (_db.select(
+      _db.jarDeposits,
+    )..orderBy([(d) => OrderingTerm.asc(d.date)])).get();
 
     return BudgetData(
       term: _term(term),
@@ -105,6 +109,8 @@ class DriftBudgetRepository implements BudgetRepository {
           ),
       ],
       savingsAsked: savingsAsked != null,
+      jars: jars,
+      jarDeposits: [for (final d in deposits) _deposit(d)],
       friends: [
         for (final r in friends)
           Friend(
@@ -195,6 +201,94 @@ class DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> setSavingsAsked() =>
       _setMeta(_savingsAskedKey, _clock().toIso8601String());
+
+  // ----------------------------------------------------------------- jars
+
+  /// Open jars, oldest first, each with its deposits.
+  Future<List<SavingsJar>> _openJars() async {
+    final jars =
+        await (_db.select(_db.savingsJars)
+              ..where((j) => j.endedAt.isNull())
+              ..orderBy([(j) => OrderingTerm.asc(j.createdAt)]))
+            .get();
+    if (jars.isEmpty) return const [];
+    final deposits =
+        await (_db.select(_db.jarDeposits)
+              ..where((d) => d.jarId.isIn([for (final j in jars) j.id]))
+              ..orderBy([(d) => OrderingTerm.asc(d.date)]))
+            .get();
+    return [
+      for (final j in jars)
+        SavingsJar(
+          id: j.id,
+          name: j.name,
+          target: _dollars(j.targetCents),
+          createdAt: j.createdAt,
+          deposits: [
+            for (final d in deposits)
+              if (d.jarId == j.id) _deposit(d),
+          ],
+        ),
+    ];
+  }
+
+  static JarDeposit _deposit(JarDepositRow d) => JarDeposit(
+    id: d.id,
+    jarId: d.jarId,
+    amount: _dollars(d.amountCents),
+    date: d.date,
+  );
+
+  JarDepositsCompanion _depositRow(JarDeposit d) => JarDepositsCompanion.insert(
+    id: d.id,
+    jarId: d.jarId,
+    amountCents: _cents(d.amount),
+    date: d.date,
+  );
+
+  @override
+  Future<void> addJar(SavingsJar jar) async {
+    await _db
+        .into(_db.savingsJars)
+        .insert(
+          SavingsJarsCompanion.insert(
+            id: jar.id,
+            name: jar.name,
+            targetCents: _cents(jar.target),
+            createdAt: jar.createdAt,
+          ),
+        );
+  }
+
+  @override
+  Future<void> addJarDeposit(JarDeposit deposit) =>
+      _db.into(_db.jarDeposits).insert(_depositRow(deposit));
+
+  @override
+  Future<void> endJar(
+    String jarId, {
+    required bool bought,
+    required JarDeposit takenOut,
+    Expense? purchase,
+  }) async {
+    final termId = await _currentTermId();
+    await _db.transaction(() async {
+      if (takenOut.amount != 0) {
+        await _db.into(_db.jarDeposits).insert(_depositRow(takenOut));
+      }
+      await (_db.update(
+        _db.savingsJars,
+      )..where((j) => j.id.equals(jarId))).write(
+        SavingsJarsCompanion(
+          endedAt: Value(_clock()),
+          outcome: Value(bought ? 'bought' : 'dropped'),
+        ),
+      );
+      if (purchase != null) {
+        await _db.into(_db.expenses).insert(_expenseRow(purchase, termId));
+      }
+    });
+  }
 
   Future<TermRow> _currentTerm() =>
       (_db.select(_db.terms)
@@ -545,6 +639,8 @@ class DriftBudgetRepository implements BudgetRepository {
     await _db.transaction(() async {
       // Children before the terms they reference (foreign keys are on).
       for (final table in <TableInfo<Table, Object?>>[
+        _db.jarDeposits,
+        _db.savingsJars,
         _db.expenses,
         _db.customCategories,
         _db.upcomingCosts,
@@ -577,6 +673,8 @@ class DriftBudgetRepository implements BudgetRepository {
     _db.upcomingCosts,
     _db.billSplits,
     _db.friends,
+    _db.savingsJars,
+    _db.jarDeposits,
     _db.meta,
   ];
 
@@ -599,8 +697,8 @@ class DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> importSnapshot(Map<String, Object?> snapshot) async {
     final schema = snapshot['schema'] as int? ?? 0;
-    // Older snapshots would need their own upgrade steps here once the
-    // schema moves past 6; sync started at 6.
+    // Sync started at schema 6. A 6 snapshot reads fine as a 7 one: 7 only
+    // added the jar tables, which it simply doesn't have.
     if (schema > _db.schemaVersion) throw const SnapshotTooNewException();
     final tables = (snapshot['tables'] as Map).cast<String, Object?>();
     List<Map<String, dynamic>> rows(TableInfo<Table, Object?> t) => [
@@ -636,6 +734,14 @@ class DriftBudgetRepository implements BudgetRepository {
           rows(_db.billSplits).map(BillSplitRow.fromJson),
         );
         b.insertAll(_db.friends, rows(_db.friends).map(FriendRow.fromJson));
+        b.insertAll(
+          _db.savingsJars,
+          rows(_db.savingsJars).map(SavingsJarRow.fromJson),
+        );
+        b.insertAll(
+          _db.jarDeposits,
+          rows(_db.jarDeposits).map(JarDepositRow.fromJson),
+        );
         b.insertAll(_db.meta, [
           ...rows(_db.meta)
               .map(MetaRow.fromJson)

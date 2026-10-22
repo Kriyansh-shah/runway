@@ -43,6 +43,7 @@ class _ShellState extends State<Shell> {
 
   late final ValueNotifier<ApplePayPurchase?> _purchases;
   late final ValueNotifier<Recap?> _recaps;
+  late final ValueNotifier<int?> _tabs;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _ShellState extends State<Shell> {
     final state = AppScope.read(context);
     _purchases = state.pendingPurchase..addListener(_openPurchase);
     _recaps = state.pendingRecap..addListener(_openRecap);
+    _tabs = state.requestedTab..addListener(_openTab);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _openPurchase();
       _openRecap();
@@ -63,7 +65,15 @@ class _ShellState extends State<Shell> {
   void dispose() {
     _purchases.removeListener(_openPurchase);
     _recaps.removeListener(_openRecap);
+    _tabs.removeListener(_openTab);
     super.dispose();
+  }
+
+  void _openTab() {
+    final tab = _tabs.value;
+    if (tab == null || !mounted) return;
+    _tabs.value = null;
+    _select(tab);
   }
 
   void _openRecap() {

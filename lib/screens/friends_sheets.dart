@@ -322,6 +322,32 @@ class _FriendSheetState extends State<_FriendSheet> {
     }
   }
 
+  Future<void> _deleteSettlement(Settlement s, String name) async {
+    final state = AppScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showActionSheet<bool>(
+      context,
+      title: 'Remove this settle-up?',
+      message:
+          'It\'s removed for you and $name, and what you owe each other goes '
+          'back to how it was. Your budget doesn\'t change.',
+      actions: const [
+        SheetAction(
+          value: true,
+          label: 'Remove settle-up',
+          icon: PhIcons.trash,
+          destructive: true,
+        ),
+      ],
+    );
+    if (ok != true) return;
+    try {
+      await state.deleteSettlement(s.id);
+    } on SquadException catch (err) {
+      messenger.showSnackBar(SnackBar(content: Text(err.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
@@ -393,11 +419,10 @@ class _FriendSheetState extends State<_FriendSheet> {
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: switch (item) {
+                // Anyone in a split or settle-up can remove it, so nobody is
+                // stuck with one they didn't agree to.
                 SharedExpense e => Pressable(
-                  onLongPress:
-                      me != null && (e.createdBy == me || e.paidBy == me)
-                      ? () => _deleteSplit(e)
-                      : null,
+                  onLongPress: me != null ? () => _deleteSplit(e) : null,
                   onTap: () {},
                   child: Row(
                     children: [
@@ -424,32 +449,38 @@ class _FriendSheetState extends State<_FriendSheet> {
                     ],
                   ),
                 ),
-                Settlement s => Row(
-                  children: [
-                    const Icon(
-                      PhIcons.handCoins,
-                      size: 18,
-                      color: AppColors.lime,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${who(s.from)} paid ${s.to == me ? 'you' : who(s.to)} '
-                        '${money(s.amountCents / 100)}',
-                        style: AppText.body,
+                Settlement s => Pressable(
+                  onLongPress: me != null
+                      ? () => _deleteSettlement(s, person.name)
+                      : null,
+                  onTap: () {},
+                  child: Row(
+                    children: [
+                      const Icon(
+                        PhIcons.handCoins,
+                        size: 18,
+                        color: AppColors.lime,
                       ),
-                    ),
-                    Text(
-                      shortDate(s.createdAt.toLocal()),
-                      style: AppText.label,
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${who(s.from)} paid ${s.to == me ? 'you' : who(s.to)} '
+                          '${money(s.amountCents / 100)}',
+                          style: AppText.body,
+                        ),
+                      ),
+                      Text(
+                        shortDate(s.createdAt.toLocal()),
+                        style: AppText.label,
+                      ),
+                    ],
+                  ),
                 ),
                 _ => const SizedBox.shrink(),
               },
             ),
           Text(
-            'Hold a split you added to delete it.',
+            'Hold a split or settle-up to remove it.',
             style: AppText.caption.copyWith(letterSpacing: 0),
             textAlign: TextAlign.center,
           ),

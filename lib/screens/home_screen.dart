@@ -19,6 +19,7 @@ import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
 import 'add_income_sheet.dart';
 import 'all_expenses_screen.dart';
+import 'jar_sheets.dart';
 import 'money_actions.dart';
 import 'savings_goal_sheet.dart';
 import 'settings_screen.dart';
@@ -67,7 +68,11 @@ class _HomeScreenState extends State<HomeScreen> {
         today: s.today,
       ),
       _WeekSplit(split: state.thisWeek),
-      _Recent(expenses: state.recentExpenses(), today: s.today),
+      _Recent(
+        expenses: state.recentExpenses(),
+        deposits: state.recentJarDeposits(),
+        today: s.today,
+      ),
     ];
     return Stack(
       children: [
@@ -385,7 +390,7 @@ class _HeroRing extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    '${money(s.spentToday)} of ${money(s.dailyAllowance)} used',
+                    '${money(s.usedTodayAmount)} of ${money(s.dailyAllowance)} used',
                     style: AppText.caption.copyWith(fontSize: 12),
                   ),
                 ],
@@ -1151,12 +1156,41 @@ class _Legend extends StatelessWidget {
 }
 
 class _Recent extends StatelessWidget {
-  const _Recent({required this.expenses, required this.today});
+  const _Recent({
+    required this.expenses,
+    required this.deposits,
+    required this.today,
+  });
   final List<Expense> expenses;
+
+  /// Money put into savings jars, shown among the expenses by date.
+  final List<({JarDeposit deposit, SavingsJar jar})> deposits;
   final DateTime today;
+
+  Widget _depositRow(
+    BuildContext context,
+    ({JarDeposit deposit, SavingsJar jar}) d,
+  ) => ListRow(
+    leading: const Icon(PhIcons.piggyBank, size: 20, color: AppColors.lime),
+    title: d.deposit.amount > 0
+        ? 'Put aside · ${d.jar.name}'
+        : 'Took out · ${d.jar.name}',
+    subtitle: '${relativeDay(d.deposit.date, today)} · Saving for',
+    amount: d.deposit.amount > 0
+        ? money(d.deposit.amount)
+        : '+${money(-d.deposit.amount)}',
+    accent: AppColors.lime,
+    onTap: () => showJarSheet(context, d.jar.id),
+  );
 
   @override
   Widget build(BuildContext context) {
+    // Expenses and jar deposits together, newest first, six at most.
+    final items = <({DateTime date, Object item})>[
+      for (final e in expenses) (date: e.date, item: e),
+      for (final d in deposits) (date: d.deposit.date, item: d),
+    ]..sort((a, b) => b.date.compareTo(a.date));
+    final shown = items.take(6).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1184,7 +1218,7 @@ class _Recent extends StatelessWidget {
             alignment: Alignment.topCenter,
             child: Column(
               children: [
-                if (expenses.isEmpty)
+                if (shown.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     child: Text(
@@ -1193,30 +1227,38 @@ class _Recent extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                for (var i = 0; i < expenses.length; i++)
+                for (final (i, entry) in shown.indexed)
                   // Keyed so a newly logged expense gets its own entrance.
                   Entrance(
-                    key: ValueKey(expenses[i].id),
+                    key: ValueKey(switch (entry.item) {
+                      final Expense e => e.id,
+                      final ({JarDeposit deposit, SavingsJar jar}) d =>
+                        d.deposit.id,
+                      _ => i,
+                    }),
                     index: 0,
                     child: Column(
                       children: [
                         if (i > 0)
                           Divider(height: 1, color: AppColors.hairline),
-                        ListRow(
-                          leading: CategoryIcon.of(expenses[i]),
-                          title: expenses[i].title,
-                          subtitle:
-                              '${relativeDay(expenses[i].date, today)} · ${expenses[i].isNeed ? 'Need' : 'Want'}',
-                          amount: money(expenses[i].amount),
-                          accent: expenses[i].isNeed
-                              ? AppColors.need
-                              : AppColors.want,
-                          onTap: () => showExpenseActions(
-                            context,
-                            expenses[i],
-                            bottomInset: navClearance(context),
+                        switch (entry.item) {
+                          final Expense e => ListRow(
+                            leading: CategoryIcon.of(e),
+                            title: e.title,
+                            subtitle:
+                                '${relativeDay(e.date, today)} · ${e.isNeed ? 'Need' : 'Want'}',
+                            amount: money(e.amount),
+                            accent: e.isNeed ? AppColors.need : AppColors.want,
+                            onTap: () => showExpenseActions(
+                              context,
+                              e,
+                              bottomInset: navClearance(context),
+                            ),
                           ),
-                        ),
+                          final ({JarDeposit deposit, SavingsJar jar}) d =>
+                            _depositRow(context, d),
+                          _ => const SizedBox.shrink(),
+                        },
                       ],
                     ),
                   ),

@@ -284,6 +284,19 @@ class _SetupScreenState extends State<SetupScreen> {
                   style: AppText.caption.copyWith(letterSpacing: 0),
                 ),
               ),
+            if (AppScope.read(context).jars case final jars
+                when jars.any((j) => j.saved > 0))
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  // Jar money stays set aside; counting it here would make
+                  // it spending money a second time.
+                  'Don\'t count the '
+                  '${money(jars.fold(0.0, (s, j) => s + j.saved), cents: false)} '
+                  'you\'ve put aside for ${jars.where((j) => j.saved > 0).map((j) => j.name).join(', ')}.',
+                  style: AppText.caption.copyWith(letterSpacing: 0),
+                ),
+              ),
           ],
         ),
       ),

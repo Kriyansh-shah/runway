@@ -98,6 +98,21 @@ abstract interface class BudgetRepository {
   /// The person answered the savings question (set a goal or said no).
   Future<void> setSavingsAsked();
 
+  /// Starts saving up for something.
+  Future<void> addJar(SavingsJar jar);
+
+  /// Money put into a jar.
+  Future<void> addJarDeposit(JarDeposit deposit);
+
+  /// Ends a jar: [takenOut] moves its money back to spending, and when it
+  /// was [bought], [purchase] is logged with it, all or nothing.
+  Future<void> endJar(
+    String jarId, {
+    required bool bought,
+    required JarDeposit takenOut,
+    Expense? purchase,
+  });
+
   /// Finished terms and months, newest first. The demo term shown before
   /// setup isn't included.
   Future<List<PastTerm>> history();
@@ -241,6 +256,20 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> setSavingsAsked() async {}
+
+  @override
+  Future<void> addJar(SavingsJar jar) async {}
+
+  @override
+  Future<void> addJarDeposit(JarDeposit deposit) async {}
+
+  @override
+  Future<void> endJar(
+    String jarId, {
+    required bool bought,
+    required JarDeposit takenOut,
+    Expense? purchase,
+  }) async {}
 
   @override
   Future<List<PastTerm>> history() async => const [];
