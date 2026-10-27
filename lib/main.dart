@@ -99,6 +99,7 @@ Future<void> main() async {
   state.startNewMonthIfDue();
   // Offers a recap for a month that just ended (or one never shown).
   unawaited(state.checkForRecap());
+  unawaited(state.checkForWeekRecap());
   // Expenses said to Siri while the app was closed (iPhone only).
   Future<void> takeSiriLogs() async {
     if (state.needsSetup || !VoiceInbox.supported) return;
@@ -125,6 +126,7 @@ Future<void> main() async {
     onResume: () {
       state.startNewMonthIfDue();
       unawaited(state.sync.check());
+      unawaited(state.checkForWeekRecap());
       unawaited(takeSiriLogs());
       // A new day changes today's numbers even with nothing logged.
       if (VoiceInbox.supported) {

@@ -8,6 +8,8 @@ import 'dart:math' as math;
 import 'budget_math.dart';
 import 'format.dart';
 import 'models.dart';
+import 'spending_lookup.dart';
+import 'week_recap.dart';
 
 enum Verdict { yes, trade, no }
 
@@ -29,6 +31,7 @@ class CoachGrounding {
     this.byCategory = const [],
     this.savingFor = const [],
     this.putAsideToday = 0,
+    this.history,
   });
 
   factory CoachGrounding.fromSnapshot(
@@ -36,6 +39,7 @@ class CoachGrounding {
     BudgetPeriod period = BudgetPeriod.semester,
     List<({String category, double spent})> byCategory = const [],
     List<({String name, double saved, double target})> savingFor = const [],
+    SpendingHistory? history,
   }) => CoachGrounding(
     available: s.available,
     safeToSpendToday: s.safeToSpendToday,
@@ -51,6 +55,7 @@ class CoachGrounding {
     byCategory: byCategory,
     savingFor: savingFor,
     putAsideToday: s.putInJarsToday,
+    history: history,
   );
 
   final double available;
@@ -82,6 +87,10 @@ class CoachGrounding {
 
   /// Things being saved up for, apart from the savings goal.
   final List<({String name, double saved, double target})> savingFor;
+
+  /// Past spending the on-device model can look things up in. Not part of
+  /// [toJson]: it's asked for a piece at a time.
+  final SpendingHistory? history;
 
   Map<String, Object> toJson() => {
     'period': period.noun,
@@ -146,14 +155,25 @@ class Assessment {
 
 /// A coach reply: either an assessment card or plain text.
 class CoachReply {
-  const CoachReply.text(this.text) : assessment = null;
-  const CoachReply.assessment(Assessment this.assessment) : text = null;
+  const CoachReply.text(this.text, {this.fromModel = false})
+    : assessment = null;
+  const CoachReply.assessment(
+    Assessment this.assessment, {
+    this.fromModel = false,
+  }) : text = null;
   final String? text;
   final Assessment? assessment;
+
+  /// Worded by Apple Intelligence rather than the rules, so the app can
+  /// say so.
+  final bool fromModel;
 }
 
 abstract interface class AffordabilityCoach {
   Future<CoachReply> ask(String question, CoachGrounding grounding);
+
+  /// Last week in a few sentences, for the card on Home.
+  Future<CoachReply> describeWeek(WeekRecap week);
 }
 
 /// Share of `available` you can afford by trading away other spending.
@@ -343,6 +363,11 @@ class LocalCoach implements AffordabilityCoach {
     final unpriced = purchaseWithoutPrice(question);
     if (unpriced != null) return CoachReply.text(askForPrice(unpriced));
     if (parsed == null) {
+      if (grounding.history case final history?) {
+        if (answerSpendingQuestion(question, history) case final answer?) {
+          return CoachReply.text(answer);
+        }
+      }
       return const CoachReply.text(
         'Tell me what it costs — like "Concert ticket \$60" — and I\'ll run '
         'it against your runway.',
@@ -350,4 +375,8 @@ class LocalCoach implements AffordabilityCoach {
     }
     return CoachReply.assessment(assess(parsed.amount, parsed.item, grounding));
   }
+
+  @override
+  Future<CoachReply> describeWeek(WeekRecap week) async =>
+      CoachReply.text(week.summary);
 }

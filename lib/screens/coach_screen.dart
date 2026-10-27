@@ -7,6 +7,7 @@ import '../app/app_state.dart';
 import '../app/coach.dart';
 import '../app/format.dart';
 import '../app/theme.dart';
+import '../widgets/ai_tag.dart';
 import '../widgets/glass.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
@@ -44,6 +45,7 @@ class _CoachScreenState extends State<CoachScreen> {
     'Concert ticket \$60',
     'AirPods \$129',
     'Spring break trip \$600',
+    'Spent last week?',
   ];
 
   /// Minimum "thinking" time so the typing indicator reads as intentional.
@@ -171,10 +173,19 @@ class _CoachScreenState extends State<CoachScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: switch (m) {
                         _UserMessage(:final text) => _UserBubble(text),
-                        _CoachMessage(:final reply) =>
-                          reply.assessment != null
-                              ? _VerdictCard(reply.assessment!)
-                              : _CoachBubble(reply.text!),
+                        _CoachMessage(:final reply) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            reply.assessment != null
+                                ? _VerdictCard(reply.assessment!)
+                                : _CoachBubble(reply.text!),
+                            if (reply.fromModel)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 6, top: 6),
+                                child: AiTag(),
+                              ),
+                          ],
+                        ),
                       },
                     ),
                   );

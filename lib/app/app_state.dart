@@ -13,10 +13,12 @@ import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
 import 'repository.dart';
+import 'spending_lookup.dart';
 import 'spoken_expense.dart';
 import 'split_math.dart';
 import 'squad.dart';
 import 'voice_inbox.dart';
+import 'week_recap.dart';
 
 /// Single source of truth for the app. Derived numbers are cached and
 /// recomputed only when the underlying data changes.
@@ -489,6 +491,12 @@ class AppState extends ChangeNotifier {
       savingFor: [
         for (final j in _jars) (name: j.name, saved: j.saved, target: j.target),
       ],
+      history: SpendingHistory(
+        expenses: List.unmodifiable(_expenses),
+        ledger: ledger,
+        today: today,
+        termStart: _term.start,
+      ),
     );
   }
 
@@ -1503,6 +1511,43 @@ class AppState extends ChangeNotifier {
       // A missing recap isn't worth bothering anyone about.
       _report(error, stack, 'while looking for a recap');
     }
+  }
+
+  /// Last week's numbers and the words for them, for the card on Home,
+  /// until it's dismissed. See [checkForWeekRecap].
+  ({WeekRecap week, CoachReply words})? get weekRecap => _weekRecap;
+  ({WeekRecap week, CoachReply words})? _weekRecap;
+
+  /// Puts last week's recap on Home, unless it was dismissed: first in the
+  /// rules' words, then the coach's once they're written.
+  Future<void> checkForWeekRecap() async {
+    if (_needsSetup) return;
+    final week = lastWeekRecap(
+      ledger: ledger,
+      expenses: _expenses,
+      today: today,
+    );
+    if (week == null || _weekRecap?.week.start == week.start) return;
+    try {
+      final seen = await _repo.weekRecapSeen();
+      if (_disposed || (seen != null && !seen.isBefore(week.start))) return;
+      _weekRecap = (week: week, words: CoachReply.text(week.summary));
+      notifyListeners();
+      final words = await coach.describeWeek(week);
+      if (_disposed || _weekRecap?.week.start != week.start) return;
+      _weekRecap = (week: week, words: words);
+      notifyListeners();
+    } on Object catch (error, stack) {
+      _report(error, stack, 'while writing the weekly recap');
+    }
+  }
+
+  void dismissWeekRecap() {
+    final recap = _weekRecap;
+    if (recap == null) return;
+    _weekRecap = null;
+    notifyListeners();
+    _persist(() => _repo.setWeekRecapSeen(recap.week.start));
   }
 
   /// The recap for [past] was shown; it won't be offered again.

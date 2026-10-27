@@ -1329,6 +1329,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('last week\'s recap shows on Home until it\'s dismissed', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(750, 1334); // iPhone SE
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    await state.checkForWeekRecap();
+    final recap = state.weekRecap!;
+    expect(recap.words.fromModel, isFalse);
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    expect(find.text('Last week · ${recap.week.label}'), findsOneWidget);
+    expect(find.text(recap.week.summary), findsOneWidget);
+    expect(find.text('Apple Intelligence'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.bySemanticsLabel('Dismiss last week\'s recap'));
+    await settle(tester);
+    expect(find.textContaining('Last week ·'), findsNothing);
+    // Dismissed for good: checking again doesn't bring it back.
+    await state.checkForWeekRecap();
+    expect(state.weekRecap, isNull);
+  });
+
+  test('the coach answers spending questions from the rules too', () async {
+    final state = buildState();
+    final reply = await state.coach.ask(
+      'What did I spend last week?',
+      state.grounding,
+    );
+    expect(reply.text, startsWith('You spent \$'));
+    expect(reply.text, contains('last week'));
+  });
+
   testWidgets('a failed save shows a message', (tester) async {
     tester.view.physicalSize = const Size(1290, 2796);
     tester.view.devicePixelRatio = 3;

@@ -122,6 +122,10 @@ abstract interface class BudgetRepository {
   Future<DateTime?> recapSeenUntil();
   Future<void> setRecapSeenUntil(DateTime endedOn);
 
+  /// The Sunday starting the latest week whose recap was dismissed.
+  Future<DateTime?> weekRecapSeen();
+  Future<void> setWeekRecapSeen(DateTime weekStart);
+
   /// Permanently deletes everything on the device, including the session.
   /// The next [load] starts over as a brand-new install.
   Future<void> eraseEverything();
@@ -282,6 +286,15 @@ class MockBudgetRepository implements BudgetRepository {
   @override
   Future<void> setRecapSeenUntil(DateTime endedOn) async =>
       _recapSeenUntil = endedOn;
+
+  DateTime? _weekRecapSeen;
+
+  @override
+  Future<DateTime?> weekRecapSeen() async => _weekRecapSeen;
+
+  @override
+  Future<void> setWeekRecapSeen(DateTime weekStart) async =>
+      _weekRecapSeen = weekStart;
 
   @override
   Future<void> eraseEverything() async => _user = null;

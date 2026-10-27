@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import '../app/app_state.dart';
 import '../app/auth.dart';
 import '../app/budget_math.dart';
+import '../app/coach.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
+import '../app/week_recap.dart';
+import '../widgets/ai_tag.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/celebrations.dart';
@@ -59,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       _HeroRing(s: s),
+      if (state.weekRecap case final recap?) _WeekRecapCard(recap),
       if (state.offerSavingsGoal) const _SavingsPrompt(),
       _RunwayCard(s: s, costs: state.comingUp),
       _ComingUp(costs: state.comingUp, today: s.today),
@@ -613,6 +617,96 @@ class _SavingsPrompt extends StatelessWidget {
                 selected: false,
                 onTap: state.skipSavingsGoal,
                 child: const Text('Not now'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Last week, in numbers and a few sentences (Apple Intelligence's when it
+/// wrote them). Stays until it's dismissed or the next week starts.
+class _WeekRecapCard extends StatelessWidget {
+  const _WeekRecapCard(this.recap);
+  final ({WeekRecap week, CoachReply words}) recap;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.read(context);
+    final week = recap.week;
+    final words = recap.words;
+    final over = week.leftOver < -0.005;
+    return GlassCard(
+      borderColor: AppColors.lilac.withValues(alpha: 0.35),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                PhIcons.calendarBlank,
+                size: 22,
+                color: AppColors.lilac,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Last week · ${week.label}',
+                  style: AppText.heading,
+                ),
+              ),
+              Pressable(
+                onTap: state.dismissWeekRecap,
+                semanticLabel: 'Dismiss last week\'s recap',
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(PhIcons.xBold, size: 16, color: AppColors.muted),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _Stat(label: 'Spent', value: money(week.spent, cents: false)),
+              _Stat(
+                label: over ? 'Over' : 'Under',
+                value: money(week.leftOver.abs(), cents: false),
+              ),
+              _Stat(
+                label: 'Good days',
+                value: '${week.daysUnder}/${week.days}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: Motion.med,
+            child: Text(
+              words.text ?? week.summary,
+              key: ValueKey(words.fromModel),
+              style: AppText.body.copyWith(height: 1.35),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (words.fromModel) const AiTag(),
+              const Spacer(),
+              Pressable(
+                onTap: () => Navigator.of(context).push(
+                  FadeScaleRoute<void>(builder: (_) => const CalendarScreen()),
+                ),
+                semanticLabel: 'Open the calendar',
+                child: Text(
+                  'See calendar',
+                  style: AppText.label.copyWith(
+                    color: AppColors.lilac,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
           ),

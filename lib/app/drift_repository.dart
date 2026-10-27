@@ -23,6 +23,7 @@ class DriftBudgetRepository implements BudgetRepository {
   static const _setUpAtKey = 'set_up_at';
   static const _appLockKey = 'app_lock';
   static const _recapSeenKey = 'recap_seen_until';
+  static const _weekRecapSeenKey = 'week_recap_seen';
   static const _savingsAskedKey = 'savings_asked';
   static const _sessionId = 1;
 
@@ -197,6 +198,17 @@ class DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> setRecapSeenUntil(DateTime endedOn) =>
       _setMeta(_recapSeenKey, endedOn.toUtc().toIso8601String());
+
+  @override
+  Future<DateTime?> weekRecapSeen() async {
+    final value = await _getMeta(_weekRecapSeenKey);
+    return value == null ? null : DateTime.parse(value);
+  }
+
+  /// Stored as a local date: weeks are calendar weeks wherever you are.
+  @override
+  Future<void> setWeekRecapSeen(DateTime weekStart) =>
+      _setMeta(_weekRecapSeenKey, dateOnly(weekStart).toIso8601String());
 
   @override
   Future<void> setSavingsAsked() =>
