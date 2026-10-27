@@ -142,6 +142,10 @@ class SettingsScreen extends StatelessWidget {
                   ],
                   const SectionHeader('Security'),
                   const _AppLockCard(),
+                  if (state.reminderScheduler.supported) ...[
+                    const SectionHeader('Reminders'),
+                    const _RemindersCard(),
+                  ],
                   SectionHeader(
                     state.term.period == BudgetPeriod.monthly
                         ? 'This month'
@@ -756,4 +760,105 @@ class _AppLockCardState extends State<_AppLockCard> {
       },
     );
   }
+}
+
+/// Bill, check-in and weekly recap reminders. Turning one on asks for
+/// permission to send notifications.
+class _RemindersCard extends StatefulWidget {
+  const _RemindersCard();
+
+  @override
+  State<_RemindersCard> createState() => _RemindersCardState();
+}
+
+class _RemindersCardState extends State<_RemindersCard> {
+  var _busy = false;
+
+  Future<void> _set(ReminderSettings next) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    final ok = await AppScope.read(context).setReminders(next);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Notifications are off for Runway. Allow them in your phone\'s '
+            'Settings.',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = AppScope.of(context).reminders;
+    return GlassCard(
+      child: Column(
+        children: [
+          _ReminderRow(
+            title: 'Bills due tomorrow',
+            subtitle: '9am the day before a big cost or bill is due.',
+            value: r.bills,
+            onChanged: _busy ? null : (v) => _set(r.copyWith(bills: v)),
+          ),
+          Divider(height: 24, color: AppColors.hairline),
+          _ReminderRow(
+            title: 'Evening check-in',
+            subtitle: '8pm, only on days you haven\'t logged anything.',
+            value: r.checkIn,
+            onChanged: _busy ? null : (v) => _set(r.copyWith(checkIn: v)),
+          ),
+          Divider(height: 24, color: AppColors.hairline),
+          _ReminderRow(
+            title: 'Weekly recap',
+            subtitle: 'Sunday morning, when last week\'s recap is ready.',
+            value: r.weeklyRecap,
+            onChanged: _busy ? null : (v) => _set(r.copyWith(weeklyRecap: v)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReminderRow extends StatelessWidget {
+  const _ReminderRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(subtitle, style: AppText.caption.copyWith(letterSpacing: 0)),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      Switch(
+        value: value,
+        activeTrackColor: AppColors.lime,
+        onChanged: onChanged,
+      ),
+    ],
+  );
 }

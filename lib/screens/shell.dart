@@ -45,6 +45,8 @@ class _ShellState extends State<Shell> {
   late final ValueNotifier<Recap?> _recaps;
   late final ValueNotifier<int?> _tabs;
   late final ValueNotifier<bool> _voiceAdds;
+  late final ValueNotifier<bool> _quickAdds;
+  late final ValueNotifier<bool> _billOffers;
 
   @override
   void initState() {
@@ -57,9 +59,12 @@ class _ShellState extends State<Shell> {
     _recaps = state.pendingRecap..addListener(_openRecap);
     _tabs = state.requestedTab..addListener(_openTab);
     _voiceAdds = state.voiceAddRequested..addListener(_openVoiceAdd);
+    _quickAdds = state.quickAddRequested..addListener(_openPlainQuickAdd);
+    _billOffers = state.offerBillReminders..addListener(_offerBillReminders);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _openPurchase();
       _openVoiceAdd();
+      _openPlainQuickAdd();
       _openRecap();
     });
   }
@@ -70,6 +75,8 @@ class _ShellState extends State<Shell> {
     _recaps.removeListener(_openRecap);
     _tabs.removeListener(_openTab);
     _voiceAdds.removeListener(_openVoiceAdd);
+    _quickAdds.removeListener(_openPlainQuickAdd);
+    _billOffers.removeListener(_offerBillReminders);
     super.dispose();
   }
 
@@ -100,6 +107,50 @@ class _ShellState extends State<Shell> {
     if (!_voiceAdds.value || !mounted) return;
     _voiceAdds.value = false;
     _openQuickAdd(listen: true);
+  }
+
+  /// From the evening check-in reminder.
+  void _openPlainQuickAdd() {
+    if (!_quickAdds.value || !mounted) return;
+    _quickAdds.value = false;
+    _openQuickAdd();
+  }
+
+  /// After the first big cost: "Remind me the day before?"
+  void _offerBillReminders() {
+    if (!_billOffers.value || !mounted) return;
+    _billOffers.value = false;
+    final state = AppScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final margin = EdgeInsets.fromLTRB(16, 0, 16, navClearance(context));
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Want a reminder the day before it\'s due?'),
+          margin: margin,
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Remind me',
+            onPressed: () async {
+              final on = await state.setReminders(
+                state.reminders.copyWith(bills: true),
+              );
+              messenger.showSnackBar(
+                SnackBar(
+                  margin: margin,
+                  content: Text(
+                    on
+                        ? 'Bill reminders are on. Change them in Settings.'
+                        : 'Notifications are off for Runway. Allow them in '
+                              'your phone\'s Settings.',
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
   }
 
   void _select(int tab, {bool haptic = true}) {

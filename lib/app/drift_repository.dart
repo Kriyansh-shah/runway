@@ -22,6 +22,7 @@ class DriftBudgetRepository implements BudgetRepository {
   static const _challengeStartKey = 'challenge_start';
   static const _setUpAtKey = 'set_up_at';
   static const _appLockKey = 'app_lock';
+  static const _remindersKey = 'reminders';
   static const _recapSeenKey = 'recap_seen_until';
   static const _weekRecapSeenKey = 'week_recap_seen';
   static const _savingsAskedKey = 'savings_asked';
@@ -67,6 +68,7 @@ class DriftBudgetRepository implements BudgetRepository {
     final challengeStart = await _getMeta(_challengeStartKey);
     final setUpAt = await _getMeta(_setUpAtKey);
     final appLock = await _getMeta(_appLockKey);
+    final reminders = await _getMeta(_remindersKey);
     final savingsAsked = await _getMeta(_savingsAskedKey);
     final past = await _pastTerms();
     final jars = await _openJars();
@@ -139,6 +141,7 @@ class DriftBudgetRepository implements BudgetRepository {
           : _day(DateTime.parse(challengeStart)),
       needsSetup: setUpAt == null,
       appLock: appLock == 'on',
+      reminders: ReminderSettings.decode(reminders),
     );
   }
 
@@ -352,6 +355,10 @@ class DriftBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> setAppLock(bool on) => _setMeta(_appLockKey, on ? 'on' : 'off');
+
+  @override
+  Future<void> setReminders(ReminderSettings settings) =>
+      _setMeta(_remindersKey, settings.encode());
 
   // ----------------------------------------------------------------- writes
 
@@ -673,7 +680,7 @@ class DriftBudgetRepository implements BudgetRepository {
   }
 
   /// Meta keys that stay on this device instead of syncing.
-  static const _deviceOnlyMeta = {_appLockKey};
+  static const _deviceOnlyMeta = {_appLockKey, _remindersKey};
 
   /// Synced tables, parents before the children that reference them.
   List<TableInfo<Table, Object?>> get _syncedTables => [

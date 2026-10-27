@@ -439,6 +439,7 @@ class BudgetData {
     required this.challengeStart,
     this.needsSetup = false,
     this.appLock = false,
+    this.reminders = const ReminderSettings(),
   });
 
   final Term term;
@@ -475,4 +476,50 @@ class BudgetData {
 
   /// Face ID / passcode lock is on.
   final bool appLock;
+
+  /// Reminders turned on on this device.
+  final ReminderSettings reminders;
+}
+
+/// Which reminders the person turned on, on this device.
+class ReminderSettings {
+  const ReminderSettings({
+    this.bills = false,
+    this.checkIn = false,
+    this.weeklyRecap = false,
+  });
+
+  /// The day before a big cost or bill is due, at 9am.
+  final bool bills;
+
+  /// 8pm, only on days nothing was logged.
+  final bool checkIn;
+
+  /// Sunday at 9am, once last week's recap is ready.
+  final bool weeklyRecap;
+
+  bool get any => bills || checkIn || weeklyRecap;
+
+  ReminderSettings copyWith({bool? bills, bool? checkIn, bool? weeklyRecap}) =>
+      ReminderSettings(
+        bills: bills ?? this.bills,
+        checkIn: checkIn ?? this.checkIn,
+        weeklyRecap: weeklyRecap ?? this.weeklyRecap,
+      );
+
+  /// For storage: "bills,checkIn".
+  String encode() => [
+    if (bills) 'bills',
+    if (checkIn) 'checkIn',
+    if (weeklyRecap) 'weeklyRecap',
+  ].join(',');
+
+  static ReminderSettings decode(String? value) {
+    final on = (value ?? '').split(',').toSet();
+    return ReminderSettings(
+      bills: on.contains('bills'),
+      checkIn: on.contains('checkIn'),
+      weeklyRecap: on.contains('weeklyRecap'),
+    );
+  }
 }

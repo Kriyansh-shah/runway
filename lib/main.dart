@@ -15,9 +15,11 @@ import 'app/budget_sync.dart';
 import 'app/coach.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
+import 'app/local_reminders.dart';
 import 'app/format.dart';
 import 'app/models.dart';
 import 'app/on_device_coach.dart';
+import 'app/reminders.dart';
 import 'app/squad.dart';
 import 'app/supabase_accounts.dart';
 import 'app/supabase_budget_backups.dart';
@@ -66,8 +68,23 @@ Future<void> main() async {
       debugPrint('Sign-in unavailable: $error');
     }
   }
+  // Reminders scheduled on the phone (iPhone and Android). A tap that
+  // launched the app arrives before the state exists, so it waits.
+  AppState? ready;
+  ReminderTap? launchTap;
+  ReminderScheduler reminders = const NoReminders();
+  if (LocalReminders.available) {
+    try {
+      reminders = await LocalReminders.start(
+        (tap) => ready == null ? launchTap = tap : ready.reminderTapped(tap),
+      ).timeout(const Duration(seconds: 5));
+    } on Object catch (error) {
+      debugPrint('Reminders unavailable: $error');
+    }
+  }
   final state = AppState(
     repository: repository,
+    reminderScheduler: reminders,
     data: data,
     user: user,
     accounts: accounts,
@@ -100,6 +117,9 @@ Future<void> main() async {
   // Offers a recap for a month that just ended (or one never shown).
   unawaited(state.checkForRecap());
   unawaited(state.checkForWeekRecap());
+  ready = state;
+  if (launchTap case final tap?) state.reminderTapped(tap);
+  state.refreshReminders();
   // Expenses said to Siri while the app was closed (iPhone only).
   Future<void> takeSiriLogs() async {
     if (state.needsSetup || !VoiceInbox.supported) return;
@@ -127,6 +147,7 @@ Future<void> main() async {
       state.startNewMonthIfDue();
       unawaited(state.sync.check());
       unawaited(state.checkForWeekRecap());
+      state.refreshReminders();
       unawaited(takeSiriLogs());
       // A new day changes today's numbers even with nothing logged.
       if (VoiceInbox.supported) {

@@ -7,7 +7,9 @@ import 'package:runway/app/app_state.dart';
 import 'package:runway/app/auth.dart';
 import 'package:runway/app/budget_sync.dart';
 import 'package:runway/app/device_auth.dart';
+import 'package:runway/app/format.dart';
 import 'package:runway/app/models.dart';
+import 'package:runway/app/reminders.dart';
 import 'package:runway/app/voice_inbox.dart';
 // import 'package:runway/app/purchase_link.dart';
 import 'package:runway/app/repository.dart';
@@ -2332,6 +2334,108 @@ void main() {
     });
   });
 
+  group('reminders', () {
+    AppState withReminders(_FakeReminders r) => AppState(
+      repository: MockBudgetRepository(now: now),
+      data: MockBudgetRepository.seed(now),
+      user: const UserProfile(name: 'Alex', email: 'alex@uni.edu'),
+      clock: () => now,
+      reminderScheduler: r,
+    );
+    Future<void> scheduled() => Future<void>.delayed(Duration.zero);
+
+    test('turning one on asks first; a no leaves it off', () async {
+      final r = _FakeReminders(allow: false);
+      final state = withReminders(r);
+      expect(
+        await state.setReminders(const ReminderSettings(checkIn: true)),
+        isFalse,
+      );
+      expect(r.asked, 1);
+      expect(state.reminders.checkIn, isFalse);
+    });
+
+    test('the check-in skips today once something is logged', () async {
+      final r = _FakeReminders();
+      final state = withReminders(r);
+      await state.setReminders(const ReminderSettings(checkIn: true));
+      await scheduled();
+      // The demo data has a coffee logged this morning.
+      final tomorrow8pm = DateTime(now.year, now.month, now.day + 1, 20);
+      expect(r.plan.first.at, tomorrow8pm);
+
+      for (final e in state.allExpenses.where((e) => sameDay(e.date, now))) {
+        state.deleteExpense(e.id);
+      }
+      state.refreshReminders();
+      await scheduled();
+      expect(r.plan.first.at, DateTime(now.year, now.month, now.day, 20));
+    });
+
+    test('tapping the check-in asks for Quick Add', () {
+      final state = withReminders(_FakeReminders());
+      state.reminderTapped(ReminderTap.quickAdd);
+      expect(state.quickAddRequested.value, isTrue);
+    });
+
+    test('the first big cost offers bill reminders, once', () {
+      final state = withReminders(_FakeReminders());
+      UpcomingCost cost(String id) => UpcomingCost(
+        id: id,
+        emoji: '🎫',
+        name: 'Concert',
+        amount: 60,
+        dueDate: now.add(const Duration(days: 10)),
+      );
+      state.addUpcomingCost(cost('a'));
+      expect(state.offerBillReminders.value, isTrue);
+      state.offerBillReminders.value = false;
+      state.addUpcomingCost(cost('b'));
+      expect(state.offerBillReminders.value, isFalse);
+    });
+
+    testWidgets('settings has a switch for each', (tester) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final r = _FakeReminders();
+      final state = withReminders(r);
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+      await tester.ensureVisible(find.text('A'));
+      await settle(tester);
+      await tester.tap(find.text('A'));
+      await settle(tester);
+      await centerOn(tester, find.text('Evening check-in'));
+      expect(find.text('Bills due tomorrow'), findsOneWidget);
+      expect(find.text('Weekly recap'), findsOneWidget);
+      final checkIn = find.descendant(
+        of: find
+            .ancestor(
+              of: find.text('Evening check-in'),
+              matching: find.byType(Row),
+            )
+            .first,
+        matching: find.byType(Switch),
+      );
+      await tester.tap(checkIn);
+      await settle(tester);
+      expect(state.reminders.checkIn, isTrue);
+      expect(r.asked, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no section where reminders aren\'t supported', (tester) async {
+      await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
+      await settle(tester);
+      await tester.ensureVisible(find.text('A'));
+      await settle(tester);
+      await tester.tap(find.text('A'));
+      await settle(tester);
+      expect(find.text('Bills due tomorrow'), findsNothing);
+    });
+  });
+
   group('motion', () {
     Future<void> bootHome(WidgetTester tester) async {
       tester.view.physicalSize = const Size(1290, 2796);
@@ -2707,4 +2811,24 @@ class _FakeSquad implements SquadService {
 
   @override
   Future<void> setSimplifyDebts(String squadId, bool on) async {}
+}
+
+class _FakeReminders implements ReminderScheduler {
+  _FakeReminders({this.allow = true});
+  final bool allow;
+  int asked = 0;
+  List<PlannedReminder> plan = const [];
+
+  @override
+  bool get supported => true;
+
+  @override
+  Future<bool> requestPermission() async {
+    asked++;
+    return allow;
+  }
+
+  @override
+  Future<void> replaceAll(List<PlannedReminder> reminders) async =>
+      plan = reminders;
 }

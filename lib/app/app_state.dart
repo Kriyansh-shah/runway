@@ -12,6 +12,7 @@ import 'device_auth.dart';
 import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
+import 'reminders.dart';
 import 'repository.dart';
 import 'spending_lookup.dart';
 import 'spoken_expense.dart';
@@ -30,6 +31,7 @@ class AppState extends ChangeNotifier {
     this.deviceAuth = const LocalDeviceAuth(),
     this.accounts = const NoAccounts(),
     this.squadService = const NoSquad(),
+    this.reminderScheduler = const NoReminders(),
     BudgetBackupStore budgetBackups = const NoBudgetBackups(),
     LocalSyncStore? syncStore,
     BudgetCipher budgetCipher = const BudgetCipher(),
@@ -50,6 +52,7 @@ class AppState extends ChangeNotifier {
        _savingsAsked = data.savingsAsked,
        _jars = [...data.jars],
        _jarDeposits = [...data.jarDeposits],
+       _reminders = data.reminders,
        _appLock = data.appLock,
        _challengeStart = data.challengeStart {
     _user = user;
@@ -114,6 +117,14 @@ class AppState extends ChangeNotifier {
   /// Set by the "Log by voice" home-screen shortcut; the shell opens Quick
   /// Add listening and clears it.
   final voiceAddRequested = ValueNotifier<bool>(false);
+
+  /// Set by tapping the evening check-in; the shell opens Quick Add and
+  /// clears it.
+  final quickAddRequested = ValueNotifier<bool>(false);
+
+  /// Set when the first big cost is added and bill reminders are off; the
+  /// shell offers to turn them on and clears it.
+  final offerBillReminders = ValueNotifier<bool>(false);
 
   /// Expenses just filed from Siri, for a "Added from Siri" note; the app
   /// shows it and clears this.
@@ -1239,6 +1250,8 @@ class AppState extends ChangeNotifier {
     _appLock = on;
     notifyListeners();
     _persist(() => _repo.setAppLock(on), budget: false);
+    // Locked: bill reminders stop showing names and amounts.
+    _replanReminders(soon: true);
   }
 
   void updateTerm(Term term) {
@@ -1262,6 +1275,12 @@ class AppState extends ChangeNotifier {
   /// every month of it due before the term ends is reserved.
   void addUpcomingCost(UpcomingCost cost, {bool monthly = false}) {
     _checkAmount(cost.amount);
+    if (reminderScheduler.supported &&
+        !_reminders.bills &&
+        !_billRemindersOffered) {
+      _billRemindersOffered = true;
+      offerBillReminders.value = true;
+    }
     if (!monthly) {
       _upcoming.add(cost);
       _changed();
@@ -1681,6 +1700,71 @@ class AppState extends ChangeNotifier {
   void _changed() {
     _recompute();
     notifyListeners();
+    _replanReminders();
+  }
+
+  // ------------------------------------------------------------ reminders
+
+  final ReminderScheduler reminderScheduler;
+  ReminderSettings _reminders;
+  ReminderSettings get reminders => _reminders;
+  bool _billRemindersOffered = false;
+  Timer? _replan;
+
+  /// Turns reminders on or off. Turning one on asks for permission first;
+  /// false (and nothing changes) if it isn't given.
+  Future<bool> setReminders(ReminderSettings next) async {
+    final turningOn =
+        (next.bills && !_reminders.bills) ||
+        (next.checkIn && !_reminders.checkIn) ||
+        (next.weeklyRecap && !_reminders.weeklyRecap);
+    if (turningOn && !await reminderScheduler.requestPermission()) {
+      return false;
+    }
+    if (_disposed) return false;
+    _reminders = next;
+    notifyListeners();
+    _persist(() => _repo.setReminders(next), budget: false);
+    _replanReminders(soon: true);
+    return true;
+  }
+
+  /// Plans the next two weeks again, e.g. when the app comes back: a new
+  /// day may need tonight's check-in.
+  void refreshReminders() => _replanReminders(soon: true);
+
+  /// What a tapped reminder asked for.
+  void reminderTapped(ReminderTap tap) => switch (tap) {
+    ReminderTap.quickAdd => quickAddRequested.value = true,
+    ReminderTap.home => requestedTab.value = 0,
+  };
+
+  /// Batches a burst of changes (a sync, a setup) into one replan.
+  void _replanReminders({bool soon = false}) {
+    if (!reminderScheduler.supported) return;
+    _replan?.cancel();
+    _replan = Timer(
+      soon ? Duration.zero : const Duration(seconds: 2),
+      () => unawaited(
+        reminderScheduler
+            .replaceAll(
+              _needsSetup
+                  ? const []
+                  : planReminders(
+                      settings: _reminders,
+                      now: _clock(),
+                      term: _term,
+                      upcoming: _upcoming,
+                      expenses: _expenses,
+                      hideAmounts: _appLock,
+                    ),
+            )
+            .catchError(
+              (Object e, StackTrace s) =>
+                  _report(e, s, 'while scheduling reminders'),
+            ),
+      ),
+    );
   }
 
   /// Saves without blocking the UI: the screen has already changed, and
@@ -1752,6 +1836,7 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _replan?.cancel();
     sync.dispose();
     unawaited(_problems.close());
     super.dispose();

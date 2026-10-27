@@ -17,6 +17,9 @@ abstract interface class BudgetRepository {
 
   Future<void> setAppLock(bool on);
 
+  /// Kept on this device only, like the app lock.
+  Future<void> setReminders(ReminderSettings settings);
+
   Future<void> addExpense(Expense expense);
 
   /// Saves new amount, category, need/want and note; the date stays.
@@ -169,6 +172,9 @@ class MockBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> setAppLock(bool on) async {}
+
+  @override
+  Future<void> setReminders(ReminderSettings settings) async {}
 
   @override
   Future<void> addExpense(Expense expense) async {
