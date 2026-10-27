@@ -10,6 +10,8 @@ import '../widgets/glass.dart';
 import '../widgets/list_row.dart';
 import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
+import '../widgets/transitions.dart';
+import 'calendar_screen.dart';
 import 'money_actions.dart';
 
 /// Every expense this term, newest first, grouped by day. Tap one to edit
@@ -91,6 +93,19 @@ class AllExpensesScreen extends StatelessWidget {
                               ],
                             ),
                           ),
+                          if (past == null)
+                            Pressable(
+                              onTap: () => Navigator.of(context).push(
+                                FadeScaleRoute<void>(
+                                  builder: (_) => const CalendarScreen(),
+                                ),
+                              ),
+                              semanticLabel: 'Calendar',
+                              child: const Padding(
+                                padding: EdgeInsets.all(10),
+                                child: Icon(PhIcons.calendarBlank, size: 22),
+                              ),
+                            ),
                         ],
                       ),
                     ),

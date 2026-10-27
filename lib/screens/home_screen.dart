@@ -19,6 +19,7 @@ import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
 import 'add_income_sheet.dart';
 import 'all_expenses_screen.dart';
+import 'calendar_screen.dart';
 import 'jar_sheets.dart';
 import 'money_actions.dart';
 import 'savings_goal_sheet.dart';
@@ -1196,18 +1197,39 @@ class _Recent extends StatelessWidget {
       children: [
         SectionHeader(
           'Recent',
-          trailing: Pressable(
-            onTap: () => Navigator.of(context).push(
-              FadeScaleRoute<void>(builder: (_) => const AllExpensesScreen()),
-            ),
-            semanticLabel: 'See all expenses',
-            child: Text(
-              'See all',
-              style: AppText.label.copyWith(
-                color: AppColors.lime,
-                fontWeight: FontWeight.w700,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Pressable(
+                onTap: () => Navigator.of(context).push(
+                  FadeScaleRoute<void>(builder: (_) => const CalendarScreen()),
+                ),
+                semanticLabel: 'Calendar',
+                child: Text(
+                  'Calendar',
+                  style: AppText.label.copyWith(
+                    color: AppColors.lime,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 16),
+              Pressable(
+                onTap: () => Navigator.of(context).push(
+                  FadeScaleRoute<void>(
+                    builder: (_) => const AllExpensesScreen(),
+                  ),
+                ),
+                semanticLabel: 'See all expenses',
+                child: Text(
+                  'See all',
+                  style: AppText.label.copyWith(
+                    color: AppColors.lime,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         GlassCard(

@@ -1289,6 +1289,46 @@ void main() {
     expect(find.textContaining('${count - 1} expenses'), findsOneWidget);
   });
 
+  testWidgets('calendar: tap a day, delete from it, later days follow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(750, 1334); // iPhone SE
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final state = buildState();
+    // The latest day before today with something logged on it.
+    final day = state.ledger.reversed
+        .skip(1)
+        .firstWhere((d) => state.expensesOn(d.day).isNotEmpty)
+        .day;
+    final first = state.expensesOn(day).first;
+    final todayBefore = state.ledger.last.allowance;
+
+    await tester.pumpWidget(RunwayApp(state: state, intro: false));
+    await settle(tester);
+    await centerOn(tester, find.text('Calendar'));
+    await tester.tap(find.text('Calendar'));
+    await settle(tester);
+    expect(find.text('Today'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    if (day.month != state.today.month) {
+      await tester.tap(find.bySemanticsLabel('Previous month'));
+      await settle(tester);
+    }
+    await tester.tap(find.bySemanticsLabel(RegExp('^\\w+ ${day.day}, spent')));
+    await settle(tester);
+    expect(find.text(first.title), findsWidgets);
+
+    await tester.tap(find.text(first.title).first);
+    await settle(tester);
+    await tester.tap(find.text('Delete expense'));
+    await settle(tester);
+    expect(state.expensesOn(day).map((e) => e.id), isNot(contains(first.id)));
+    expect(state.ledger.last.allowance, greaterThan(todayBefore));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a failed save shows a message', (tester) async {
     tester.view.physicalSize = const Size(1290, 2796);
     tester.view.devicePixelRatio = 3;

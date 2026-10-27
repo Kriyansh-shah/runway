@@ -196,6 +196,89 @@ RunwaySnapshot computeRunway({
   );
 }
 
+/// One day of a term as it looked at the time: that day's budget, what
+/// was spent, and what was left of it by the end of the day.
+class DayLedger {
+  const DayLedger({
+    required this.day,
+    required this.allowance,
+    required this.spent,
+    required this.used,
+  });
+
+  final DateTime day;
+
+  /// That day's daily budget, worked out from everything logged before it.
+  final double allowance;
+
+  /// Everyday spending that day (paid upcoming costs aren't included).
+  final double spent;
+
+  /// [spent] plus money put into jars that day.
+  final double used;
+
+  double get left => allowance - used;
+
+  bool get over => left < -0.005;
+}
+
+/// Every day of [term] from its first day to [today] (or its last day, if
+/// that's sooner), oldest first. Each day's budget comes from what was
+/// logged before it, so changing an old expense changes every day after.
+/// Paid upcoming costs count as reserved on the days before they were paid.
+List<DayLedger> dailyLedger({
+  required Term term,
+  required List<Expense> expenses,
+  required List<UpcomingCost> upcoming,
+  List<Income> incomes = const [],
+  List<JarDeposit> jarDeposits = const [],
+  required DateTime today,
+}) {
+  final end = dateOnly(today.isBefore(term.end) ? today : term.end);
+  final days = <DayLedger>[];
+  for (
+    var d = dateOnly(term.start);
+    !d.isAfter(end);
+    d = DateTime(d.year, d.month, d.day + 1)
+  ) {
+    bool byThen(DateTime date) => !dateOnly(date).isAfter(d);
+    final s = computeRunway(
+      term: term,
+      expenses: [
+        for (final e in expenses)
+          if (byThen(e.date)) e,
+      ],
+      upcoming: [
+        ...upcoming,
+        for (final e in expenses)
+          if (e.planned && !byThen(e.date))
+            UpcomingCost(
+              id: e.id,
+              emoji: '',
+              name: e.title,
+              amount: e.amount,
+              dueDate: e.date,
+            ),
+      ],
+      incomes: incomes,
+      jarDeposits: [
+        for (final j in jarDeposits)
+          if (byThen(j.date)) j,
+      ],
+      today: d,
+    );
+    days.add(
+      DayLedger(
+        day: d,
+        allowance: s.dailyAllowance,
+        spent: s.spentToday,
+        used: s.usedTodayAmount,
+      ),
+    );
+  }
+  return days;
+}
+
 /// Money moved into jars (less money taken out) on the days of [term].
 /// Earlier deposits came out of earlier terms' money, which is why they
 /// don't count again here.

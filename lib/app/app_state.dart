@@ -433,6 +433,22 @@ class AppState extends ChangeNotifier {
   List<Expense> get allExpenses =>
       [..._expenses]..sort((a, b) => b.date.compareTo(a.date));
 
+  /// This term day by day, up to today. See [dailyLedger].
+  List<DayLedger> get ledger => dailyLedger(
+    term: _term,
+    expenses: _expenses,
+    upcoming: _upcoming,
+    incomes: _incomes,
+    jarDeposits: _jarDeposits,
+    today: today,
+  );
+
+  /// Everything logged on [day], earliest first.
+  List<Expense> expensesOn(DateTime day) => [
+    for (final e in _expenses)
+      if (sameDay(e.date, day)) e,
+  ]..sort((a, b) => a.date.compareTo(b.date));
+
   /// The person's own categories, most recently used first.
   List<CustomCategory> get customCategories =>
       List.unmodifiable(_customCategories);

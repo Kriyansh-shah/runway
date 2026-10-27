@@ -895,4 +895,92 @@ void main() {
       expect(s.needShare, 0.75);
     });
   });
+
+  group('day by day', () {
+    List<DayLedger> ledger(List<Expense> expenses) => dailyLedger(
+      term: term,
+      expenses: expenses,
+      upcoming: const [],
+      today: today,
+    );
+
+    test('runs from the first day to today and ends where Home is', () {
+      final expenses = [spend(40, -6), spend(12, 0)];
+      final days = ledger(expenses);
+      expect(days.length, 10);
+      expect(days.first.day, day(-9));
+      expect(days.first.allowance, closeTo(1000 / 19, 1e-9));
+      final now = computeRunway(
+        term: term,
+        expenses: expenses,
+        upcoming: const [],
+        today: today,
+      );
+      expect(days.last.allowance, closeTo(now.dailyAllowance, 1e-9));
+      expect(days.last.spent, 12);
+      expect(days.last.left, closeTo(now.safeToSpendToday, 1e-9));
+    });
+
+    test('editing an old expense moves every later day, not earlier ones', () {
+      final before = ledger([spend(40, -6)]);
+      final after = ledger([spend(90, -6)]);
+      for (var i = 0; i <= 3; i++) {
+        expect(after[i].allowance, before[i].allowance);
+      }
+      expect(after[3].spent, 90);
+      expect(after[3].over, isTrue);
+      for (var i = 4; i < before.length; i++) {
+        expect(after[i].allowance, lessThan(before[i].allowance));
+      }
+    });
+
+    test('deleting an expense gives the later days their money back', () {
+      final kept = ledger([spend(40, -6)]);
+      final deleted = ledger(const []);
+      expect(deleted[3].spent, 0);
+      expect(deleted.last.allowance, greaterThan(kept.last.allowance));
+    });
+
+    test('a big cost paid later was already reserved on earlier days', () {
+      final rent = Expense(
+        id: 'rent',
+        amount: 300,
+        category: ExpenseCategory.other,
+        isNeed: true,
+        date: day(-2),
+        planned: true,
+      );
+      final reserved = dailyLedger(
+        term: term,
+        expenses: const [],
+        upcoming: [
+          UpcomingCost(
+            id: 'rent',
+            emoji: '',
+            name: 'Rent',
+            amount: 300,
+            dueDate: day(-2),
+          ),
+        ],
+        today: day(-5),
+      );
+      final paid = ledger([rent]);
+      for (var i = 0; i < reserved.length; i++) {
+        expect(paid[i].allowance, closeTo(reserved[i].allowance, 1e-9));
+      }
+      expect(paid[7].spent, 0);
+    });
+
+    test('is empty before the term starts', () {
+      expect(
+        dailyLedger(
+          term: term,
+          expenses: const [],
+          upcoming: const [],
+          today: day(-12),
+        ),
+        isEmpty,
+      );
+    });
+  });
 }
