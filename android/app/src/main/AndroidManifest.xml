@@ -3,6 +3,8 @@
          this only to debug builds, so release builds need it here. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- The mic in Quick Add: say an expense instead of typing it. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="Runway"
         android:allowBackup="false"
@@ -44,6 +46,10 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- The phone's speech recognizer, for the mic in Quick Add. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

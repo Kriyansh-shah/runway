@@ -8,6 +8,7 @@ import 'package:runway/app/auth.dart';
 import 'package:runway/app/budget_sync.dart';
 import 'package:runway/app/device_auth.dart';
 import 'package:runway/app/models.dart';
+import 'package:runway/app/voice_inbox.dart';
 // import 'package:runway/app/purchase_link.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/app/split_math.dart';
@@ -72,6 +73,61 @@ void main() {
     // daily allowance holds and safe-to-spend drops by exactly the amount.
     expect(state.snapshot.safeToSpendToday, closeTo(before - 10, 1e-9));
     expect(state.recentExpenses(1).single.amount, 10);
+  });
+
+  test('expenses said to Siri are filed with a guessed category', () {
+    final state = buildState();
+    final vape = state.addCustomCategory(name: 'Vape', emoji: '💨');
+    VoiceEntry said(
+      double amount,
+      String what,
+      DateTime at, [
+      String? c,
+      String? own,
+    ]) => (amount: amount, what: what, at: at, category: c, custom: own);
+    state.addSpokenExpenses([
+      said(12.499, '12.50 at chipotle', now.subtract(const Duration(hours: 2))),
+      said(9, 'Vape pods', now, 'shopping'),
+      said(30, 'something', DateTime(2020)),
+      said(-4, 'bad', now),
+      said(6, 'an Uber', now, 'rideshare'),
+      said(7, 'Pods', now, 'shopping', 'vape'),
+    ]);
+    final added = state.addedFromSiri.value!;
+    expect(added, hasLength(5));
+    expect(added[4].custom?.id, vape.id);
+    expect(added[3].category, ExpenseCategory.rideshare);
+    expect(added[3].note, 'Uber');
+    expect(added[0].amount, 12.5);
+    expect(added[0].note, 'Chipotle');
+    expect(added[0].category, ExpenseCategory.eatingOut);
+    expect(added[0].date, now.subtract(const Duration(hours: 2)));
+    expect(added[1].custom?.id, vape.id);
+    expect(added[2].category, ExpenseCategory.other);
+    // Said before this term began, so it counts from now.
+    expect(added[2].date, now);
+    expect(
+      state.recentExpenses(5).map((e) => e.id),
+      containsAll(added.map((e) => e.id)),
+    );
+  });
+
+  test('Siri gets today\'s numbers and the last week of spending', () {
+    final state = buildState();
+    state.addExpense(
+      amount: 7,
+      category: ExpenseCategory.coffee,
+      isNeed: false,
+    );
+    final summary = state.siriSummary!;
+    final s = state.snapshot;
+    expect(summary['day'], '2026-10-02');
+    expect(summary['safeToday'], closeTo(s.safeToSpendToday, 0.005));
+    expect(summary['daysLeft'], s.daysLeft);
+    final days = summary['days']! as Map<String, double>;
+    expect(days['2026-10-02'], greaterThanOrEqualTo(7));
+    expect(days.keys.every((k) => k.compareTo('2026-09-26') >= 0), isTrue);
+    expect((summary['weekTop']! as List), isNotEmpty);
   });
 
   test('splitting a bill adds IOUs and only your share as spending', () {

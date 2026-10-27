@@ -44,6 +44,7 @@ class _ShellState extends State<Shell> {
   late final ValueNotifier<ApplePayPurchase?> _purchases;
   late final ValueNotifier<Recap?> _recaps;
   late final ValueNotifier<int?> _tabs;
+  late final ValueNotifier<bool> _voiceAdds;
 
   @override
   void initState() {
@@ -55,8 +56,10 @@ class _ShellState extends State<Shell> {
     _purchases = state.pendingPurchase..addListener(_openPurchase);
     _recaps = state.pendingRecap..addListener(_openRecap);
     _tabs = state.requestedTab..addListener(_openTab);
+    _voiceAdds = state.voiceAddRequested..addListener(_openVoiceAdd);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _openPurchase();
+      _openVoiceAdd();
       _openRecap();
     });
   }
@@ -66,6 +69,7 @@ class _ShellState extends State<Shell> {
     _purchases.removeListener(_openPurchase);
     _recaps.removeListener(_openRecap);
     _tabs.removeListener(_openTab);
+    _voiceAdds.removeListener(_openVoiceAdd);
     super.dispose();
   }
 
@@ -92,6 +96,12 @@ class _ShellState extends State<Shell> {
     _openQuickAdd(purchase: purchase);
   }
 
+  void _openVoiceAdd() {
+    if (!_voiceAdds.value || !mounted) return;
+    _voiceAdds.value = false;
+    _openQuickAdd(listen: true);
+  }
+
   void _select(int tab, {bool haptic = true}) {
     if (tab == _tab) return;
     if (haptic) HapticFeedback.selectionClick();
@@ -103,8 +113,15 @@ class _ShellState extends State<Shell> {
 
   /// After logging: jump to Home and toss a coin from the Log button into
   /// the ring.
-  Future<void> _openQuickAdd({ApplePayPurchase? purchase}) async {
-    final from = await showQuickAddSheet(context, purchase: purchase);
+  Future<void> _openQuickAdd({
+    ApplePayPurchase? purchase,
+    bool listen = false,
+  }) async {
+    final from = await showQuickAddSheet(
+      context,
+      purchase: purchase,
+      listen: listen,
+    );
     if (from == null || !mounted) return;
     _select(0, haptic: false);
     await Future<void>.delayed(Motion.fast);

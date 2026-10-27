@@ -13,8 +13,10 @@ import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
 import 'repository.dart';
+import 'spoken_expense.dart';
 import 'split_math.dart';
 import 'squad.dart';
+import 'voice_inbox.dart';
 
 /// Single source of truth for the app. Derived numbers are cached and
 /// recomputed only when the underlying data changes.
@@ -106,6 +108,14 @@ class AppState extends ChangeNotifier {
   /// An Apple Pay purchase waiting to open in Quick Add. Set when a
   /// `runway://log` link arrives; Home picks it up once it's on screen.
   final pendingPurchase = ValueNotifier<ApplePayPurchase?>(null);
+
+  /// Set by the "Log by voice" home-screen shortcut; the shell opens Quick
+  /// Add listening and clears it.
+  final voiceAddRequested = ValueNotifier<bool>(false);
+
+  /// Expenses just filed from Siri, for a "Added from Siri" note; the app
+  /// shows it and clears this.
+  final addedFromSiri = ValueNotifier<List<Expense>?>(null);
 
   /// A term or month that just ended, waiting for its recap. Set by
   /// [checkForRecap]; the shell shows it once Home is on screen.
@@ -341,6 +351,55 @@ class AppState extends ChangeNotifier {
   PetLevel get petLevel => PetLevel.fromStreak(_streak);
   NeedWantSplit get thisWeek => weekSplit(_expenses, today);
 
+  /// What Siri needs to answer "how much can I spend today?" without
+  /// opening the app (see ios/Runner/VoiceLog.swift). Null before setup.
+  /// Days are local "yyyy-mm-dd" keys, so Siri can tell if it's stale.
+  Map<String, Object?>? get siriSummary {
+    if (_needsSetup) return null;
+    final s = _snapshot;
+    final now = today;
+    String key(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    final days = <String, double>{};
+    final byCategory = <CategoryRef, double>{};
+    for (final e in _expenses) {
+      final age = daysBetween(e.date, now);
+      if (age < 0 || age > 6) continue;
+      days.update(key(e.date), (v) => v + e.amount, ifAbsent: () => e.amount);
+      byCategory.update(
+        e.filedUnder,
+        (v) => v + e.amount,
+        ifAbsent: () => e.amount,
+      );
+    }
+    final top = byCategory.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return {
+      'day': key(now),
+      'period': _term.period.noun,
+      'termEnd': key(_term.end),
+      'available': _roundCents(s.available),
+      'spentToday': _roundCents(s.usedTodayAmount),
+      'daysLeft': s.daysLeft,
+      'allowance': _roundCents(s.dailyAllowance),
+      'safeToday': _roundCents(s.safeToSpendToday),
+      'savingsGoal': _roundCents(s.savingsGoal),
+      'onTrack': s.tooEarlyToForecast ? null : s.onTrackToSave,
+      'runsOut': s.covered || s.runwayDate == null ? null : key(s.runwayDate!),
+      'days': days.map((k, v) => MapEntry(k, _roundCents(v))),
+      'weekTop': [
+        for (final e in top.take(2))
+          {
+            'label': e.key.label,
+            'emoji': e.key.emoji,
+            'amount': _roundCents(e.value),
+          },
+      ],
+      'categories': [for (final c in _customCategories) c.name],
+    };
+  }
+
   /// Sample friends for Squad's preview (macOS, tests). With real squads
   /// see [splitPeople] and [squad].
   List<Friend> get friends => List.unmodifiable(_friends);
@@ -438,6 +497,54 @@ class AppState extends ChangeNotifier {
     if (custom != null) _moveToFront(custom.id);
     _changed();
     _persist(() => _repo.addExpense(expense));
+  }
+
+  /// Files what was said to Siri like Quick Adds: a category guessed from
+  /// what it was for, at the time it was said (or now, if that was before
+  /// this term began). Waits in the inbox until setup is done.
+  void addSpokenExpenses(List<VoiceEntry> entries) {
+    final added = <Expense>[];
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    for (final (i, entry) in entries.indexed) {
+      if (!entry.amount.isFinite ||
+          entry.amount <= 0 ||
+          entry.amount >= 1000000) {
+        continue;
+      }
+      // "8 bucks on coffee" → "Coffee". A category said to Siri wins over
+      // a guess, but your own category still wins if it's named.
+      final note = SpokenExpense.parse(entry.what).note;
+      final said = ExpenseCategory.values.asNameMap()[entry.category];
+      final own = _customCategories
+          .where((c) => c.name.toLowerCase() == entry.custom?.toLowerCase())
+          .firstOrNull;
+      final guess = own != null
+          ? CategoryRef(ExpenseCategory.other, own)
+          : SpokenExpense.guessCategory(note, _customCategories);
+      final filed = guess?.custom != null || said == null
+          ? guess ?? const CategoryRef(ExpenseCategory.other)
+          : CategoryRef(said);
+      final expense = Expense(
+        id: 'e${stamp}s$i',
+        amount: _roundCents(entry.amount),
+        category: filed.category,
+        custom: filed.custom,
+        isNeed: SpokenExpense.isNeed(filed.category),
+        date: entry.at.isBefore(_term.start) || entry.at.isAfter(_clock())
+            ? _clock()
+            : entry.at,
+        note: note,
+      );
+      _expenses.add(expense);
+      if (filed.custom case final c?) _moveToFront(c.id);
+      added.add(expense);
+    }
+    if (added.isEmpty) return;
+    _changed();
+    for (final e in added) {
+      _persist(() => _repo.addExpense(e));
+    }
+    addedFromSiri.value = added;
   }
 
   /// Why [name] can't be a new category (or [editingId]'s new name), or

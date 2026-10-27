@@ -51,6 +51,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Runway listens when you tap the mic, so you can say what you spent instead of typing it.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Runway turns what you say into an expense, like "12 dollars at Chipotle".</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Runway uses Face ID so only you can open your budget.</string>
 	<key>LSRequiresIPhoneOS</key>

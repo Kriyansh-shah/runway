@@ -15,5 +15,8 @@ import UIKit
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "CoachModel") {
       CoachModel.register(with: registrar.messenger())
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "VoiceLog") {
+      VoiceLog.register(with: registrar.messenger())
+    }
   }
 }

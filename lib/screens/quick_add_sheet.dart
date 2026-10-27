@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../app/app_state.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/purchase_link.dart';
+import '../app/spoken_expense.dart';
 import '../app/theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/expense_inputs.dart';
@@ -17,11 +21,13 @@ import 'category_sheet.dart';
 /// Returns where the Log button was (global), so the caller can fly a coin
 /// from it; null if the sheet was dismissed or an expense was edited.
 /// [purchase] pre-fills the sheet from an Apple Pay automation; [editing]
-/// opens an existing expense to change it.
+/// opens an existing expense to change it; [listen] starts the mic right
+/// away.
 Future<Offset?> showQuickAddSheet(
   BuildContext context, {
   ApplePayPurchase? purchase,
   Expense? editing,
+  bool listen = false,
 }) {
   return showModalBottomSheet<Offset>(
     context: context,
@@ -34,18 +40,27 @@ Future<Offset?> showQuickAddSheet(
       reverseDuration: Motion.fast,
       curve: Motion.out,
     ),
-    builder: (_) => QuickAddSheet(purchase: purchase, editing: editing),
+    builder: (_) =>
+        QuickAddSheet(purchase: purchase, editing: editing, listen: listen),
   );
 }
 
 class QuickAddSheet extends StatefulWidget {
-  const QuickAddSheet({super.key, this.purchase, this.editing});
+  const QuickAddSheet({
+    super.key,
+    this.purchase,
+    this.editing,
+    this.listen = false,
+  });
 
   /// Set when the sheet opens from an Apple Pay purchase.
   final ApplePayPurchase? purchase;
 
   /// Set when changing an expense that's already logged.
   final Expense? editing;
+
+  /// Start listening as soon as the sheet opens ("Log by voice").
+  final bool listen;
 
   @override
   State<QuickAddSheet> createState() => _QuickAddSheetState();
@@ -56,10 +71,18 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   CategoryRef _category = const CategoryRef(ExpenseCategory.other);
   bool _isNeed = false;
   final _note = TextEditingController();
+  final _speech = SpeechToText();
+  bool _listening = false;
+
+  /// What the mic has heard so far, or why it can't listen.
+  String? _heard;
 
   @override
   void initState() {
     super.initState();
+    if (widget.listen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _toggleMic());
+    }
     if (widget.editing case final e?) {
       _input = amountText(e.amount);
       _note.text = e.note ?? '';
@@ -75,6 +98,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
 
   @override
   void dispose() {
+    unawaited(_speech.cancel());
     _note.dispose();
     super.dispose();
   }
@@ -153,6 +177,80 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     });
   }
 
+  Future<void> _toggleMic() async {
+    if (_listening) {
+      await _speech.stop();
+      return;
+    }
+    final ready = await _speech.initialize(
+      onStatus: (status) {
+        if (!mounted) return;
+        if (status == SpeechToText.doneStatus ||
+            status == SpeechToText.notListeningStatus) {
+          setState(() => _listening = false);
+        }
+      },
+      onError: (error) {
+        if (!mounted) return;
+        setState(() {
+          _listening = false;
+          _heard =
+              error.errorMsg.contains('no_match') ||
+                  error.errorMsg.contains('speech_timeout')
+              ? 'Didn\'t catch that. Tap the mic and try again.'
+              : 'The mic stopped. Tap it to try again.';
+        });
+      },
+    );
+    if (!mounted) return;
+    if (!ready) {
+      setState(
+        () => _heard =
+            'Voice isn\'t available. Allow the microphone and speech '
+            'recognition for Runway in Settings.',
+      );
+      return;
+    }
+    HapticFeedback.lightImpact();
+    setState(() {
+      _listening = true;
+      _heard = null;
+    });
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        setState(() => _heard = result.recognizedWords);
+        if (result.finalResult) _useSpoken(result.recognizedWords);
+      },
+      listenOptions: SpeechListenOptions(
+        listenFor: const Duration(seconds: 20),
+        pauseFor: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  /// Fills the sheet from "12 dollars at Chipotle". A category you already
+  /// picked stays; otherwise one is guessed from what it was.
+  void _useSpoken(String said) {
+    final spoken = SpokenExpense.parse(said);
+    if (spoken.amount == null && spoken.note == null) return;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      if (spoken.amount case final amount?) _input = amountText(amount);
+      if (spoken.note case final note?) _note.text = note;
+      if (_inPlainOther) {
+        final guess = SpokenExpense.guessCategory(
+          spoken.note,
+          AppScope.read(context).customCategories,
+        );
+        if (guess != null) {
+          _category = guess;
+          _isNeed = SpokenExpense.isNeed(guess.category);
+        }
+      }
+    });
+  }
+
   final _logKey = GlobalKey();
 
   void _save() {
@@ -208,7 +306,20 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
           hint: 'What was it? e.g. Uber to airport',
           icon: PhIcons.notePencil,
           onChanged: _noteChanged,
+          suffix: _MicButton(listening: _listening, onTap: _toggleMic),
         ),
+        if (_listening || _heard != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _listening && (_heard ?? '').isEmpty
+                ? 'Listening… try "12 dollars at Chipotle"'
+                : '"${_heard ?? ''}"',
+            style: AppText.label.copyWith(
+              color: _listening ? AppColors.lime : AppColors.muted,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
         if (suggestion != null) ...[
           const SizedBox(height: 8),
           _SuggestCategory(
@@ -291,6 +402,37 @@ class _AmountDisplay extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tap to say the expense instead of typing it; glows while listening.
+class _MicButton extends StatelessWidget {
+  const _MicButton({required this.listening, required this.onTap});
+  final bool listening;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: onTap,
+      scale: 0.9,
+      semanticLabel: listening ? 'Stop listening' : 'Say the expense',
+      child: AnimatedContainer(
+        duration: Motion.fast,
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: listening
+              ? AppColors.lime.withValues(alpha: 0.18)
+              : Colors.transparent,
+        ),
+        child: Icon(
+          PhIcons.microphone,
+          size: 20,
+          color: listening ? AppColors.lime : AppColors.muted,
         ),
       ),
     );

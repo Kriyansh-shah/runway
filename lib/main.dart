@@ -7,6 +7,7 @@ import 'package:device_preview/presets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:quick_actions/quick_actions.dart';
 
 import 'app/app_state.dart';
 import 'app/auth.dart';
@@ -14,6 +15,8 @@ import 'app/budget_sync.dart';
 import 'app/coach.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
+import 'app/format.dart';
+import 'app/models.dart';
 import 'app/on_device_coach.dart';
 import 'app/squad.dart';
 import 'app/supabase_accounts.dart';
@@ -21,6 +24,7 @@ import 'app/supabase_budget_backups.dart';
 import 'app/supabase_squad.dart';
 // import 'app/purchase_link.dart';
 import 'app/theme.dart';
+import 'app/voice_inbox.dart';
 import 'screens/launch_intro.dart';
 import 'screens/lock_gate.dart';
 import 'screens/welcome_screen.dart';
@@ -95,10 +99,37 @@ Future<void> main() async {
   state.startNewMonthIfDue();
   // Offers a recap for a month that just ended (or one never shown).
   unawaited(state.checkForRecap());
+  // Expenses said to Siri while the app was closed (iPhone only).
+  Future<void> takeSiriLogs() async {
+    if (state.needsSetup || !VoiceInbox.supported) return;
+    state.addSpokenExpenses(await const VoiceInbox().take());
+  }
+
+  unawaited(takeSiriLogs());
+  // Siri answers budget questions from a copy of the numbers, kept fresh
+  // a moment after each change.
+  if (VoiceInbox.supported) {
+    Timer? pending;
+    void shareWithSiri() {
+      pending?.cancel();
+      pending = Timer(
+        const Duration(milliseconds: 600),
+        () => unawaited(const VoiceInbox().share(state.siriSummary)),
+      );
+    }
+
+    state.addListener(shareWithSiri);
+    shareWithSiri();
+  }
   AppLifecycleListener(
     onResume: () {
       state.startNewMonthIfDue();
       unawaited(state.sync.check());
+      unawaited(takeSiriLogs());
+      // A new day changes today's numbers even with nothing logged.
+      if (VoiceInbox.supported) {
+        unawaited(const VoiceInbox().share(state.siriSummary));
+      }
     },
     // Upload a pending change before the app is put away.
     onHide: () => unawaited(state.sync.flush()),
@@ -112,6 +143,21 @@ Future<void> main() async {
   //     if (purchase != null) state.pendingPurchase.value = purchase;
   //   });
   // }
+
+  // Long-press the app icon → "Log by voice" opens Quick Add listening.
+  if (!kIsWeb) {
+    const actions = QuickActions();
+    unawaited(
+      actions.initialize((type) {
+        if (type == 'voice_add') state.voiceAddRequested.value = true;
+      }),
+    );
+    unawaited(
+      actions.setShortcutItems(const [
+        ShortcutItem(type: 'voice_add', localizedTitle: 'Log by voice'),
+      ]),
+    );
+  }
 
   runApp(RunwayApp(state: state));
 }
@@ -135,6 +181,8 @@ class _RunwayAppState extends State<RunwayApp> {
   void initState() {
     super.initState();
     _listen();
+    // Siri logs taken before the first frame had nowhere to show yet.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showSiri());
   }
 
   @override
@@ -146,27 +194,48 @@ class _RunwayAppState extends State<RunwayApp> {
   @override
   void dispose() {
     _problems?.cancel();
+    _siri?.removeListener(_showSiri);
     super.dispose();
   }
 
   void _listen() {
     _problems?.cancel();
     _problems = widget.state.problems.listen(_showProblem);
+    _siri?.removeListener(_showSiri);
+    _siri = widget.state.addedFromSiri..addListener(_showSiri);
+  }
+
+  ValueNotifier<List<Expense>?>? _siri;
+
+  /// "Added from Siri: $12.00 Chipotle", once per batch.
+  void _showSiri() {
+    final added = _siri?.value;
+    final messenger = _messenger.currentState;
+    if (added == null || messenger == null) return;
+    _siri!.value = null;
+    final what = added.length == 1
+        ? '${money(added.single.amount)} ${added.single.title}'
+        : '${added.length} expenses';
+    _showNote(messenger, 'Added from Siri: $what', const Color(0xFF1E2A3A));
   }
 
   /// Shown above whatever screen is open, clear of the floating nav bar.
   void _showProblem(SaveProblem problem) {
     final messenger = _messenger.currentState;
     if (messenger == null) return;
+    _showNote(messenger, problem.message, const Color(0xFF3A1E24));
+  }
+
+  void _showNote(ScaffoldMessengerState messenger, String text, Color color) {
     final bottom = MediaQuery.paddingOf(messenger.context).bottom;
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(problem.message),
+          content: Text(text),
           margin: EdgeInsets.fromLTRB(16, 0, 16, bottom + 96),
           duration: const Duration(seconds: 6),
-          backgroundColor: const Color(0xFF3A1E24),
+          backgroundColor: color,
         ),
       );
   }

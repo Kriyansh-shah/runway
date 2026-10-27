@@ -12,6 +12,7 @@ abstract final class PhIcons {
   static const at = IconData(0xe0ac, fontFamily: 'PhosphorRegular');
   static const backspace = IconData(0xe0ae, fontFamily: 'PhosphorRegular');
   static const notePencil = IconData(0xe34c, fontFamily: 'PhosphorRegular');
+  static const microphone = IconData(0xe326, fontFamily: 'PhosphorRegular');
   static const warningCircle = IconData(0xe4e2, fontFamily: 'PhosphorRegular');
   static const lock = IconData(0xe2fa, fontFamily: 'PhosphorRegular');
   static const signOut = IconData(0xe42a, fontFamily: 'PhosphorRegular');
