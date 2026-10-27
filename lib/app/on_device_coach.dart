@@ -121,7 +121,10 @@ class OnDeviceCoach implements AffordabilityCoach {
       'a purchase with a decision; without one, ask for the price. If the '
       'facts can\'t answer the question, say so kindly and suggest asking '
       '"Can I afford <item> \$<price>?". Don\'t give investment, loan, '
-      'credit or tax advice.';
+      'credit or tax advice. If the question isn\'t about the student\'s '
+      'money, spending or budget, like maths, homework, trivia or chit-chat, '
+      'don\'t answer it: say in one sentence that you only help with their '
+      'budget.';
 
   /// Added when the model can look up past spending.
   static const lookUpInstructions =
@@ -146,6 +149,8 @@ class OnDeviceCoach implements AffordabilityCoach {
     // A purchase with no price: ask for it. The model can't know what a
     // Dior wallet costs, and guessing would mean a made-up yes or no.
     if (purchaseWithoutPrice(question) != null) return local;
+    // "Hi", "thanks", "bye": the rules' friendly reply, not the model's.
+    if (smallTalk(question, grounding) != null) return local;
     final assessment = local.assessment;
     final history = assessment == null ? grounding.history : null;
     final facts = {

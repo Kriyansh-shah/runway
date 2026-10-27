@@ -170,6 +170,73 @@ void main() {
     expect(parseQuestion('ps5 400')?.amount, 400);
   });
 
+  test('sums and questions to the coach aren\'t prices', () {
+    expect(parseQuestion('can you do 1+1?'), isNull);
+    expect(parseQuestion('what is 5 * 3'), isNull);
+    expect(parseQuestion("what's 12 times 4"), isNull);
+    expect(parseQuestion('how old are you, 20?'), isNull);
+    // Still prices: a \$, or a question about buying.
+    expect(parseQuestion('what about shoes \$80')?.amount, 80);
+    expect(
+      parseQuestion('can you tell me if I can afford shoes 80')?.amount,
+      80,
+    );
+    expect(parseQuestion('shoes for 80')?.amount, 80);
+  });
+
+  group('small talk', () {
+    test('hi, thanks, bye and ok get a reply in kind', () {
+      // g: \$20 safe to spend today.
+      expect(
+        smallTalk('Hi!', g),
+        'You\'ve got \$20.00 safe to spend today. '
+        'Thinking about buying something?',
+      );
+      expect(smallTalk('thank you so much 🙏', g), startsWith('Anytime'));
+      expect(
+        smallTalk('bye', g),
+        'Bye! You\'ve still got \$20.00 safe to spend today.',
+      );
+      expect(smallTalk('Byeee coach', g), startsWith('Bye!'));
+      expect(smallTalk('see ya later', g), startsWith('Bye!'));
+      expect(smallTalk('ok', g), startsWith('Sounds good'));
+    });
+
+    test('a goodbye when over budget says so', () {
+      const over = CoachGrounding(
+        available: 500,
+        safeToSpendToday: -12.5,
+        dailyAllowance: 20,
+        spentToday: 32.5,
+        daysLeft: 25,
+        burnRate: 22,
+        daysShort: 0,
+      );
+      expect(
+        smallTalk('bye', over),
+        'Bye! Go easy for the rest of today: you\'re \$12.50 over '
+        'today\'s budget.',
+      );
+    });
+
+    test('only whole messages count, not words inside questions', () {
+      expect(smallTalk('hi can I afford shoes \$80', g), isNull);
+      expect(smallTalk('ok what did I spend last week', g), isNull);
+      expect(smallTalk('kind of want boba', g), isNull);
+    });
+
+    test('the coach answers them', () async {
+      final reply = await const LocalCoach().ask('bye!', g);
+      expect(reply.text, startsWith('Bye!'));
+    });
+  });
+
+  test('off-topic questions get pointed back to the budget', () async {
+    final reply = await const LocalCoach().ask('can you do 1+1?', g);
+    expect(reply.assessment, isNull);
+    expect(reply.text, startsWith('I\'m your money coach'));
+  });
+
   test('LocalCoach asks what an unpriced purchase costs', () async {
     final reply = await const LocalCoach().ask(
       'Can I afford a Dior wallet?',

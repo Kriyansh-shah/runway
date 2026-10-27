@@ -191,9 +191,28 @@ final _bareAmount = RegExp(
   r'(?<![A-Za-z\d])(\d[\d,]*(?:\.\d{1,2})?)(?![A-Za-z\d])',
 );
 
-/// Pulls the first money amount out of free text. Prefers `$`-prefixed numbers.
+/// Sums like "1+1" or "5 * 3": numbers that aren't a price.
+final _arithmetic = RegExp(r'\d\s*[-+*/×÷^=]\s*\d');
+
+/// Questions put to the coach ("Can you do 1+1?", "What's 12 times 4?")
+/// rather than about something to buy.
+final _askingTheCoach = RegExp(
+  r"^\s*(what|what's|whats|how|why|who|when|where|which|can you|could you|"
+  r'will you|would you|do you|are you|tell me|calculate|solve)\b',
+  caseSensitive: false,
+);
+
+/// Pulls the first money amount out of free text. Prefers `$`-prefixed
+/// numbers. A number without `$` only counts as a price when it reads like
+/// one: not part of a sum, and not in a question to the coach unless it's
+/// about buying something.
 ({double amount, String item})? parseQuestion(String text) {
-  final match = _dollarAmount.firstMatch(text) ?? _bareAmount.firstMatch(text);
+  var match = _dollarAmount.firstMatch(text);
+  if (match == null &&
+      !_arithmetic.hasMatch(text) &&
+      (!_askingTheCoach.hasMatch(text) || _purchaseWords.hasMatch(text))) {
+    match = _bareAmount.firstMatch(text);
+  }
   if (match == null) return null;
   final amount = double.tryParse(match.group(1)!.replaceAll(',', ''));
   if (amount == null || amount <= 0) return null;
@@ -353,12 +372,63 @@ class SavingsPlan {
       : plural((days / 30).ceil(), 'month');
 }
 
+enum _SmallTalk { hello, thanks, bye, ok }
+
+const _smallTalk = {
+  _SmallTalk.hello: r"(hi+|hey+|hello+|hiya|yo|sup|what'?s up|good (morning|afternoon|evening))",
+  _SmallTalk.thanks:
+      r'(thanks|thank you( so much)?|thx|ty|tysm|appreciate it|cheers)',
+  _SmallTalk.bye:
+      r'(bye+( bye)?|good ?bye|see (you|ya)( later)?|cya|later|good ?night|gn)',
+  _SmallTalk.ok:
+      r'(ok(ay)?|k|cool|nice|got it|great|alright|sounds good|perfect|lol)',
+};
+
+/// A friendly reply to "hi", "thanks", "bye" or "ok", or null for anything
+/// else. Answered by the rules everywhere, so the model never has to decide
+/// whether a goodbye is off-topic.
+String? smallTalk(String text, CoachGrounding g) {
+  final said = text
+      .toLowerCase()
+      .replaceAll(RegExp(r"[^a-z' ]"), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (said.isEmpty) return null;
+  final kind = _smallTalk.entries
+      .where(
+        (e) =>
+            RegExp('^(${e.value})( (coach|runway|man|bro|dude))?\$')
+                .hasMatch(said),
+      )
+      .map((e) => e.key)
+      .firstOrNull;
+  if (kind == null) return null;
+  final safe = g.safeToSpendToday;
+  final today = safe >= 0
+      ? 'You\'ve got ${money(safe)} safe to spend today'
+      : 'You\'re ${money(-safe)} over today\'s budget';
+  return switch (kind) {
+    _SmallTalk.hello => '$today. Thinking about buying something?',
+    _SmallTalk.thanks => 'Anytime! Ask me before your next purchase.',
+    _SmallTalk.bye =>
+      safe >= 0
+          ? 'Bye! ${today.replaceFirst('You\'ve', 'You\'ve still')}.'
+          : 'Bye! Go easy for the rest of today: ${today.toLowerCase()}.',
+    _SmallTalk.ok =>
+      'Sounds good. I\'m here whenever you want to check a '
+          'purchase.',
+  };
+}
+
 /// Rule-based coach that runs entirely on-device.
 class LocalCoach implements AffordabilityCoach {
   const LocalCoach();
 
   @override
   Future<CoachReply> ask(String question, CoachGrounding grounding) async {
+    if (smallTalk(question, grounding) case final reply?) {
+      return CoachReply.text(reply);
+    }
     final parsed = parseQuestion(question);
     final unpriced = purchaseWithoutPrice(question);
     if (unpriced != null) return CoachReply.text(askForPrice(unpriced));
@@ -369,8 +439,9 @@ class LocalCoach implements AffordabilityCoach {
         }
       }
       return const CoachReply.text(
-        'Tell me what it costs — like "Concert ticket \$60" — and I\'ll run '
-        'it against your runway.',
+        'I\'m your money coach, so I stick to your budget. Tell me what it '
+        'costs — like "Concert ticket \$60" — and I\'ll run it against your '
+        'runway, or ask what you spent, like "Spent last week?"',
       );
     }
     return CoachReply.assessment(assess(parsed.amount, parsed.item, grounding));

@@ -83,6 +83,23 @@ void main() {
     expect(model.lastPrompt, isNull);
   });
 
+  test('a sum isn\'t a purchase, so there\'s no verdict to word', () async {
+    final model = _FakeModel(() => 'I only help with your budget.');
+    final reply = await OnDeviceCoach(model).ask('can you do 1+1?', g);
+    expect(reply.assessment, isNull);
+    expect(model.lastPrompt, isNot(contains('decision')));
+    expect(model.lastInstructions, contains('only help with their budget'));
+    expect(reply.text, 'I only help with your budget.');
+  });
+
+  test('small talk gets the rules\' reply, without the model', () async {
+    final model = _FakeModel(() => 'I only help with your budget.');
+    final reply = await OnDeviceCoach(model).ask('bye', g);
+    expect(model.lastPrompt, isNull);
+    expect(reply.text, startsWith('Bye!'));
+    expect(reply.fromModel, isFalse);
+  });
+
   test('throws away a yes or no about affording with no purchase', () async {
     final model = _FakeModel(() => 'You can afford a little treat this week.');
     final reply = await OnDeviceCoach(model).ask('How is my week going?', g);
