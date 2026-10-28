@@ -31,6 +31,7 @@ import 'screens/launch_intro.dart';
 import 'screens/lock_gate.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/setup_screen.dart';
+import 'widgets/pointer_glow.dart';
 
 Future<void> main() async {
   // On macOS debug builds, show the app inside an iPhone frame. Everywhere
@@ -274,7 +275,8 @@ class _RunwayAppState extends State<RunwayApp> {
         scaffoldMessengerKey: _messenger,
         // Above the navigator, so the lock and the app-switcher cover hide
         // every screen and sheet.
-        builder: (context, child) => LockGate(child: child!),
+        builder: (context, child) =>
+            PointerTracker(child: LockGate(child: child!)),
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         scrollBehavior: const _BouncyScroll(),

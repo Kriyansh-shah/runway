@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import 'pointer_glow.dart';
 
 /// Translucent card with a hairline border. Deliberately *no* blur — real
 /// backdrop blur is reserved for the nav bar and sheets to keep scrolling cheap.
@@ -24,7 +25,7 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    final card = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
         gradient: LinearGradient(
@@ -39,6 +40,7 @@ class GlassCard extends StatelessWidget {
       ),
       child: Padding(padding: padding, child: child),
     );
+    return PointerGlow.web ? EdgeGlow(radius: radius, child: card) : card;
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import 'pointer_glow.dart';
 import 'pressable.dart';
 
 /// Gradient CTA with a soft neon glow.
@@ -47,8 +48,10 @@ class GradientButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(height / 2),
             boxShadow: [
               BoxShadow(
-                color: glow.withValues(alpha: enabled ? 0.28 : 0),
-                blurRadius: 24,
+                color: glow.withValues(
+                  alpha: enabled ? (PointerGlow.web ? 0.45 : 0.28) : 0,
+                ),
+                blurRadius: PointerGlow.web ? 30 : 24,
                 offset: const Offset(0, 8),
               ),
             ],

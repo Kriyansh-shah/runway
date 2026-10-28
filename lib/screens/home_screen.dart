@@ -10,6 +10,7 @@ import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
 import '../app/week_recap.dart';
+import '../widgets/pointer_glow.dart';
 import '../widgets/ai_tag.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/expense_inputs.dart';
@@ -349,58 +350,60 @@ class _HeroRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final over = s.safeToSpendToday < 0;
     return Center(
-      child: RingPulse(
-        key: homeRingKey,
-        child: SizedBox.square(
-          dimension: 272,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              RepaintBoundary(
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: s.usedToday),
-                  duration: Motion.slow,
-                  curve: Motion.roll,
-                  builder: (context, v, _) => CustomPaint(
-                    size: const Size.square(272),
-                    painter: _RingPainter(used: v, over: over),
+      child: PointerTilt(
+        child: RingPulse(
+          key: homeRingKey,
+          child: SizedBox.square(
+            dimension: 272,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                RepaintBoundary(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: s.usedToday),
+                    duration: Motion.slow,
+                    curve: Motion.roll,
+                    builder: (context, v, _) => CustomPaint(
+                      size: const Size.square(272),
+                      painter: _RingPainter(used: v, over: over),
+                    ),
                   ),
                 ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Safe to spend today', style: AppText.label),
-                  const SizedBox(height: 8),
-                  FittedBox(
-                    child: over
-                        ? RollingNumber(
-                            value: s.safeToSpendToday,
-                            style: AppText.display.copyWith(
-                              color: AppColors.red,
-                            ),
-                          )
-                        : ShaderMask(
-                            blendMode: BlendMode.srcIn,
-                            shaderCallback: const LinearGradient(
-                              colors: [Colors.white, Color(0xFFD9D2FF)],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ).createShader,
-                            child: RollingNumber(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Safe to spend today', style: AppText.label),
+                    const SizedBox(height: 8),
+                    FittedBox(
+                      child: over
+                          ? RollingNumber(
                               value: s.safeToSpendToday,
-                              style: AppText.display,
+                              style: AppText.display.copyWith(
+                                color: AppColors.red,
+                              ),
+                            )
+                          : ShaderMask(
+                              blendMode: BlendMode.srcIn,
+                              shaderCallback: const LinearGradient(
+                                colors: [Colors.white, Color(0xFFD9D2FF)],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ).createShader,
+                              child: RollingNumber(
+                                value: s.safeToSpendToday,
+                                style: AppText.display,
+                              ),
                             ),
-                          ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '${money(s.usedTodayAmount)} of ${money(s.dailyAllowance)} used',
-                    style: AppText.caption.copyWith(fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${money(s.usedTodayAmount)} of ${money(s.dailyAllowance)} used',
+                      style: AppText.caption.copyWith(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

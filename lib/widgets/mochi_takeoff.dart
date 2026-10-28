@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../app/theme.dart';
+import 'pointer_glow.dart';
 
 /// "Mochi's Takeoff" — the launch intro.
 ///
@@ -65,7 +66,12 @@ class LogoLetters {
     final letters = <LogoLetter>[];
     for (var i = 0; i < _word.length; i++) {
       final x = i == 0 ? 0.0 : tp(_word.substring(0, i), AppColors.text).width;
-      final painter = tp(_word[i], i == 5 ? AppColors.lime : AppColors.text);
+      final painter = tp(
+        _word[i],
+        i == 5
+            ? AppColors.lime
+            : (PointerGlow.web ? _shine[i] : AppColors.text),
+      );
       letters.add(
         LogoLetter(
           painter,
@@ -76,6 +82,16 @@ class LogoLetters {
     }
     return LogoLetters._(letters, width);
   }
+
+  /// On the web the letters fade from white to lilac to pink, like the
+  /// website's name.
+  static const _shine = [
+    Color(0xFFFFFFFF),
+    Color(0xFFE6DEFF),
+    Color(0xFFCDBDFF),
+    Color(0xFFC9A9F6),
+    Color(0xFFE6A6E0),
+  ];
 
   static TextStyle _style(Color c) => TextStyle(
     fontFamily: 'Bricolage',
