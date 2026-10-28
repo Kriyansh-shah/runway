@@ -22,6 +22,10 @@ abstract final class PhIcons {
   static const gearSix = IconData(0xe272, fontFamily: 'PhosphorRegular');
   static const caretRight = IconData(0xe13a, fontFamily: 'PhosphorRegular');
   static const trash = IconData(0xe4a6, fontFamily: 'PhosphorRegular');
+  static const flag = IconData(0xe244, fontFamily: 'PhosphorRegular');
+  static const prohibit = IconData(0xe3de, fontFamily: 'PhosphorRegular');
+  static const userMinus = IconData(0xe4ce, fontFamily: 'PhosphorRegular');
+  static const dotsThree = IconData(0xe1fe, fontFamily: 'PhosphorRegular');
   static const checkCircle = IconData(0xe184, fontFamily: 'PhosphorRegular');
   static const handCoins = IconData(0xea8c, fontFamily: 'PhosphorRegular');
   static const repeat = IconData(0xe3f6, fontFamily: 'PhosphorRegular');

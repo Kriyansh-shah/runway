@@ -12,6 +12,7 @@ import '../widgets/expense_inputs.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
+import 'safety_sheets.dart';
 import 'split_bill_sheet.dart';
 
 Future<void> _sheet(BuildContext context, Widget child) =>
@@ -485,16 +486,40 @@ class _FriendSheetState extends State<_FriendSheet> {
             textAlign: TextAlign.center,
           ),
         ],
-        if (person.direct) ...[
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: () => _remove(person),
-            child: Text(
-              'Remove friend',
-              style: AppText.label.copyWith(color: AppColors.red),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          children: [
+            if (person.direct)
+              TextButton(
+                onPressed: () => _remove(person),
+                child: Text(
+                  'Remove friend',
+                  style: AppText.label.copyWith(color: AppColors.red),
+                ),
+              ),
+            TextButton(
+              onPressed: () =>
+                  reportPerson(context, personId: person.id, name: person.name),
+              child: Text('Report', style: AppText.label),
             ),
-          ),
-        ],
+            TextButton(
+              onPressed: () async {
+                final navigator = Navigator.of(context);
+                final blocked = await blockPerson(
+                  context,
+                  personId: person.id,
+                  name: person.name,
+                );
+                if (blocked) navigator.pop();
+              },
+              child: Text(
+                'Block',
+                style: AppText.label.copyWith(color: AppColors.red),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

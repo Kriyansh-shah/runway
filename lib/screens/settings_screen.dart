@@ -20,6 +20,7 @@ import 'welcome_screen.dart';
 import 'history_screen.dart';
 import 'money_actions.dart';
 import 'setup_screen.dart';
+import 'safety_sheets.dart';
 import 'sync_sheets.dart';
 
 /// Account, the current semester, big costs, and your data.
@@ -665,6 +666,12 @@ class _AccountCardState extends State<_AccountCard> {
             label: 'Budget sync',
             subtitle: syncSummary(AppScope.of(context)),
             onTap: () => showSyncSheet(context),
+          ),
+          Divider(height: 1, color: AppColors.hairline),
+          _LinkRow(
+            icon: PhIcons.prohibit,
+            label: 'Blocked people',
+            onTap: () => showBlockedPeople(context),
           ),
           Divider(height: 1, color: AppColors.hairline),
           _LinkRow(icon: PhIcons.signOut, label: 'Sign out', onTap: _signOut),

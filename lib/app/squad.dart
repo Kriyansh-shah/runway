@@ -34,9 +34,14 @@ class Squad {
     required this.name,
     required this.members,
     this.simplifyDebts = true,
+    this.ownerId,
   });
   final String id;
   final String name;
+
+  /// Who can remove people: whoever started the squad while they're in it,
+  /// then whoever has been in it longest.
+  final String? ownerId;
 
   /// Everyone in the squad, you included.
   final List<SquadMember> members;
@@ -122,6 +127,27 @@ class SquadException implements Exception {
 /// The most people in one squad (the server enforces it too).
 const maxSquadSize = 8;
 
+/// Why someone is reported. [squadName] is about the squad, not a person.
+enum ReportReason {
+  badName('Offensive name'),
+  squadName('Offensive squad name'),
+  harassment('Harassment or bullying'),
+  spam('Spam or scam'),
+  other('Something else');
+
+  const ReportReason(this.label);
+  final String label;
+
+  /// How the server stores it.
+  String get key => switch (this) {
+    badName => 'name',
+    squadName => 'squad_name',
+    harassment => 'harassment',
+    spam => 'spam',
+    other => 'other',
+  };
+}
+
 abstract interface class SquadService {
   /// Shares your latest [stats], then loads your squads, friends, splits
   /// and settle-ups. Needs a signed-in account.
@@ -167,6 +193,26 @@ abstract interface class SquadService {
   Future<void> deleteSettlement(String id);
 
   Future<void> setSimplifyDebts(String squadId, bool on);
+
+  /// Removes [personId] from a squad you own; they can't rejoin it.
+  Future<void> removeMember(String squadId, String personId);
+
+  /// Unfriends [personId] and hides you from each other everywhere: no
+  /// squads together, no splits, no adding each other back.
+  Future<void> block(String personId);
+
+  Future<void> unblock(String personId);
+
+  /// The people you've blocked, newest first.
+  Future<List<Person>> blockedPeople();
+
+  /// Reports a person, or a squad (for its name), for review.
+  Future<void> report({
+    String? personId,
+    String? squadId,
+    required ReportReason reason,
+    String? details,
+  });
 }
 
 /// No server: Squad shows sample friends instead.
@@ -221,6 +267,26 @@ class NoSquad implements SquadService {
 
   @override
   Future<void> setSimplifyDebts(String squadId, bool on) => throw _offline;
+
+  @override
+  Future<void> removeMember(String squadId, String personId) => throw _offline;
+
+  @override
+  Future<void> block(String personId) => throw _offline;
+
+  @override
+  Future<void> unblock(String personId) => throw _offline;
+
+  @override
+  Future<List<Person>> blockedPeople() async => const [];
+
+  @override
+  Future<void> report({
+    String? personId,
+    String? squadId,
+    required ReportReason reason,
+    String? details,
+  }) => throw _offline;
 }
 
 /// Error message for a squad name, or null when it's fine.

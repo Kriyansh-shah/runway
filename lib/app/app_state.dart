@@ -1024,6 +1024,47 @@ class AppState extends ChangeNotifier {
     await _reload();
   }, rethrowErrors: true);
 
+  /// True when you can remove people from the squad on screen.
+  bool get ownsSquad => me != null && squad?.ownerId == me;
+
+  /// Removes [personId] from the squad on screen (you must own it). They
+  /// can't rejoin it with an invite code.
+  Future<void> removeFromSquad(String personId) async {
+    final squad = this.squad;
+    if (squad == null) return;
+    await _squadCall(() async {
+      await squadService.removeMember(squad.id, personId);
+      await _reload();
+    }, rethrowErrors: true);
+  }
+
+  /// Blocks [personId]: unfriends them and hides you from each other.
+  Future<void> block(String personId) => _squadCall(() async {
+    await squadService.block(personId);
+    await _reload();
+  }, rethrowErrors: true);
+
+  Future<void> unblock(String personId) => _squadCall(() async {
+    await squadService.unblock(personId);
+    await _reload();
+  }, rethrowErrors: true);
+
+  /// The people you've blocked, for Settings.
+  Future<List<Person>> blockedPeople() => squadService.blockedPeople();
+
+  /// Reports a person, or a squad for its name. Throws [SquadException].
+  Future<void> report({
+    String? personId,
+    String? squadId,
+    required ReportReason reason,
+    String? details,
+  }) => squadService.report(
+    personId: personId,
+    squadId: squadId,
+    reason: reason,
+    details: details,
+  );
+
   /// Splits [totalCents] between you and friends ([shares] by account ID,
   /// yours included, adding up to the total), paid by [paidBy]. Your part
   /// counts as spending whoever paid; their parts are what they owe the

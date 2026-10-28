@@ -154,6 +154,53 @@ class SupabaseSquad implements SquadService {
     ),
   );
 
+  @override
+  Future<void> removeMember(String squadId, String personId) => _guard(
+    () => _client.rpc(
+      'remove_squad_member',
+      params: {'squad': squadId, 'person': personId},
+    ),
+  );
+
+  @override
+  Future<void> block(String personId) =>
+      _guard(() => _client.rpc('block_user', params: {'person': personId}));
+
+  @override
+  Future<void> unblock(String personId) =>
+      _guard(() => _client.rpc('unblock_user', params: {'person': personId}));
+
+  @override
+  Future<List<Person>> blockedPeople() => _guard(() async {
+    final rows = await _client.rpc('blocked_people') as List;
+    return [
+      for (final r in rows)
+        Person(
+          id: r['id'] as String,
+          name: r['first_name'] as String,
+          emoji: r['emoji'] as String,
+        ),
+    ];
+  });
+
+  @override
+  Future<void> report({
+    String? personId,
+    String? squadId,
+    required ReportReason reason,
+    String? details,
+  }) => _guard(
+    () => _client.rpc(
+      'report',
+      params: {
+        'person': personId,
+        'squad': squadId,
+        'reason': reason.key,
+        'details': details,
+      },
+    ),
+  );
+
   Future<void> _publish(String me, SquadStats stats) async {
     await _client.from('profiles').upsert({
       'id': me,
@@ -170,7 +217,7 @@ class SupabaseSquad implements SquadService {
   Future<SocialData> _load(String me) async {
     final mine = await _client
         .from('squad_members')
-        .select('squad_id, joined_at, squads(name, simplify_debts)')
+        .select('squad_id, joined_at, squads(name, simplify_debts, created_by)')
         .eq('user_id', me)
         .order('joined_at');
     final squadIds = [for (final r in mine) r['squad_id'] as String];
@@ -199,21 +246,29 @@ class SupabaseSquad implements SquadService {
         .order('created_at', ascending: false)
         .limit(500);
 
-    final squads = [
-      for (final r in mine)
+    final squads = <Squad>[];
+    for (final r in mine) {
+      final members = [
+        for (final m in memberRows)
+          if (m['squad_id'] == r['squad_id'] &&
+              m['profiles'] is Map<String, dynamic>)
+            _member(m, me),
+      ];
+      final createdBy = (r['squads'] as Map?)?['created_by'] as String?;
+      squads.add(
         Squad(
           id: r['squad_id'] as String,
           name: (r['squads'] as Map?)?['name'] as String? ?? 'Squad',
           simplifyDebts:
               (r['squads'] as Map?)?['simplify_debts'] as bool? ?? true,
-          members: [
-            for (final m in memberRows)
-              if (m['squad_id'] == r['squad_id'] &&
-                  m['profiles'] is Map<String, dynamic>)
-                _member(m, me),
-          ],
+          members: members,
+          // Members come oldest first, as the server picks the owner.
+          ownerId: members.any((m) => m.userId == createdBy)
+              ? createdBy
+              : members.firstOrNull?.userId,
         ),
-    ];
+      );
+    }
 
     final direct = {
       for (final f in friendships)
@@ -336,6 +391,11 @@ class SupabaseSquad implements SquadService {
         'shares_dont_add_up' => 'The parts don\'t add up to the total.',
         'not_allowed' =>
           'You can only remove splits and settle-ups you\'re in.',
+        'not_owner' => 'Only the squad\'s owner can remove people.',
+        'cant_join' => 'You can\'t join this squad.',
+        'too_many_blocks' => 'You\'ve blocked 500 people.',
+        'too_many_reports' =>
+          'You\'ve sent a lot of reports today. Try again tomorrow.',
         _ => 'Something went wrong with Squad. Try again.',
       });
     } on Exception catch (e) {

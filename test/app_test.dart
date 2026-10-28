@@ -1731,13 +1731,95 @@ void main() {
       await openSquad(tester, state);
       expect(find.text('Roomies'), findsWidgets); // switcher + header
 
-      await tester.tap(find.bySemanticsLabel('Leave squad'));
+      await tester.tap(find.bySemanticsLabel('Squad options'));
+      await settle(tester);
+      await tester.tap(find.text('Leave squad'));
       await settle(tester);
       await tester.tap(find.text('Leave squad').last);
       await settle(tester, const Duration(seconds: 2));
 
       expect(squads.left, isTrue);
       expect(find.text('Start a squad'), findsOneWidget);
+    });
+
+    testWidgets('the owner can remove someone from the squad', (tester) async {
+      squads.squad = _FakeSquad.roomies;
+      final state = stateWith();
+      await openSquad(tester, state);
+
+      await tester.ensureVisible(
+        find.bySemanticsLabel(RegExp('^Options for Priya')),
+      );
+      await tester.tap(find.bySemanticsLabel(RegExp('^Options for Priya')));
+      await settle(tester);
+      await tester.tap(find.text('Remove from Roomies'));
+      await settle(tester);
+      await tester.tap(find.text('Remove'));
+      await settle(tester, const Duration(seconds: 2));
+
+      expect(find.text('1 of 8 people'), findsNothing);
+      expect(find.text('Just you so far'), findsOneWidget);
+      expect(find.text('Priya was removed from Roomies.'), findsOneWidget);
+    });
+
+    testWidgets('only the owner sees Remove', (tester) async {
+      squads.squad = const Squad(
+        id: 's1',
+        name: 'Roomies',
+        ownerId: 'u2',
+        members: _roomiesMembers,
+      );
+      final state = stateWith();
+      await openSquad(tester, state);
+
+      await tester.ensureVisible(
+        find.bySemanticsLabel(RegExp('^Options for Priya')),
+      );
+      await tester.tap(find.bySemanticsLabel(RegExp('^Options for Priya')));
+      await settle(tester);
+      expect(find.text('Remove from Roomies'), findsNothing);
+      expect(find.text('Report'), findsOneWidget);
+      expect(find.text('Block Priya'), findsOneWidget);
+    });
+
+    testWidgets('report someone, then block them', (tester) async {
+      squads.squad = _FakeSquad.roomies;
+      final state = stateWith();
+      await openSquad(tester, state);
+
+      await tester.ensureVisible(
+        find.bySemanticsLabel(RegExp('^Options for Priya')),
+      );
+      await tester.tap(find.bySemanticsLabel(RegExp('^Options for Priya')));
+      await settle(tester);
+      await tester.tap(find.text('Report'));
+      await settle(tester);
+      await tester.tap(find.text('Harassment or bullying'));
+      await settle(tester);
+      expect(squads.reports.single.$1, 'u2');
+      expect(squads.reports.single.$3, ReportReason.harassment);
+
+      await tester.tap(find.text('Block Priya'));
+      await settle(tester, const Duration(seconds: 2));
+      expect(squads.blocked.keys, ['u2']);
+      expect(find.text('Priya'), findsNothing);
+      expect(find.text('Priya is blocked.'), findsOneWidget);
+    });
+
+    testWidgets('report a squad\'s name from the squad menu', (tester) async {
+      squads.squad = _FakeSquad.roomies;
+      final state = stateWith();
+      await openSquad(tester, state);
+
+      await tester.tap(find.bySemanticsLabel('Squad options'));
+      await settle(tester);
+      await tester.tap(find.text('Report squad name'));
+      await settle(tester);
+      await tester.tap(find.text('Report squad name').last);
+      await settle(tester);
+
+      expect(squads.reports.single.$2, 's1');
+      expect(squads.reports.single.$3, ReportReason.squadName);
     });
 
     testWidgets('a failed load says why', (tester) async {
@@ -2616,23 +2698,8 @@ class _FakeSquad implements SquadService {
   static const roomies = Squad(
     id: 's1',
     name: 'Roomies',
-    members: [
-      SquadMember(
-        userId: 'u1',
-        name: 'Alex',
-        emoji: '🦊',
-        streak: 3,
-        noDeliveryDays: [true],
-        isMe: true,
-      ),
-      SquadMember(
-        userId: 'u2',
-        name: 'Priya',
-        emoji: '🐼',
-        streak: 9,
-        noDeliveryDays: [true, false],
-      ),
-    ],
+    ownerId: 'u1',
+    members: _roomiesMembers,
   );
 
   static const trip = Squad(
@@ -2811,6 +2878,69 @@ class _FakeSquad implements SquadService {
 
   @override
   Future<void> setSimplifyDebts(String squadId, bool on) async {}
+
+  final blocked = <String, Person>{};
+  final reports = <(String?, String?, ReportReason, String?)>[];
+
+  @override
+  Future<void> removeMember(String squadId, String personId) async {
+    for (var i = 0; i < joined.length; i++) {
+      final s = joined[i];
+      if (s.id != squadId) continue;
+      joined[i] = Squad(
+        id: s.id,
+        name: s.name,
+        ownerId: s.ownerId,
+        members: [
+          for (final m in s.members)
+            if (m.userId != personId) m,
+        ],
+      );
+    }
+  }
+
+  @override
+  Future<void> block(String personId) async {
+    String? name;
+    String? emoji;
+    for (final s in joined) {
+      for (final m in s.members) {
+        if (m.userId == personId) (name, emoji) = (m.name, m.emoji);
+      }
+    }
+    final friend = direct.remove(personId);
+    blocked[personId] = Person(
+      id: personId,
+      name: name ?? friend?.name ?? 'Someone',
+      emoji: emoji ?? friend?.emoji ?? '🙂',
+    );
+    for (var i = 0; i < joined.length; i++) {
+      final s = joined[i];
+      joined[i] = Squad(
+        id: s.id,
+        name: s.name,
+        ownerId: s.ownerId,
+        members: [
+          for (final m in s.members)
+            if (m.userId != personId) m,
+        ],
+      );
+    }
+  }
+
+  @override
+  Future<void> unblock(String personId) async => blocked.remove(personId);
+
+  @override
+  Future<List<Person>> blockedPeople() async => [...blocked.values];
+
+  @override
+  Future<void> report({
+    String? personId,
+    String? squadId,
+    required ReportReason reason,
+    String? details,
+  }) async => reports.add((personId, squadId, reason, details));
 }
 
 class _FakeReminders implements ReminderScheduler {
@@ -2832,3 +2962,21 @@ class _FakeReminders implements ReminderScheduler {
   Future<void> replaceAll(List<PlannedReminder> reminders) async =>
       plan = reminders;
 }
+
+const _roomiesMembers = [
+  SquadMember(
+    userId: 'u1',
+    name: 'Alex',
+    emoji: '🦊',
+    streak: 3,
+    noDeliveryDays: [true],
+    isMe: true,
+  ),
+  SquadMember(
+    userId: 'u2',
+    name: 'Priya',
+    emoji: '🐼',
+    streak: 9,
+    noDeliveryDays: [true, false],
+  ),
+];

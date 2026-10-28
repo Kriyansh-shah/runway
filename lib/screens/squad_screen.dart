@@ -20,10 +20,12 @@ import '../widgets/pressable.dart';
 import 'shell.dart';
 import 'friends_sheets.dart';
 import 'split_bill_sheet.dart';
+import 'safety_sheets.dart';
 import '../widgets/ph_icons.dart';
 
 /// One person in the challenge and leaderboard: you or a friend.
 typedef _Person = ({
+  String? id,
   String name,
   String emoji,
   int streak,
@@ -58,6 +60,7 @@ class _SquadScreenState extends State<SquadScreen> {
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final me = (
+      id: null,
       name: 'You',
       emoji: '😎',
       streak: state.streak,
@@ -70,6 +73,7 @@ class _SquadScreenState extends State<SquadScreen> {
             me,
             for (final f in state.friends)
               (
+                id: null,
                 name: f.name,
                 emoji: f.emoji,
                 streak: f.streak,
@@ -84,6 +88,7 @@ class _SquadScreenState extends State<SquadScreen> {
               m.isMe
                   ? me
                   : (
+                      id: m.userId,
                       name: m.name,
                       emoji: m.emoji,
                       streak: m.streak,
@@ -413,6 +418,38 @@ class _SquadHeaderState extends State<_SquadHeader> {
     }
   }
 
+  Future<void> _menu() async {
+    final choice = await showActionSheet<String>(
+      context,
+      title: widget.squad.name,
+      message: widget.squad.members.length > 1
+          ? 'To remove, report or block someone, tap them in the '
+                'leaderboard.'
+          : null,
+      actions: [
+        if (widget.squad.members.length > 1)
+          const SheetAction(
+            value: 'report',
+            label: 'Report squad name',
+            icon: PhIcons.flag,
+          ),
+        const SheetAction(
+          value: 'leave',
+          label: 'Leave squad',
+          icon: PhIcons.signOut,
+          destructive: true,
+        ),
+      ],
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case 'leave':
+        await _leave();
+      case 'report':
+        await reportSquadName(context);
+    }
+  }
+
   Future<void> _leave() async {
     final state = AppScope.read(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -471,13 +508,13 @@ class _SquadHeaderState extends State<_SquadHeader> {
                 ),
               ),
               Pressable(
-                onTap: _leave,
-                semanticLabel: 'Leave squad',
+                onTap: _menu,
+                semanticLabel: 'Squad options',
                 child: const Padding(
                   padding: EdgeInsets.all(8),
                   child: Icon(
-                    PhIcons.signOut,
-                    size: 20,
+                    PhIcons.dotsThree,
+                    size: 22,
                     color: AppColors.muted,
                   ),
                 ),
@@ -773,7 +810,7 @@ class _Leaderboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = [
-      for (final p in people) (p.name, p.emoji, p.streak, p.isMe),
+      for (final p in people) (p.name, p.emoji, p.streak, p.isMe, p.id),
     ]..sort((a, b) => b.$3.compareTo(a.$3));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -787,40 +824,57 @@ class _Leaderboard extends StatelessWidget {
           child: Column(
             children: [
               for (var i = 0; i < entries.length; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 28,
-                        child: Text(
-                          ['🥇', '🥈', '🥉'].elementAtOrNull(i) ?? '${i + 1}',
-                          style: AppText.number.copyWith(fontSize: 16),
+                Pressable(
+                  // Squadmates: remove (if it's your squad), report, block.
+                  onTap: entries[i].$5 == null
+                      ? null
+                      : () => showPersonActions(
+                          context,
+                          personId: entries[i].$5!,
+                          name: entries[i].$1,
+                          inSquad: true,
                         ),
-                      ),
-                      Text(entries[i].$2, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          entries[i].$1,
-                          style: AppText.body.copyWith(
-                            fontWeight: entries[i].$4
-                                ? FontWeight.w800
-                                : FontWeight.w600,
+                  semanticLabel: entries[i].$5 == null
+                      ? null
+                      : 'Options for ${entries[i].$1}',
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          child: Text(
+                            ['🥇', '🥈', '🥉'].elementAtOrNull(i) ?? '${i + 1}',
+                            style: AppText.number.copyWith(fontSize: 16),
                           ),
                         ),
-                      ),
-                      Text('🔥 ', style: const TextStyle(fontSize: 14)),
-                      Text(
-                        '${entries[i].$3}',
-                        style: AppText.number.copyWith(
-                          fontSize: 17,
-                          color: entries[i].$4
-                              ? AppColors.butter
-                              : AppColors.text,
+                        Text(
+                          entries[i].$2,
+                          style: const TextStyle(fontSize: 20),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            entries[i].$1,
+                            style: AppText.body.copyWith(
+                              fontWeight: entries[i].$4
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Text('🔥 ', style: const TextStyle(fontSize: 14)),
+                        Text(
+                          '${entries[i].$3}',
+                          style: AppText.number.copyWith(
+                            fontSize: 17,
+                            color: entries[i].$4
+                                ? AppColors.butter
+                                : AppColors.text,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],

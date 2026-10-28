@@ -88,11 +88,13 @@ class _ActionRow extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: AppText.body.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                label,
+                style: AppText.body.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
