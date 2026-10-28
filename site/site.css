@@ -160,6 +160,244 @@ h1 {
 .doc table { border-collapse: collapse; width: 100%; font-size: 15px; }
 .doc th, .doc td { border: 1px solid var(--hairline); padding: 8px 10px; text-align: left; }
 
+/* The "Try it in your browser" page: frosted glass over drifting color, a
+   3D phone that follows the mouse, and the steps laid out along a runway.
+   try.js adds .tracking and the pointer variables (--px, --py, --cx, --cy on
+   the page; --mx, --my on each glass card; --rx, --ry on [data-tilt]). */
+.try .orbs { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; }
+.try .orbs span {
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.3;
+  animation: drift 26s ease-in-out infinite alternate;
+}
+.try .orbs span:nth-child(1) { background: var(--lilac); top: -14vmax; left: -10vmax; }
+.try .orbs span:nth-child(2) { background: var(--lime); top: 18vh; right: -16vmax; opacity: 0.22; animation-delay: -8s; }
+.try .orbs span:nth-child(3) { background: var(--pink); bottom: -18vmax; left: 12vw; opacity: 0.26; animation-delay: -15s; }
+.try .orbs span:nth-child(4) { background: #5EC8FF; top: 55vh; left: -14vmax; opacity: 0.2; animation-delay: -4s; }
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(6vw, 4vh) scale(1.12); }
+}
+
+.cursor-glow { display: none; }
+.tracking .cursor-glow {
+  display: block;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 520px;
+  height: 520px;
+  margin: -260px 0 0 -260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(198, 255, 61, 0.16), transparent 65%);
+  transform: translate(var(--cx), var(--cy));
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.glass {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.32);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 20px 50px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+.glass > * { position: relative; z-index: 1; }
+.tracking .glass::before,
+.tracking .glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* A soft light inside the card under the cursor. */
+.tracking .glass::before {
+  background: radial-gradient(300px circle at var(--mx, -999px) var(--my, -999px), rgba(255, 255, 255, 0.1), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.tracking .glass:hover::before { opacity: 1; }
+/* Card edges light up near the cursor, even on the neighbouring cards. */
+.tracking .glass::after {
+  padding: 1.5px;
+  background: radial-gradient(240px circle at var(--mx, -999px) var(--my, -999px), rgba(198, 255, 61, 0.85), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+[data-tilt] {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.25s ease-out;
+}
+
+.try-hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: 32px;
+  padding: 40px 0 20px;
+}
+.try-hero h1 { margin: 16px 0; max-width: 11ch; }
+.try-hero .lede { margin: 0; color: #D6D6DB; }
+.try-hero .ctas { align-items: flex-start; }
+/* The app's name, picked out with a soft purple shine. */
+.try .name {
+  background: linear-gradient(120deg, #FFFFFF 10%, var(--lilac) 55%, var(--pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(185, 164, 255, 0.55));
+}
+.try .eyebrow {
+  display: inline-block;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(198, 255, 61, 0.12);
+  border: 1px solid rgba(198, 255, 61, 0.3);
+  color: var(--lime);
+  font-size: 13px;
+  font-weight: 700;
+}
+.try .soon { color: #B4B4BE; }
+.try .btn { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.try .btn.primary:hover { box-shadow: 0 12px 34px rgba(198, 255, 61, 0.5); }
+
+/* A phone showing the Home screen; it tilts with the mouse. */
+.phone-stage { position: relative; perspective: 1100px; display: grid; place-items: center; padding: 20px 0; }
+.phone {
+  width: 290px;
+  padding: 18px 16px 70px;
+  border-radius: 44px;
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 40px 80px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(185, 164, 255, 0.2);
+  transform: rotateY(-12deg) rotateX(6deg);
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.tracking .phone {
+  transform:
+    rotateY(calc((var(--px) - 0.5) * 28deg - 12deg))
+    rotateX(calc((var(--py) - 0.5) * -20deg + 6deg));
+}
+.phone-notch { width: 90px; height: 24px; border-radius: 999px; background: #000; margin: 0 auto 14px; }
+.phone .label { margin-bottom: 8px; }
+.phone-card { padding: 16px; border-radius: 22px; }
+.phone-card .number { font-size: 44px; }
+.phone-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.mini { padding: 12px; border-radius: 18px; }
+.mini .stat { font-size: 16px; }
+.mini.wide { margin-top: 10px; }
+.glass > .phone-plus {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  translate: -50% 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--lime), #8CF5A8);
+  color: var(--on-lime);
+  font-size: 26px;
+  font-weight: 800;
+}
+.phone-mochi {
+  position: absolute;
+  right: 8%;
+  bottom: 4%;
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(185, 164, 255, 0.45);
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: bob 4s ease-in-out infinite;
+}
+.tracking .phone-mochi { transform: translate(calc((var(--px) - 0.5) * 40px), calc((var(--py) - 0.5) * 30px)); }
+@keyframes bob { 50% { translate: 0 -8px; } }
+
+.section-title {
+  font-family: "Bricolage", system-ui, sans-serif;
+  font-size: clamp(26px, 4vw, 34px);
+  letter-spacing: -0.03em;
+  margin: 56px 0 18px;
+}
+
+/* Steps along a runway: a dashed centre line with blinking landing lights. */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 56px;
+  position: relative;
+  display: grid;
+  gap: 16px;
+  max-width: 760px;
+}
+.steps::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0 18px, transparent 18px 34px);
+}
+.step { padding: 22px; }
+.step h3, .extras h3, .good-to-know h3 { margin: 0 0 6px; font-size: 19px; }
+.step p, .extras p, .good-to-know li { color: #D6D6DB; margin: 0; font-size: 15px; }
+.step strong, .extras strong, .good-to-know strong { color: var(--text); }
+.glass > .step-num {
+  position: absolute;
+  left: -56px;
+  top: 22px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--lime), #8CF5A8);
+  color: var(--on-lime);
+  font-weight: 800;
+  box-shadow: 0 0 0 6px rgba(198, 255, 61, 0.12), 0 0 24px rgba(198, 255, 61, 0.7);
+  animation: blink 2.4s ease-in-out infinite;
+}
+.step:nth-child(2) .step-num { animation-delay: 0.4s; }
+.step:nth-child(3) .step-num { animation-delay: 0.8s; }
+.step:nth-child(4) .step-num { animation-delay: 1.2s; }
+.step:nth-child(5) .step-num { animation-delay: 1.6s; }
+.step:nth-child(6) .step-num { animation-delay: 2s; }
+@keyframes blink { 50% { box-shadow: 0 0 0 10px rgba(198, 255, 61, 0.05), 0 0 40px rgba(198, 255, 61, 1); } }
+
+.extras { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 40px; }
+.extras article { padding: 22px; }
+.extras p + p { margin-top: 8px; }
+.try .muted { color: #B4B4BE; }
+
+.good-to-know { padding: 22px; margin-top: 14px; }
+.good-to-know ul { margin: 0; padding-left: 20px; }
+.good-to-know li + li { margin-top: 6px; }
+
+.try-cta { text-align: center; padding-top: 48px; }
+.try-cta .soon { margin-top: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .try .orbs span, .phone-mochi, .step-num { animation: none; }
+}
+
 @media (max-width: 760px) {
   .preview { grid-template-columns: 1fr; }
   .preview .big { grid-row: auto; }
@@ -167,4 +405,9 @@ h1 {
   .number { font-size: 48px; }
   .stat { font-size: 18px; }
   .footer { flex-direction: column; align-items: flex-start; }
+  .extras { grid-template-columns: 1fr; }
+  .try-hero { grid-template-columns: 1fr; text-align: center; }
+  .try-hero h1 { margin-inline: auto; }
+  .try-hero .ctas { align-items: center; }
+  .phone { width: 250px; text-align: left; }
 }

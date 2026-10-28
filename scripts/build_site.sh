@@ -10,7 +10,7 @@ base="${BASE_HREF:-/runway/app/}"
 rm -rf _site
 mkdir -p _site/fonts
 
-cp site/index.html site/site.css _site/
+cp site/index.html site/try.html site/try.js site/site.css _site/
 cp assets/icon/icon.png _site/icon.png
 cp assets/fonts/BricolageGrotesque.ttf _site/fonts/
 
