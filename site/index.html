@@ -2,92 +2,187 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- Plain pages: no scripts, only this site's own styles, images and fonts. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
+  <!-- Plain page: only this site's own script (pointer.js, for the pointer
+       effects), styles, images and fonts. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>runway · make your money last the whole semester</title>
-  <meta name="description" content="A budgeting app for college students. Runway plans by semester, not by month, and tells you how much you can safely spend today. Optional encrypted sync, so only you can read your budget.">
+  <meta name="description" content="A budgeting app for college students. Runway plans by semester, not by month, and tells you how much you can safely spend today. Try it in your browser, no download needed.">
   <meta name="theme-color" content="#0D0D10">
   <meta property="og:title" content="runway">
   <meta property="og:description" content="Make your money last the whole semester.">
   <meta property="og:image" content="icon.png">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" href="site.css">
+  <script type="module" src="pointer.js"></script>
 </head>
-<body>
-  <div class="aurora" aria-hidden="true"></div>
-
+<body class="home">
+  <div class="orbs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
   <header class="wrap nav">
     <a class="wordmark" href="./">runway</a>
     <nav>
+      <a href="#how-it-works">How it works</a>
       <a href="privacy.html">Privacy</a>
       <a href="support.html">Support</a>
     </nav>
   </header>
 
-  <main>
-    <section class="wrap hero">
-      <img class="mochi" src="icon.png" alt="Mochi, Runway's mascot, on a runway" width="112" height="112">
-      <h1>Make your money last the <span class="lime">whole semester.</span></h1>
-      <p class="lede">A budgeting app built for college students. Runway plans by semester, not by month, and tells you how much you can safely spend <strong>today</strong>.</p>
-      <div class="ctas">
-        <a class="btn primary" href="try.html">Try it in your browser</a>
-        <span class="soon">iPhone &amp; Android apps coming soon</span>
-      </div>
-    </section>
-
-    <section class="wrap preview" aria-label="What Runway shows you">
-      <div class="card big">
-        <p class="label">Safe to spend today</p>
-        <p class="number">$18.40</p>
-        <p class="caption">Stay under this and your money lasts until May 15.</p>
-        <div class="stats">
-          <div><p class="label">Available</p><p class="stat">$1,104</p></div>
-          <div><p class="label">Reserved</p><p class="stat">$420</p></div>
-          <div><p class="label">Burn</p><p class="stat">$21/day</p></div>
+  <main class="wrap">
+    <section class="home-hero">
+      <div>
+        <p class="eyebrow">Built for college students</p>
+        <h1>Make your money last the <span class="lime">whole semester.</span></h1>
+        <p class="lede"><strong class="name">Runway</strong> plans by semester, not by month, and tells you how much you can safely spend <strong>today</strong>.</p>
+        <div class="ctas">
+          <div class="btn-row">
+            <a class="btn primary" href="app/">Try it in your browser</a>
+            <a class="btn ghost" href="#how-it-works">How it works</a>
+          </div>
+          <span class="soon">No download or account needed. iPhone &amp; Android apps coming soon.</span>
         </div>
       </div>
-      <div class="card small">
-        <p class="label">Savings</p>
-        <p class="stat lime">On track for $150</p>
-        <p class="caption">by the end of the semester 🎉</p>
-      </div>
-      <div class="card small">
-        <p class="label">Squad</p>
-        <p class="stat">🔥 12-day streak</p>
-        <p class="caption">Friends see streaks, never $</p>
+      <div class="phone-stage" aria-hidden="true">
+        <div class="phone glass">
+          <div class="phone-notch"></div>
+          <p class="label">Good evening</p>
+          <div class="glass phone-card">
+            <p class="label">Safe to spend today</p>
+            <p class="number">$18.40</p>
+            <p class="caption">Money lasts until May 15</p>
+          </div>
+          <div class="phone-row">
+            <div class="glass mini"><p class="label">Available</p><p class="stat">$1,104</p></div>
+            <div class="glass mini"><p class="label">Burn / day</p><p class="stat">$21</p></div>
+          </div>
+          <div class="glass mini wide"><p class="label">Savings</p><p class="stat lime">On track for $150</p></div>
+          <div class="phone-plus">+</div>
+        </div>
+        <img class="phone-mochi" src="icon.png" alt="" width="70" height="70">
       </div>
     </section>
 
-    <section class="wrap features">
-      <article>
-        <h2>One number a day</h2>
-        <p>Enter what you start the semester with and your big costs. Runway works out what you can spend today and keeps adjusting as you log.</p>
-      </article>
-      <article>
-        <h2>Big costs, reserved</h2>
-        <p>Rent, textbooks, a flight home: they're set aside before you see your daily number, so they never sneak up on you.</p>
-      </article>
-      <article>
-        <h2>Saving built in</h2>
-        <p>Pick a savings goal for the month or semester. It comes off the top, and Runway tells you if you're on track to keep it.</p>
-      </article>
-      <article>
-        <h2>Squad, not shame</h2>
-        <p>Start a squad with roommates: streaks and a no-delivery week together. Friends see your first name and streak, never your money.</p>
-      </article>
-      <article>
-        <h2>Private by design</h2>
-        <p>No bank linking, no ads, no tracking. Your budget lives on your device. Sync it to your other devices if you like: it's encrypted with a passphrase only you know, so nobody else can read it, including us.</p>
-      </article>
-      <article>
-        <h2>Meet Mochi</h2>
-        <p>Log daily and Mochi levels up. Overspend and Mochi gets worried. It's a lot harder to ignore a sad little pet than a spreadsheet.</p>
-      </article>
+    <section id="features">
+      <h2 class="section-title">Everything a student budget needs</h2>
+      <div class="features">
+        <article class="glass feature" data-tilt="6">
+          <span class="icon">🎯</span>
+          <h3>One number a day</h3>
+          <p>Enter what you start the semester with and your big costs. Runway works out what you can spend today and keeps adjusting as you log.</p>
+        </article>
+        <article class="glass feature" data-tilt="6">
+          <span class="icon">🏠</span>
+          <h3>Big costs, reserved</h3>
+          <p>Rent, textbooks, a flight home: they're set aside before you see your daily number, so they never sneak up on you.</p>
+        </article>
+        <article class="glass feature" data-tilt="6">
+          <span class="icon">🐷</span>
+          <h3>Saving built in</h3>
+          <p>Pick a savings goal for the month or semester. It comes off the top, and Runway tells you if you're on track to keep it.</p>
+        </article>
+        <article class="glass feature" data-tilt="6">
+          <span class="icon">✨</span>
+          <h3>A coach that knows your money</h3>
+          <p>Ask where your money went last week or whether you can afford something. Log expenses by voice too.</p>
+        </article>
+        <article class="glass feature" data-tilt="6">
+          <span class="icon">👯</span>
+          <h3>Squad, not shame</h3>
+          <p>Streaks and a no-delivery week with roommates, plus bill splitting and settle up. Friends see your streak, never your money.</p>
+        </article>
+        <article class="glass feature" data-tilt="6">
+          <span class="icon">🔒</span>
+          <h3>Private by design</h3>
+          <p>No bank linking, no ads, no tracking. Sync is encrypted with a passphrase only you know, so nobody else can read it, including us.</p>
+        </article>
+      </div>
     </section>
 
-    <section class="wrap note">
-      <p><strong>About the web version:</strong> your budget is saved in this browser, and isn't encrypted there. Sign in and turn on sync to see the same budget on your phone and in the browser. Signing in is optional.</p>
+    <section id="how-it-works">
+      <h2 class="section-title">Six steps to take-off</h2>
+      <p class="section-sub">Try Runway in your browser. Setting up takes about two minutes.</p>
+      <ol class="steps">
+        <li class="glass step" data-tilt="6">
+          <span class="step-num">1</span>
+          <h3>Say hi</h3>
+          <p>Open <a href="app/">the web app</a>, type your first name and tap <strong>Get started</strong>. Or tap <strong>Continue with Google</strong> if you want to sync with your phone or join a squad later. It's optional.</p>
+        </li>
+        <li class="glass step" data-tilt="6">
+          <span class="step-num">2</span>
+          <h3>Set up your semester</h3>
+          <p>Choose a semester or a month, set the start and end dates, and enter how much money you have for it.</p>
+        </li>
+        <li class="glass step" data-tilt="6">
+          <span class="step-num">3</span>
+          <h3>Add big costs</h3>
+          <p>Rent, textbooks, a flight home. Runway sets that money aside so it can't surprise you. Then tap <strong>Start my runway</strong>.</p>
+        </li>
+        <li class="glass step" data-tilt="6">
+          <span class="step-num">4</span>
+          <h3>Check your number</h3>
+          <p><strong>Safe to spend today</strong> on Home is what you can spend today and still have money until the end of the semester.</p>
+        </li>
+        <li class="glass step" data-tilt="6">
+          <span class="step-num">5</span>
+          <h3>Log what you spend</h3>
+          <p>Tap the <strong>+</strong> button, enter the amount and pick a category. Your daily number updates right away.</p>
+        </li>
+        <li class="glass step" data-tilt="6">
+          <span class="step-num">6</span>
+          <h3>Look around</h3>
+          <p>Set a goal in <strong>Savings</strong>, ask <strong>Coach</strong> where your money went, or split a bill with friends in <strong>Squad</strong>.</p>
+        </li>
+      </ol>
+
+      <div class="extras">
+        <article class="glass" data-tilt="4">
+          <h3>📱 Add it to your home screen</h3>
+          <p><strong>iPhone (Safari):</strong> tap Share, then <em>Add to Home Screen</em>.</p>
+          <p><strong>Android (Chrome):</strong> tap ⋮, then <em>Add to Home screen</em> or <em>Install app</em>.</p>
+          <p class="muted">Runway then opens from an icon, like an app.</p>
+        </article>
+        <article class="glass" data-tilt="4">
+          <h3>🔄 Use the same budget on another device</h3>
+          <p>Sign in with Google, then go to <strong>Settings → Account → Budget sync</strong>, turn it on and pick a passphrase.</p>
+          <p class="muted">On your other device, sign in with the same Google account and enter that passphrase. Only you can read the synced copy.</p>
+        </article>
+      </div>
+
+      <div class="glass good-to-know">
+        <h3>About the web version</h3>
+        <ul>
+          <li>Your budget is saved <strong>in this browser</strong>, and isn't encrypted there.</li>
+          <li>Clearing your browsing data or using a private window removes it. Turn on Budget sync if you want a backup.</li>
+          <li>Signing in is optional. You need it for Squad and Budget sync.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="faq">
+      <h2 class="section-title">Questions</h2>
+      <div class="faq">
+        <details class="glass">
+          <summary>Does it work on my laptop?</summary>
+          <p>Yes. The web version works in any up-to-date browser, on a laptop or a phone.</p>
+        </details>
+        <details class="glass">
+          <summary>Do I have to link my bank?</summary>
+          <p>No, and you can't. You log what you spend yourself, which takes a few seconds and keeps your bank details out of it.</p>
+        </details>
+        <details class="glass">
+          <summary>What do my squad friends see?</summary>
+          <p>Your first name, a squad emoji, your logging streak and your no-delivery week. Never your budget, balance or other expenses.</p>
+        </details>
+        <details class="glass">
+          <summary>Why by semester and not by month?</summary>
+          <p>Student money comes in lumps: a loan, a scholarship, summer job savings. Runway spreads it over the whole term, so you don't run out in April.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="home-cta">
+      <a class="btn primary" href="app/">Try it in your browser</a>
+      <p class="soon">Stuck? Read the <a href="support.html">support page</a>.</p>
     </section>
   </main>
 

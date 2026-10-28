@@ -1,4 +1,4 @@
-// Pointer effects for the Try page. Glass cards light up around the cursor,
+// Pointer effects for the home page. Glass cards light up around the cursor,
 // [data-tilt] cards lean toward it, and page-wide CSS variables (--px, --py
 // from 0 to 1, --cx, --cy in pixels) let backgrounds follow it. Off for touch
 // screens and for people who ask for reduced motion.
