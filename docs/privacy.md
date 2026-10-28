@@ -1,6 +1,6 @@
 # Runway Privacy Policy
 
-_Last updated: October 21, 2026_
+_Last updated: October 28, 2026_
 
 **The short version: we can't see your money data. It stays on your device,
 unless you turn on budget sync, and then it's encrypted on your device with a
@@ -69,6 +69,22 @@ budget on your other devices. Here's how it protects you:
 Your Face ID lock setting and your name stay on each device and aren't
 synced.
 
+## Voice logging
+
+If you tap the mic in Runway, or tell Siri to log an expense, your iPhone or
+Android phone turns what you say into text using its built-in speech
+recognition. Depending on your phone and settings, Apple or Google may
+process the audio on their servers, under their own privacy policies.
+Runway only receives the text, uses it to fill in the expense, and doesn't
+keep any recording.
+
+## Coach
+
+On iPhones with Apple Intelligence, Coach answers using Apple's on-device
+model, so your question and budget don't leave your phone. Elsewhere, Coach
+uses built-in rules on your device. Either way, nothing you ask Coach is
+sent to Runway.
+
 ## Face ID, Touch ID and passcode
 
 If you turn on the app lock, your phone checks your face, fingerprint or
@@ -93,7 +109,19 @@ our server and shows **only to people in your squads**:
 - the squads you're in, their names, and their invite codes
 
 Leaving a squad stops sharing with it right away, and a squad is deleted
-when its last member leaves.
+when its last member leaves. A squad's owner can remove someone, and that
+person can't rejoin it with an invite code.
+
+## Blocking and reporting
+
+- **Blocking:** when you block someone, Runway stores on our server that you
+  blocked them, so it can keep you apart: you won't see each other in
+  squads or friends, and you can't add each other or split new bills. They
+  aren't told. You can unblock them in Settings → Account → Blocked people.
+- **Reporting:** when you report someone, or a squad's name, Runway stores
+  who you reported, which squad (if any), the reason you picked, and when.
+  The person isn't told who reported them. Reports are only used to review
+  behaviour on Runway and keep it safe.
 
 ## Friends and split bills
 
@@ -108,14 +136,15 @@ Runway stores on our server, and shows **only to the people in that split**:
 That's the only money information Runway's server can read, and it's what
 you chose to share with the people in that split. Nobody else sees it, and
 friends **never** see your budget, balance, other expenses or savings.
-Whoever added or paid a split can delete it for everyone in it. Splits with
+Anyone in a split can delete it for everyone in it. Splits with
 someone who isn't on Runway stay on your device only.
 
 ## Deleting your data
 
 - **Your account:** Settings → Account → **Delete account** deletes your
   account and everything stored with it on our server (including any synced
-  budget), right away.
+  budget and anyone you blocked), right away. A report you made is kept for
+  safety review, without your name on it.
 - **Just the synced budget:** Settings → Account → Budget sync → **Delete
   the synced copy**.
 - **Data on your device:** Settings → **Erase everything on this phone**

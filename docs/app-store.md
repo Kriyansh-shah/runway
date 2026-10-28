@@ -13,16 +13,20 @@ Where Runway stands before its first App Store submission, and what's left.
 - **Account deletion in the app** (Settings → Account → Delete account), as
   Apple requires for apps with sign-in. It calls the `delete-account` Edge
   Function (`supabase/functions/delete-account`).
-- ⚠️ **Squad has Leave but no Remove member, Block or Report yet.** Apple
-  expects these when users can interact (Guideline 1.2). Squads are
-  invite-only and show only names and streaks, but add them before
-  submitting.
+- **Remove, block and report** (Guideline 1.2, user interaction): a
+  squad's owner can remove people (who can't rejoin with the old invite);
+  anyone can block or report a person from the squad leaderboard or a
+  friend's sheet, and report a squad's name from the squad's ⋯ menu.
+  Blocked people are listed in Settings → Account → Blocked people. Reports
+  land in the `reports` table (Supabase dashboard only, no email alert):
+  **check it regularly**, since Apple expects reports to be acted on.
 - ⚠️ **Sign in with Apple is still missing.** Because Runway offers Google
   sign-in, App Review Guideline 4.8 requires an equivalent privacy-focused
   option. Add Sign in with Apple (needs the paid developer account) before
   the first submission.
 - **Privacy policy:** [`privacy.md`](privacy.md), published on the website.
   Contact is a GitHub issue link for now; a contact email is friendlier.
+  Updated 2026-10-28 for blocking, reporting, voice logging and Coach.
 
 ## App Privacy label (App Store Connect)
 
@@ -34,7 +38,7 @@ Where Runway stands before its first App Store submission, and what's left.
 | Contact Info → Email Address | Yes | No | App Functionality |
 | Identifiers → User ID | Yes | No | App Functionality |
 | Usage Data → Product Interaction (Squad streak, challenge days) | Yes | No | App Functionality |
-| User Content → Other User Content (squad names) | Yes | No | App Functionality |
+| User Content → Other User Content (squad names, reports you send) | Yes | No | App Functionality |
 | Financial Info → Other Financial Info (split bills: amounts, who paid, settle-ups) | Yes | No | App Functionality |
 
 Money data (balances, expenses, budgets) leaves the phone only with Budget
@@ -68,7 +72,9 @@ before answering. Once decided, add `ITSAppUsesNonExemptEncryption` to
 > in with Google is optional and can be tested from Settings → Account, which
 > also has Delete account. The app lock (Face ID) is optional. Squad needs
 > sign-in: start a squad, then share its invite code; friends see only first
-> names, streaks and challenge days. Budget sync (Settings → Account) is
+> names, streaks and challenge days. To remove, report or block someone,
+> tap them in the squad's streak leaderboard; to report a squad's name, use
+> the squad's ⋯ menu. Blocked people are in Settings → Account. Budget sync (Settings → Account) is
 > optional and end-to-end encrypted with a passphrase the person chooses.
 
 ## Owner to-do (needs your accounts or decisions)
@@ -84,18 +90,17 @@ before answering. Once decided, add `ITSAppUsesNonExemptEncryption` to
       (built from `docs/privacy.md` by `.github/workflows/website.yml`).
 - [x] **Support URL:** https://kriyansh-shah.github.io/runway/support.html
       (from `docs/support.md`). **Marketing URL:** https://kriyansh-shah.github.io/runway/
-- [ ] **Screenshots:** 6.9" iPhone (1320 × 2868). iPad screenshots too if the
-      iPad stays supported (see below).
+- [ ] **Screenshots:** 6.9" iPhone (1320 × 2868) and 13" iPad (2064 × 2752),
+      since iPad support stays (see below).
 - [ ] **Description, subtitle and keywords.**
 
 ## Decisions before submitting
 
-1. **Squad's sample friends.** Apple can reject apps that show placeholder or
-   unfinished features (guideline 2.1, App Completeness). Options: label Squad
-   clearly as a preview, or hide the tab until real friends work.
-2. **iPad.** The app is currently set to support iPad, which means iPad
-   screenshots, all four orientations on iPad, and an iPad layout reviewers
-   will look at. Making it iPhone-only is simpler; it still runs on iPads, in
-   iPhone mode. Related: on iPhone, the app currently rotates to landscape,
-   which it wasn't designed for. Locking it to portrait is the usual choice.
+1. ~~**Squad's sample friends.**~~ Settled: on iPhone, signed-out people see
+   a sign-in screen in Squad, not sample friends (sample friends only show
+   where Google sign-in isn't available, like the macOS preview).
+2. **iPad and landscape: keeping both** (owner's choice, 2026-10-28). So the
+   submission needs **13" iPad screenshots** (2064 × 2752) as well as iPhone
+   ones, and reviewers will try the app on iPad and in landscape: check those
+   layouts before submitting.
 3. **Export compliance** (above).
