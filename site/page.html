@@ -2,16 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- Plain pages: no scripts, only this site's own styles, images and fonts. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
+  <!-- Plain pages: only this site's own script (pointer.js, for the pointer
+       effects), styles, images and fonts. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{title}} · runway</title>
   <meta name="theme-color" content="#0D0D10">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" href="site.css">
+  <script type="module" src="pointer.js"></script>
 </head>
 <body>
-  <div class="aurora" aria-hidden="true"></div>
+  <div class="orbs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
   <header class="wrap nav">
     <a class="wordmark" href="./">runway</a>
     <nav>
@@ -20,7 +23,10 @@
     </nav>
   </header>
   <main class="wrap doc">
+    <article class="glass doc-card">
 {{content}}
+    </article>
+    <p class="doc-cta"><a class="btn primary" href="app/">Try it in your browser</a></p>
   </main>
   <footer class="wrap footer">
     <span>runway · made for students</span>

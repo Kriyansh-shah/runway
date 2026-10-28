@@ -31,19 +31,6 @@ body {
   overflow-x: hidden;
 }
 
-.aurora {
-  position: fixed;
-  inset: -20vh -20vw auto;
-  height: 80vh;
-  background:
-    radial-gradient(40% 50% at 25% 40%, rgba(185, 164, 255, 0.22), transparent 70%),
-    radial-gradient(35% 45% at 75% 30%, rgba(198, 255, 61, 0.14), transparent 70%),
-    radial-gradient(30% 40% at 55% 70%, rgba(255, 155, 214, 0.12), transparent 70%);
-  filter: blur(30px);
-  pointer-events: none;
-  z-index: -1;
-}
-
 .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
 
 a { color: var(--lilac); }
@@ -113,20 +100,38 @@ h1 {
 .footer { color: var(--muted); font-size: 14px; margin-top: 40px; border-top: 1px solid var(--hairline); }
 
 /* Policy and support pages. */
-.doc { max-width: 720px; padding-top: 24px; padding-bottom: 40px; }
-.doc h1 { font-size: clamp(32px, 6vw, 44px); margin: 16px 0 8px; max-width: none; }
+.doc { max-width: 760px; padding-top: 16px; padding-bottom: 40px; }
+.doc-card { padding: 8px 36px 32px; }
+.doc h1 {
+  font-family: "Bricolage", system-ui, sans-serif;
+  font-size: clamp(32px, 6vw, 44px);
+  letter-spacing: -0.03em;
+  margin: 28px 0 8px;
+  max-width: none;
+}
 .doc h2 { margin-top: 36px; font-size: 22px; }
+.doc h2::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin: 0 12px 2px 0;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 12px rgba(198, 255, 61, 0.7);
+}
 .doc p, .doc li { color: #D6D6DB; }
 .doc strong { color: var(--text); }
 .doc table { border-collapse: collapse; width: 100%; font-size: 15px; }
+.doc-cta { text-align: center; padding-top: 32px; }
 .doc th, .doc td { border: 1px solid var(--hairline); padding: 8px 10px; text-align: left; }
 
 /* The home page: frosted glass over drifting color, a 3D phone that
    follows the mouse, and the how-to steps laid out along a runway.
    pointer.js adds .tracking and the pointer variables (--px, --py, --cx, --cy on
    the page; --mx, --my on each glass card; --rx, --ry on [data-tilt]). */
-.home .orbs { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; }
-.home .orbs span {
+.orbs { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; }
+.orbs span {
   position: absolute;
   width: 46vmax;
   height: 46vmax;
@@ -135,10 +140,10 @@ h1 {
   opacity: 0.3;
   animation: drift 26s ease-in-out infinite alternate;
 }
-.home .orbs span:nth-child(1) { background: var(--lilac); top: -14vmax; left: -10vmax; }
-.home .orbs span:nth-child(2) { background: var(--lime); top: 18vh; right: -16vmax; opacity: 0.22; animation-delay: -8s; }
-.home .orbs span:nth-child(3) { background: var(--pink); bottom: -18vmax; left: 12vw; opacity: 0.26; animation-delay: -15s; }
-.home .orbs span:nth-child(4) { background: #5EC8FF; top: 55vh; left: -14vmax; opacity: 0.2; animation-delay: -4s; }
+.orbs span:nth-child(1) { background: var(--lilac); top: -14vmax; left: -10vmax; }
+.orbs span:nth-child(2) { background: var(--lime); top: 18vh; right: -16vmax; opacity: 0.22; animation-delay: -8s; }
+.orbs span:nth-child(3) { background: var(--pink); bottom: -18vmax; left: 12vw; opacity: 0.26; animation-delay: -15s; }
+.orbs span:nth-child(4) { background: #5EC8FF; top: 55vh; left: -14vmax; opacity: 0.2; animation-delay: -4s; }
 @keyframes drift {
   from { transform: translate(0, 0) scale(1); }
   to { transform: translate(6vw, 4vh) scale(1.12); }
@@ -382,7 +387,7 @@ section[id] { scroll-margin-top: 24px; }
 .faq details p { color: #D6D6DB; margin: 10px 0 0; font-size: 15px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .home .orbs span, .phone-mochi, .step-num { animation: none; }
+  .orbs span, .phone-mochi, .step-num { animation: none; }
 }
 
 @media (max-width: 760px) {
@@ -390,6 +395,8 @@ section[id] { scroll-margin-top: 24px; }
   .number { font-size: 48px; }
   .stat { font-size: 18px; }
   .footer { flex-direction: column; align-items: flex-start; }
+  .doc-card { padding: 4px 20px 24px; }
+  .doc table { display: block; overflow-x: auto; }
   .extras { grid-template-columns: 1fr; }
   .home-hero { grid-template-columns: 1fr; text-align: center; }
   .home-hero h1 { margin-inline: auto; }
