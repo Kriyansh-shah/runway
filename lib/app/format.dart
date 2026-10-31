@@ -17,10 +17,17 @@ String monthName(DateTime d) => _monthNames[d.month - 1];
 /// The last day of [d]'s calendar month.
 DateTime endOfMonth(DateTime d) => DateTime(d.year, d.month + 1, 0);
 
-/// `$1,234.56`. Drops cents when [cents] is false.
+/// `$1,234.56`. Drops cents when [cents] is false. Never shows `−$0.00`
+/// for an amount that rounds to zero, and shows `—` for a value that isn't
+/// a number (a bug upstream, but never `$NaN` on screen).
 String money(double value, {bool cents = true}) {
-  final negative = value < 0;
-  final fixed = value.abs().toStringAsFixed(cents ? 2 : 0);
+  if (!value.isFinite) return '—';
+  // Past 1e21 toStringAsFixed switches to exponents ("1e+21"); BigInt
+  // keeps every digit. Cents mean nothing at that size.
+  final fixed = value.abs() < 1e15
+      ? value.abs().toStringAsFixed(cents ? 2 : 0)
+      : '${BigInt.from(value.abs().roundToDouble())}${cents ? '.00' : ''}';
+  final negative = value < 0 && fixed.contains(RegExp('[1-9]'));
   final parts = fixed.split('.');
   final whole = parts[0];
   final buf = StringBuffer();

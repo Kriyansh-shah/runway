@@ -184,9 +184,17 @@ class _CompactBar extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Pill(
-                label: 'Safe today ${money(s.safeToSpendToday)}',
-                color: s.safeToSpendToday >= 0 ? AppColors.lime : AppColors.red,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Pill(
+                    label: 'Safe today ${money(s.safeToSpendToday)}',
+                    color: s.safeToSpendToday >= 0
+                        ? AppColors.lime
+                        : AppColors.red,
+                  ),
+                ),
               ),
             ],
           ),
@@ -489,20 +497,28 @@ class _RunwayCard extends StatelessWidget {
           Row(
             children: [
               Text('Runway', style: AppText.heading),
-              const Spacer(),
-              AnimatedSwitcher(
-                duration: Motion.med,
-                child: s.covered
-                    ? const Pill(
-                        key: ValueKey('ok'),
-                        label: 'Covered ✓',
-                        color: AppColors.lime,
-                      )
-                    : Pill(
-                        key: ValueKey(s.daysShort),
-                        label: '${plural(s.daysShort, 'day')} short',
-                        color: AppColors.red,
-                      ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: AnimatedSwitcher(
+                      duration: Motion.med,
+                      child: s.covered
+                          ? const Pill(
+                              key: ValueKey('ok'),
+                              label: 'Covered ✓',
+                              color: AppColors.lime,
+                            )
+                          : Pill(
+                              key: ValueKey(s.daysShort),
+                              label: '${plural(s.daysShort, 'day')} short',
+                              color: AppColors.red,
+                            ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

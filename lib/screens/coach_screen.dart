@@ -133,11 +133,19 @@ class _CoachScreenState extends State<CoachScreen> {
                       ],
                     ),
                   ),
-                  Pill(
-                    label: 'Safe today ${money(s.safeToSpendToday)}',
-                    color: s.safeToSpendToday >= 0
-                        ? AppColors.lime
-                        : AppColors.red,
+                  // Shrinks rather than squeezing the title on a small
+                  // screen, big text or a big number.
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Pill(
+                        label: 'Safe today ${money(s.safeToSpendToday)}',
+                        color: s.safeToSpendToday >= 0
+                            ? AppColors.lime
+                            : AppColors.red,
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -26,14 +26,14 @@ class SupabaseSquad implements SquadService {
   }
 
   @override
-  Future<SocialData?> sync(SquadStats stats) => _guard(() async {
+  Future<SocialData?> sync(SquadStats stats) => guard(() async {
     final me = _me;
     await _publish(me, stats);
     return _load(me);
   });
 
   @override
-  Future<String> create(String name, SquadStats stats) => _guard(() async {
+  Future<String> create(String name, SquadStats stats) => guard(() async {
     await _publish(_me, stats);
     final rows = await _client.rpc(
       'create_squad',
@@ -43,7 +43,7 @@ class SupabaseSquad implements SquadService {
   });
 
   @override
-  Future<String?> join(String code, SquadStats stats) => _guard(() async {
+  Future<String?> join(String code, SquadStats stats) => guard(() async {
     await _publish(_me, stats);
     final id = await _client.rpc(
       'join_squad',
@@ -53,7 +53,7 @@ class SupabaseSquad implements SquadService {
   });
 
   @override
-  Future<String> inviteCode(String squadId) => _guard(() async {
+  Future<String> inviteCode(String squadId) => guard(() async {
     final code = await _client.rpc(
       'squad_invite',
       params: {'target_squad': squadId},
@@ -62,7 +62,7 @@ class SupabaseSquad implements SquadService {
   });
 
   @override
-  Future<void> leave(String squadId) => _guard(() async {
+  Future<void> leave(String squadId) => guard(() async {
     await _client
         .from('squad_members')
         .delete()
@@ -72,10 +72,10 @@ class SupabaseSquad implements SquadService {
 
   @override
   Future<String> friendCode() =>
-      _guard(() async => await _client.rpc('friend_code') as String);
+      guard(() async => await _client.rpc('friend_code') as String);
 
   @override
-  Future<bool> addFriend(String code, SquadStats stats) => _guard(() async {
+  Future<bool> addFriend(String code, SquadStats stats) => guard(() async {
     await _publish(_me, stats);
     final id = await _client.rpc(
       'add_friend',
@@ -85,7 +85,7 @@ class SupabaseSquad implements SquadService {
   });
 
   @override
-  Future<void> removeFriend(String personId) => _guard(() async {
+  Future<void> removeFriend(String personId) => guard(() async {
     final me = _me;
     final (a, b) = me.compareTo(personId) < 0 ? (me, personId) : (personId, me);
     await _client.from('friendships').delete().eq('user_a', a).eq('user_b', b);
@@ -100,7 +100,7 @@ class SupabaseSquad implements SquadService {
     required String paidBy,
     required SplitKind kind,
     required Map<String, int> shares,
-  }) => _guard(() async {
+  }) => guard(() async {
     final id = await _client.rpc(
       'add_shared_expense',
       params: {
@@ -120,16 +120,15 @@ class SupabaseSquad implements SquadService {
   });
 
   @override
-  Future<void> deleteSharedExpense(String id) => _guard(
-    () => _client.rpc('delete_shared_expense', params: {'target': id}),
-  );
+  Future<void> deleteSharedExpense(String id) =>
+      guard(() => _client.rpc('delete_shared_expense', params: {'target': id}));
 
   @override
   Future<void> deleteSettlement(String id) =>
-      _guard(() => _client.rpc('delete_settlement', params: {'target': id}));
+      guard(() => _client.rpc('delete_settlement', params: {'target': id}));
 
   @override
-  Future<void> recordSettlements(List<SettlementItem> items) => _guard(
+  Future<void> recordSettlements(List<SettlementItem> items) => guard(
     () => _client.rpc(
       'record_settlements',
       params: {
@@ -147,7 +146,7 @@ class SupabaseSquad implements SquadService {
   );
 
   @override
-  Future<void> setSimplifyDebts(String squadId, bool on) => _guard(
+  Future<void> setSimplifyDebts(String squadId, bool on) => guard(
     () => _client.rpc(
       'set_simplify_debts',
       params: {'squad': squadId, 'simplify': on},
@@ -155,7 +154,7 @@ class SupabaseSquad implements SquadService {
   );
 
   @override
-  Future<void> removeMember(String squadId, String personId) => _guard(
+  Future<void> removeMember(String squadId, String personId) => guard(
     () => _client.rpc(
       'remove_squad_member',
       params: {'squad': squadId, 'person': personId},
@@ -164,14 +163,14 @@ class SupabaseSquad implements SquadService {
 
   @override
   Future<void> block(String personId) =>
-      _guard(() => _client.rpc('block_user', params: {'person': personId}));
+      guard(() => _client.rpc('block_user', params: {'person': personId}));
 
   @override
   Future<void> unblock(String personId) =>
-      _guard(() => _client.rpc('unblock_user', params: {'person': personId}));
+      guard(() => _client.rpc('unblock_user', params: {'person': personId}));
 
   @override
-  Future<List<Person>> blockedPeople() => _guard(() async {
+  Future<List<Person>> blockedPeople() => guard(() async {
     final rows = await _client.rpc('blocked_people') as List;
     return [
       for (final r in rows)
@@ -189,7 +188,7 @@ class SupabaseSquad implements SquadService {
     String? squadId,
     required ReportReason reason,
     String? details,
-  }) => _guard(
+  }) => guard(
     () => _client.rpc(
       'report',
       params: {
@@ -366,7 +365,8 @@ class SupabaseSquad implements SquadService {
   );
 
   /// Turns server and network errors into something to show.
-  static Future<T> _guard<T>(Future<T> Function() run) async {
+  @visibleForTesting
+  static Future<T> guard<T>(Future<T> Function() run) async {
     try {
       return await run();
     } on SquadException {
@@ -398,7 +398,10 @@ class SupabaseSquad implements SquadService {
           'You\'ve sent a lot of reports today. Try again tomorrow.',
         _ => 'Something went wrong with Squad. Try again.',
       });
-    } on Exception catch (e) {
+    } on Object catch (e) {
+      // Network errors, and replies that don't look as expected (a cast
+      // that fails is a TypeError, not an Exception): either way the
+      // person gets a message, not a button that silently does nothing.
       debugPrint('Squad request failed: $e');
       throw const SquadException(
         'Couldn\'t reach Squad. Check your connection and try again.',

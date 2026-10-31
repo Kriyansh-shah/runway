@@ -215,7 +215,8 @@ final _askingTheCoach = RegExp(
   }
   if (match == null) return null;
   final amount = double.tryParse(match.group(1)!.replaceAll(',', ''));
-  if (amount == null || amount <= 0) return null;
+  // A billion dollars or more is a joke or a typo, not a purchase.
+  if (amount == null || amount < 0.005 || amount >= 1e9) return null;
   final item = _itemName(text.replaceRange(match.start, match.end, ' '));
   return (amount: amount, item: item.isEmpty ? 'that' : item);
 }

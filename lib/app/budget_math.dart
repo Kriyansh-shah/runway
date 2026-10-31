@@ -120,8 +120,12 @@ class RunwaySnapshot {
   /// `null` means "forever" (nothing spent yet).
   double? get runwayDays {
     if (burnRate <= 0) return null;
-    return math.max(0, available) / burnRate;
+    // A cent spent against a big balance would put the date past what
+    // DateTime can hold; a century from now means the same thing.
+    return math.min(maxRunwayDays, math.max(0, available) / burnRate);
   }
+
+  static const maxRunwayDays = 36500.0;
 
   /// today + available / burnRate
   DateTime? get runwayDate {

@@ -39,7 +39,10 @@ class ApplePayPurchase {
           : s.replaceAll(',', '');
     }
     final value = double.tryParse(s);
-    if (value == null || value <= 0 || value >= 100000) return null;
-    return (value * 100).round() / 100;
+    if (value == null || !value.isFinite) return null;
+    // Rounded to cents first, so 0.004 isn't a $0 purchase and 99999.999
+    // isn't $100,000.
+    final cents = (value * 100).round() / 100;
+    return cents <= 0 || cents >= 100000 ? null : cents;
   }
 }

@@ -754,28 +754,34 @@ class AppState extends ChangeNotifier {
     required bool isNeed,
     CustomCategory? custom,
   }) {
-    if (roommates.isEmpty || total <= 0) return;
+    _checkAmount(total);
+    if (roommates.isEmpty) return;
     final shares = splitEvenly(total, roommates.length);
     final stamp = DateTime.now().microsecondsSinceEpoch;
+    // A few cents split many ways can round a share to $0: nobody owes
+    // nothing, and a $0 expense isn't spending.
     final added = [
-      for (final r in roommates)
-        BillSplit(
-          id: 's$stamp-${r.id}',
-          person: r.name,
-          amount: shares.each,
-          note: description,
-          theyOweYou: true,
-        ),
+      if (shares.each > 0)
+        for (final r in roommates)
+          BillSplit(
+            id: 's$stamp-${r.id}',
+            person: r.name,
+            amount: shares.each,
+            note: description,
+            theyOweYou: true,
+          ),
     ];
-    final myShare = _newExpense(
-      shares.mine,
-      custom == null ? category : ExpenseCategory.other,
-      isNeed,
-      description,
-      custom: custom,
-    );
+    final myShare = shares.mine > 0
+        ? _newExpense(
+            shares.mine,
+            custom == null ? category : ExpenseCategory.other,
+            isNeed,
+            description,
+            custom: custom,
+          )
+        : null;
     _splits.insertAll(0, added);
-    _expenses.add(myShare);
+    if (myShare != null) _expenses.add(myShare);
     _changed();
     _persist(() => _repo.splitBill(added, myShare));
   }
@@ -1080,6 +1086,13 @@ class AppState extends ChangeNotifier {
     String? squadId,
     CustomCategory? custom,
   }) async {
+    if (totalCents <= 0 ||
+        totalCents >= 100000000 ||
+        shares.isEmpty ||
+        shares.values.any((c) => c < 0) ||
+        shares.values.fold(0, (a, b) => a + b) != totalCents) {
+      throw ArgumentError.value(shares, 'shares', 'must add up to totalCents');
+    }
     final me = this.me;
     if (me == null) {
       throw const SquadException('Sign in to split with friends.');
@@ -1158,6 +1171,8 @@ class AppState extends ChangeNotifier {
     CustomCategory? custom,
     bool isNeed = true,
   }) {
+    owed.values.where((v) => v != 0).forEach(_checkAmount);
+    if (myShare != 0) _checkAmount(myShare);
     final stamp = DateTime.now().microsecondsSinceEpoch;
     final added = [
       for (final e in owed.entries)
@@ -1296,12 +1311,7 @@ class AppState extends ChangeNotifier {
   }
 
   void updateTerm(Term term) {
-    if (term.name.trim().isEmpty ||
-        !term.end.isAfter(term.start) ||
-        !term.startingBalance.isFinite ||
-        term.startingBalance < 0) {
-      throw ArgumentError.value(term, 'term', 'invalid name, dates or balance');
-    }
+    _checkTerm(term);
     // A longer term reserves the repeating bills for the days it gained.
     final added = term.end.isAfter(_term.end)
         ? _billsDue(from: _dayAfter(_term.end), to: term.end)
@@ -1519,6 +1529,10 @@ class AppState extends ChangeNotifier {
   /// The term that ends keeps what's left of its savings goal; the rest
   /// of its money is up to the person to carry into [term].
   void startTerm(Term term, List<UpcomingCost> upcoming) {
+    _checkTerm(term);
+    for (final c in upcoming) {
+      _checkAmount(c.amount);
+    }
     // The demo term ending is no achievement; a real one gets a recap.
     final endsRealTerm = !_needsSetup;
     final saved = endsRealTerm ? _keptSavings : 0.0;
@@ -1712,6 +1726,23 @@ class AppState extends ChangeNotifier {
   static void _replace<T>(List<T> list, List<T> items) => list
     ..clear()
     ..addAll(items);
+
+  /// A term's name, dates, starting money and savings goal, as setup and
+  /// Settings allow them; anything else is a bug.
+  static void _checkTerm(Term term) {
+    final balance = term.startingBalance;
+    final goal = term.savingsGoal;
+    if (term.name.trim().isEmpty ||
+        !term.end.isAfter(term.start) ||
+        !balance.isFinite ||
+        balance < 0 ||
+        balance >= 1000000 ||
+        !goal.isFinite ||
+        goal < 0 ||
+        goal >= 1000000) {
+      throw ArgumentError.value(term, 'term', 'invalid name, dates or money');
+    }
+  }
 
   /// Amounts come from validated inputs; anything else is a bug.
   static void _checkAmount(double amount) {
