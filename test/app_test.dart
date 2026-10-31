@@ -727,7 +727,7 @@ void main() {
     // The demo spends faster than the budget, so the goal is at risk.
     expect(find.text('Heading for'), findsOneWidget);
     expect(find.textContaining('/day less to keep it all'), findsOneWidget);
-    expect(find.textContaining('/day keeps it all'), findsOneWidget);
+    expect(find.text('Follow your runway and you\'ll save it all'), findsOneWidget);
     expect(find.text('Saved so far'), findsOneWidget);
   });
 

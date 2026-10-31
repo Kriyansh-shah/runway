@@ -505,8 +505,8 @@ class _SavingsGoalCard extends StatelessWidget {
           if (tooBig) ...[
             const SizedBox(height: 8),
             Text(
-              'That\'s more than you have after your big costs '
-              '(${money(canSave, cents: false)}).',
+              'That\'s more than you\'ll have left after your big costs. '
+              'Try a smaller goal.',
               style: AppText.label.copyWith(color: AppColors.butter),
             ),
           ],

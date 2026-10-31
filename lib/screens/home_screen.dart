@@ -530,7 +530,7 @@ class _RunwayCard extends StatelessWidget {
                 value: money(s.available, cents: false),
               ),
               _Stat(label: 'Reserved', value: money(s.reserved, cents: false)),
-              _Stat(label: 'Burn / day', value: money(s.burnRate)),
+              _Stat(label: 'Total', value: money(s.balance, cents: false)),
             ],
           ),
           if (s.savingsGoal > 0) ...[

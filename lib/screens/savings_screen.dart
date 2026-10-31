@@ -92,7 +92,6 @@ class _GoalCard extends StatelessWidget {
     final heading = early ? s.savingsKept : s.projectedSavings;
     final onTrack = early ? s.dippedIntoSavings <= 0.005 : s.onTrackToSave;
     final cents = heading != heading.roundToDouble();
-    final daysLeft = s.daysLeft;
     return GlassCard(
       strong: true,
       child: Column(
@@ -164,10 +163,8 @@ class _GoalCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             s.dailyAllowance > 0
-                ? '${plural(daysLeft, 'day')} to go · under '
-                      '${money(s.dailyAllowance)}/day keeps it all'
-                : '${plural(daysLeft, 'day')} to go · more spending comes '
-                      'out of it',
+                ? 'Follow your runway and you\'ll save it all'
+                : 'Any more spending comes out of your savings',
             style: AppText.label,
             textAlign: TextAlign.center,
           ),
