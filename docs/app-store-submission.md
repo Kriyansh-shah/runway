@@ -137,12 +137,30 @@ If the secrets are missing or Apple can't be reached, the account is still
 deleted; the revoke failure is only logged (Supabase dashboard → Edge
 Functions → delete-account → Logs). Check the logs once after testing.
 
-### 3c. Upgrade Supabase before launch (recommended)
+### 3c. Keep Supabase awake (free plan)
 
 The free plan **pauses a project after about a week with no activity**, and
-then sign-in and sync stop working until you un-pause it. A reviewer or new
-users could hit that. **Supabase Pro ($25/month)** doesn't pause and adds
-daily backups. Upgrade before you submit.
+then sign-in and sync stop working until it's restored. Runway stays on the
+free plan for now, so a scheduled GitHub Action,
+`.github/workflows/supabase-keepalive.yml`, makes one tiny database request
+every Monday and Thursday. It reads nothing (row-level security returns an
+empty list); it only counts as activity.
+
+- It starts working once this branch is merged into `main` and pushed (step
+  4): GitHub only runs schedules from the default branch.
+- To check it: GitHub → the repo → **Actions → Keep Supabase awake → Run
+  workflow**. A green tick means Supabase answered.
+- If a run fails, GitHub emails you. Open the
+  [Supabase dashboard](https://supabase.com/dashboard/project/slvwntpzgjpqzmojzdus)
+  and click **Restore** if the project is paused.
+- GitHub turns schedules off in a repository with no commits for 60 days. It
+  emails a warning first; one click turns it back on.
+- **During App Review**, still glance at the dashboard every couple of days.
+  A paused project would make Sign in with Apple fail for the reviewer.
+
+**Supabase Pro ($25/month)** is optional for 1.0. It never pauses and adds
+daily backups. Upgrade once real people depend on sign-in and sync, and
+before the Squad update, which relies on the server much more.
 
 ---
 
@@ -475,7 +493,7 @@ a question or rejects something, you'll get a message in App Store Connect's
 | 4.8 Login services | Apps with Google sign-in must also offer Sign in with Apple (or similar) | Apple button above Google on the welcome screen and in Settings. **Step 2 must be done**, or the button won't work for the reviewer |
 | 5.1.1(v) Account deletion | People can delete their account in the app | Settings → Account → Delete account; it revokes Apple access (step 3b) |
 | 5.1.1(i) Privacy policy | Linked in App Store Connect and easy to find in the app | Settings → About → Privacy policy |
-| 2.1 App completeness | No crashes, broken buttons or placeholder content; everything shown works | Squad is fully hidden. Supabase must be awake (step 3c) or sign-in fails |
+| 2.1 App completeness | No crashes, broken buttons or placeholder content; everything shown works | Squad is fully hidden. Supabase must be awake (step 3c, the keep-awake job) or sign-in fails |
 | 2.3 Accurate metadata | Screenshots and text match the app | Text above has no Squad; take new screenshots without it |
 | 5.1.2 Data use | The privacy label and policy match what the app does | Section 8 matches the code and the policy |
 | 2.5.1 / 5.1.1 Permissions | Each permission is explained and asked for when needed | Microphone and speech only when you tap the mic; Face ID only when you turn on the lock; notifications only when you turn on reminders |
@@ -554,7 +572,7 @@ Accounts and setup
 - [ ] Xcode: paid team selected, **Sign in with Apple** capability added, change committed
 - [ ] Supabase: Apple provider enabled with client ID `com.kriyanshshah.runway`
 - [ ] Apple key created; four `APPLE_*` secrets set; `delete-account` deployed
-- [ ] Supabase upgraded to Pro (or at least checked it's not paused)
+- [ ] Supabase keep-awake job run once by hand after merging (green tick), and the project isn't paused (Pro is optional)
 - [ ] `app-store-1.0` merged into `main` and pushed; privacy page shows November 11, 2026
 
 App Store Connect
