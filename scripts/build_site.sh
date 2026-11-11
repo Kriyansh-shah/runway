@@ -29,7 +29,10 @@ page docs/support.md _site/support.html "Support"
 
 # The rendering engine is served from this site, not Google's CDN, so the
 # Content-Security-Policy in web/index.html can stay "this site only".
-flutter build web --release --no-web-resources-cdn --base-href "$base"
+# The web app keeps Squad; the App Store 1.0 app ships without it for now
+# (lib/app/features.dart).
+flutter build web --release --no-web-resources-cdn --base-href "$base" \
+  --dart-define=SQUAD=true
 cp -r build/web _site/app
 touch _site/.nojekyll
 echo "Built _site/ (web app base href $base)"

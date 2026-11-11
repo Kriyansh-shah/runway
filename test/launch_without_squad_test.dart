@@ -164,6 +164,50 @@ void main() {
     });
   });
 
+  group('iPad', () {
+    for (final (name, size) in [
+      ('portrait', const Size(2048, 2732)),
+      ('landscape', const Size(2732, 2048)),
+    ]) {
+      testWidgets('every tab lays out on a 13" iPad, $name', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 2;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(RunwayApp(state: stateWith(), intro: false));
+        await settle(tester);
+        expect(tester.takeException(), isNull);
+        for (final tab in ['Savings', 'Coach', 'Home']) {
+          await tester.tap(find.text(tab).last);
+          await settle(tester);
+          expect(tester.takeException(), isNull, reason: tab);
+        }
+        await tester.tap(find.text('A')); // Settings
+        await settle(tester);
+        await tester.drag(find.byType(Scrollable).last, const Offset(0, -6000));
+        await settle(tester);
+        expect(find.text('Privacy policy'), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: 'Settings');
+        Navigator.of(tester.element(find.text('Privacy policy'))).pop();
+        await settle(tester);
+        await tester.tap(find.bySemanticsLabel('Add expense'));
+        await settle(tester);
+        expect(tester.takeException(), isNull, reason: 'Quick Add');
+      });
+    }
+
+    testWidgets('the welcome screen fits an iPad in landscape', (tester) async {
+      tester.view.physicalSize = const Size(2732, 2048);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        RunwayApp(state: stateWith(user: null), intro: false),
+      );
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Continue with Apple'), findsOneWidget);
+    });
+  });
+
   group('Sign in with Apple', () {
     testWidgets('welcome offers Apple above Google', (tester) async {
       await boot(tester, stateWith(user: null));

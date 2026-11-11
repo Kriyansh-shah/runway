@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app/app_state.dart';
 import '../app/features.dart';
@@ -26,6 +27,26 @@ import 'safety_sheets.dart';
 import 'sync_sheets.dart';
 
 /// Account, the current semester, big costs, and your data.
+/// Shown in Settings → About, and given to the App Store.
+const privacyPolicyUrl = 'https://kriyansh-shah.github.io/runway/privacy.html';
+const supportUrl = 'https://kriyansh-shah.github.io/runway/support.html';
+
+/// Opens [url] in a browser sheet over the app.
+Future<void> _open(BuildContext context, String url) async {
+  final messenger = ScaffoldMessenger.of(context);
+  var opened = false;
+  try {
+    opened = await launchUrl(Uri.parse(url), mode: LaunchMode.inAppBrowserView);
+  } on Exception {
+    opened = false;
+  }
+  if (!opened) {
+    messenger.showSnackBar(
+      SnackBar(content: Text('Couldn\'t open the page. It\'s at $url')),
+    );
+  }
+}
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -236,6 +257,28 @@ class SettingsScreen extends StatelessWidget {
                           label: 'Erase everything on this phone',
                           color: AppColors.red,
                           onTap: () => _erase(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SectionHeader('About'),
+                  GlassCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    child: Column(
+                      children: [
+                        _LinkRow(
+                          icon: PhIcons.lock,
+                          label: 'Privacy policy',
+                          onTap: () => _open(context, privacyPolicyUrl),
+                        ),
+                        Divider(height: 1, color: AppColors.hairline),
+                        _LinkRow(
+                          icon: PhIcons.at,
+                          label: 'Help & support',
+                          onTap: () => _open(context, supportUrl),
                         ),
                       ],
                     ),

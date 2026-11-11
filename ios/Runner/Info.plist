@@ -49,6 +49,13 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Export compliance: Runway's encryption (HTTPS, the encrypted
+	     database on the phone, the end-to-end encrypted budget backup) only
+	     protects the person's own data and isn't the app's main function,
+	     so it's exempt. See "Export compliance" in
+	     docs/app-store-submission.md before changing this. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>

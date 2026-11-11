@@ -1,12 +1,12 @@
 # Runway Privacy Policy
 
-_Last updated: October 28, 2026_
+_Last updated: November 11, 2026_
 
 **The short version: we can't see your money data. It stays on your device,
 unless you turn on budget sync, and then it's encrypted on your device with a
-passphrase only you know before it's uploaded. Signing in with Google is
-optional. If you do, your name, email and an account ID are stored on our
-server, plus your streak if you join a squad.**
+passphrase only you know before it's uploaded. Signing in with Apple or
+Google is optional. If you do, your name, email and an account ID are stored
+on our server, plus your streak if you join a squad in the web app.**
 
 ## What Runway stores, and where
 
@@ -15,7 +15,7 @@ Runway keeps what you type in so it can work out your budget:
 - your first name, which is only used for the greeting
 - your budget: semester or month dates, the money you start with, expenses
   and their notes, big costs and monthly bills, and money coming in
-- bill splits with roommates, your logging streak, and your settings
+- your logging streak, savings goals, and your settings
 
 All of it is saved **only on your device**, in Runway's private storage that
 other apps can't open.
@@ -28,18 +28,21 @@ other apps can't open.
 ## What leaves your device
 
 **Your money data doesn't, unless you turn on budget sync** (see below).
-Without it, balances, expenses, budgets, bills and splits stay on your device
+Without it, balances, expenses, budgets and bills stay on your device
 whether or not you sign in.
 
-**If you don't sign in, nothing leaves your device.**
+**If you don't sign in, nothing you enter is sent to Runway.** (Voice
+logging uses your phone's speech recognition; see below.)
 
-**If you choose "Continue with Google":**
+**If you choose "Continue with Apple" or "Continue with Google":**
 
-- Google confirms who you are and tells Runway your **name, email address and
-  Google account ID**. Runway never sees your Google password.
+- Apple or Google confirms who you are and tells Runway your **name, email
+  address and an account ID**. With Apple you can choose to hide your email;
+  Runway then gets a private relay address from Apple instead. Runway never
+  sees your Apple or Google password.
 - Those are stored in Runway's account database, run by
   [Supabase](https://supabase.com/privacy) on servers in the United States,
-  so you can sign in again later and use Squad.
+  so you can sign in again later and use budget sync.
 - Runway keeps a sign-in session on your device, in the iOS Keychain or
   Android Keystore (in the web app, in your browser's storage for the site).
 
@@ -98,9 +101,16 @@ Runway's encrypted file. The key that opens it is only included in
 **encrypted** backups. Backups are handled by Apple or Google under their own
 privacy policies.
 
-## Squad
+## Reminders
 
-Squad needs you to sign in. When you start or join a squad, Runway stores on
+Reminders you turn on (a bill due tomorrow, an evening check-in, the weekly
+recap) are scheduled by your phone itself. Nothing is sent to a server to
+send them. If the app lock is on, they don't show amounts.
+
+## Squad (web app only, for now)
+
+Squad is in the web app today and comes to the iPhone app in a later
+update; the iPhone app doesn't have it yet. Squad needs you to sign in. When you start or join a squad, Runway stores on
 our server and shows **only to people in your squads**:
 
 - your first name and a squad emoji
@@ -112,18 +122,18 @@ Leaving a squad stops sharing with it right away, and a squad is deleted
 when its last member leaves. A squad's owner can remove someone, and that
 person can't rejoin it with an invite code.
 
-## Blocking and reporting
+### Blocking and reporting
 
 - **Blocking:** when you block someone, Runway stores on our server that you
   blocked them, so it can keep you apart: you won't see each other in
   squads or friends, and you can't add each other or split new bills. They
-  aren't told. You can unblock them in Settings → Account → Blocked people.
+  aren't told. You can unblock them in Settings → Account → Blocked people (web app).
 - **Reporting:** when you report someone, or a squad's name, Runway stores
   who you reported, which squad (if any), the reason you picked, and when.
   The person isn't told who reported them. Reports are only used to review
   behaviour on Runway and keep it safe.
 
-## Friends and split bills
+### Friends and split bills
 
 You can add friends with a friend code (people in your squads are your
 friends too) and split bills with them. When you split a bill with friends,
@@ -143,8 +153,10 @@ someone who isn't on Runway stay on your device only.
 
 - **Your account:** Settings → Account → **Delete account** deletes your
   account and everything stored with it on our server (including any synced
-  budget and anyone you blocked), right away. A report you made is kept for
-  safety review, without your name on it.
+  budget, and, from the web app, anyone you blocked), right away. If you
+  signed in with Apple, Apple asks you to confirm first, and Runway's access
+  to your Apple ID is revoked too. A report you made from the web app is kept
+  for safety review, without your name on it.
 - **Just the synced budget:** Settings → Account → Budget sync → **Delete
   the synced copy**.
 - **Data on your device:** Settings → **Erase everything on this phone**
