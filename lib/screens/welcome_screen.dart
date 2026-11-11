@@ -10,6 +10,7 @@ import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/glass.dart';
+import '../widgets/apple_button.dart';
 import '../widgets/google_button.dart';
 import '../widgets/mochi_takeoff.dart';
 import '../widgets/motion.dart';
@@ -41,6 +42,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   final _name = TextEditingController();
   final _buttonKey = GlobalKey();
   final _googleKey = GlobalKey();
+  final _appleKey = GlobalKey();
   final _logoKey = GlobalKey();
   final _stackKey = GlobalKey();
 
@@ -54,8 +56,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   String? _error;
 
   /// Google's account picker is open or the sign-in is finishing.
-  bool _googleBusy = false;
+  /// Which provider's sign-in is running, if any.
+  SignInProvider? _signingIn;
   String? _googleError;
+
+  bool get _googleBusy => _signingIn != null;
 
   /// Horizontal shake when the name is missing.
   late final _shake = AnimationController(
@@ -118,33 +123,36 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     await _reveal(_buttonKey);
   }
 
-  Future<void> _continueWithGoogle() async {
+  Future<void> _continueWith(SignInProvider provider) async {
     if (_phase != _Phase.idle || _googleBusy) return;
     FocusScope.of(context).unfocus();
     HapticFeedback.selectionClick();
     final state = AppScope.read(context);
     setState(() {
-      _googleBusy = true;
+      _signingIn = provider;
       _googleError = null;
     });
     try {
-      final signedIn = await state.signInWithGoogle();
+      final signedIn = await switch (provider) {
+        SignInProvider.apple => state.signInWithApple(),
+        SignInProvider.google => state.signInWithGoogle(),
+      };
       if (!mounted) return;
       if (!signedIn) {
-        setState(() => _googleBusy = false);
+        setState(() => _signingIn = null);
         return;
       }
     } on AccountException catch (e) {
       if (!mounted) return;
       HapticFeedback.heavyImpact();
       setState(() {
-        _googleBusy = false;
+        _signingIn = null;
         _googleError = e.message;
       });
       return;
     }
     HapticFeedback.mediumImpact();
-    await _reveal(_googleKey);
+    await _reveal(provider == SignInProvider.apple ? _appleKey : _googleKey);
   }
 
   /// Opens the next screen in a circle growing from the button at [from].
@@ -166,7 +174,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     final busy = _phase != _Phase.idle || _googleBusy;
-    final google = AppScope.read(context).accounts.canUseGoogle;
+    final accounts = AppScope.read(context).accounts;
+    final apple = accounts.canUseApple;
+    final google = accounts.canUseGoogle || apple;
     final where = kIsWeb ? 'in this browser' : 'on this phone';
     final sections = <Widget>[
       // The intro hands its logo over to this exact spot when it ends.
@@ -255,11 +265,20 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         const SizedBox(height: 16),
         const _OrDivider(),
         const SizedBox(height: 16),
-        GoogleButton(
-          key: _googleKey,
-          busy: _googleBusy,
-          onTap: busy ? null : _continueWithGoogle,
-        ),
+        if (apple) ...[
+          AppleButton(
+            key: _appleKey,
+            busy: _signingIn == SignInProvider.apple,
+            onTap: busy ? null : () => _continueWith(SignInProvider.apple),
+          ),
+          if (accounts.canUseGoogle) const SizedBox(height: 12),
+        ],
+        if (accounts.canUseGoogle)
+          GoogleButton(
+            key: _googleKey,
+            busy: _signingIn == SignInProvider.google,
+            onTap: busy ? null : () => _continueWith(SignInProvider.google),
+          ),
         if (_googleError != null)
           Padding(
             padding: const EdgeInsets.only(top: 10),

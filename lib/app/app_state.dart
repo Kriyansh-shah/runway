@@ -9,6 +9,7 @@ import 'budget_math.dart' as budget show nextIncome, savingsStreak;
 import 'budget_sync.dart';
 import 'coach.dart';
 import 'device_auth.dart';
+import 'features.dart';
 import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
@@ -800,7 +801,8 @@ class AppState extends ChangeNotifier {
 
   /// Squad with real friends is possible here (sign-in is set up), even if
   /// the person hasn't signed in yet. Otherwise Squad shows sample friends.
-  bool get realSquad => accounts.canUseGoogle || account != null;
+  bool get realSquad =>
+      accounts.canUseGoogle || accounts.canUseApple || account != null;
 
   /// Your account ID with squads and friends loaded; null otherwise.
   String? get me => _social?.me;
@@ -1226,14 +1228,21 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// The linked Google account, or null when it's name-only.
+  /// The linked Apple or Google account, or null when it's name-only.
   Account? get account => accounts.current;
 
   /// Signs in with Google; false when the person backed out. From the
   /// welcome screen this also makes the profile, greeting them by their
   /// Google first name; afterwards the name they chose stays.
-  Future<bool> signInWithGoogle() async {
-    final account = await accounts.signInWithGoogle();
+  Future<bool> signInWithGoogle() async =>
+      _signedIn(await accounts.signInWithGoogle());
+
+  /// Signs in with Apple; false when the person backed out. Like
+  /// [signInWithGoogle], it greets them by the name Apple shares.
+  Future<bool> signInWithApple() async =>
+      _signedIn(await accounts.signInWithApple());
+
+  Future<bool> _signedIn(Account? account) async {
     if (account == null) return false;
     final name =
         _user?.name ??
@@ -1243,7 +1252,7 @@ class AppState extends ChangeNotifier {
     _user = UserProfile(name: name, email: account.email);
     notifyListeners();
     _persist(() => _repo.setCurrentUser(_user), budget: false);
-    unawaited(refreshSquad());
+    if (Features.squad) unawaited(refreshSquad());
     await sync.check();
     return true;
   }
@@ -1266,14 +1275,14 @@ class AppState extends ChangeNotifier {
     _persist(() => _repo.setCurrentUser(_user), budget: false);
   }
 
-  /// Unlinks the Google account on this phone. The budget stays.
+  /// Unlinks the account on this phone. The budget stays.
   Future<void> signOutAccount() async {
     await accounts.signOut();
     _forgetAccount();
   }
 
-  /// Deletes the Google-linked account on the server. The budget on this
-  /// phone stays; "Erase everything" removes that.
+  /// Deletes the linked account on the server. The budget on this phone
+  /// stays; "Erase everything" removes that.
   Future<void> deleteAccount() async {
     await accounts.deleteAccount();
     _forgetAccount();

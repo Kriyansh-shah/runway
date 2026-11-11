@@ -15,6 +15,7 @@ import 'app/budget_sync.dart';
 import 'app/coach.dart';
 import 'app/database.dart';
 import 'app/drift_repository.dart';
+import 'app/features.dart';
 import 'app/local_reminders.dart';
 import 'app/format.dart';
 import 'app/models.dart';
@@ -62,7 +63,7 @@ Future<void> main() async {
       accounts = await SupabaseAccounts.start().timeout(
         const Duration(seconds: 8),
       );
-      squad = const SupabaseSquad();
+      if (Features.squad) squad = const SupabaseSquad();
       backups = const SupabaseBudgetBackups();
       syncStore = const SecureSyncStore();
     } on Object catch (error) {
@@ -111,7 +112,9 @@ Future<void> main() async {
     unawaited(state.sync.check());
   }
   // Loaded early so Split a bill can offer your squad from any tab.
-  if (state.account != null) unawaited(state.refreshSquad());
+  if (Features.squad && state.account != null) {
+    unawaited(state.refreshSquad());
+  }
   // A monthly budget moves on once its month is over, also when the app
   // comes back from the background in a new month.
   state.startNewMonthIfDue();

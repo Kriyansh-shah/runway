@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
+import '../app/features.dart';
 import '../app/purchase_link.dart';
 import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
@@ -155,6 +156,8 @@ class _ShellState extends State<Shell> {
 
   void _select(int tab, {bool haptic = true}) {
     if (tab == _tab) return;
+    // The Squad tab (3) only exists when Squad is switched on.
+    if (tab == 3 && !Features.squad) return;
     if (haptic) HapticFeedback.selectionClick();
     setState(() {
       _tab = tab;
@@ -259,12 +262,14 @@ class _NavBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onAdd;
 
-  /// Nav slots left to right: Home, Savings, (+), Coach, Squad.
+  /// Nav slots left to right: Home, Savings, (+), Coach, and Squad when
+  /// it's switched on.
   static const _slotOfTab = [0, 1, 3, 4];
 
   @override
   Widget build(BuildContext context) {
     final slot = _slotOfTab[current];
+    final lastSlot = Features.squad ? 4 : 3;
     return FrostedGlass(
       borderRadius: BorderRadius.circular(30),
       child: SizedBox(
@@ -276,11 +281,11 @@ class _NavBar extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(7),
                 child: AnimatedAlign(
-                  alignment: Alignment(-1 + 2 * slot / 4, 0),
+                  alignment: Alignment(-1 + 2 * slot / lastSlot, 0),
                   duration: Motion.med,
                   curve: Motion.spring,
                   child: FractionallySizedBox(
-                    widthFactor: 0.2,
+                    widthFactor: 1 / (lastSlot + 1),
                     heightFactor: 1,
                     child: Center(
                       child: Container(
@@ -330,13 +335,14 @@ class _NavBar extends StatelessWidget {
                   active: current == 2,
                   onTap: () => onSelect(2),
                 ),
-                _NavItem(
-                  icon: PhIcons.usersThree,
-                  activeIcon: PhIcons.usersThreeFill,
-                  label: 'Squad',
-                  active: current == 3,
-                  onTap: () => onSelect(3),
-                ),
+                if (Features.squad)
+                  _NavItem(
+                    icon: PhIcons.usersThree,
+                    activeIcon: PhIcons.usersThreeFill,
+                    label: 'Squad',
+                    active: current == 3,
+                    onTap: () => onSelect(3),
+                  ),
               ],
             ),
           ],

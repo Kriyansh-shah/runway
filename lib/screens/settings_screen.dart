@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
+import '../app/features.dart';
 import '../app/auth.dart';
 import '../app/device_auth.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/theme.dart';
 import '../widgets/action_sheet.dart';
+import '../widgets/apple_button.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/form_fields.dart';
@@ -67,7 +69,7 @@ class SettingsScreen extends StatelessWidget {
       context,
       title: 'Erase everything?',
       message:
-          'Every semester, expense, payment and split on this phone is '
+          'Every semester, expense and payment on this phone is '
           'deleted for good, and you\'re signed out. This can\'t be undone.',
       actions: const [
         SheetAction(
@@ -137,7 +139,9 @@ class SettingsScreen extends StatelessWidget {
                       name: user.name,
                       signedIn: state.account != null,
                     ),
-                  if (state.account != null || state.accounts.canUseGoogle) ...[
+                  if (state.account != null ||
+                      state.accounts.canUseGoogle ||
+                      state.accounts.canUseApple) ...[
                     const SectionHeader('Account'),
                     const _AccountCard(),
                   ],
@@ -559,8 +563,12 @@ class _AccountCardState extends State<_AccountCard> {
     }
   }
 
-  Future<void> _signIn() => _run((state) async {
-    if (await state.signInWithGoogle()) HapticFeedback.mediumImpact();
+  Future<void> _signIn(SignInProvider provider) => _run((state) async {
+    final signedIn = switch (provider) {
+      SignInProvider.apple => await state.signInWithApple(),
+      SignInProvider.google => await state.signInWithGoogle(),
+    };
+    if (signedIn) HapticFeedback.mediumImpact();
   });
 
   Future<void> _signOut() async {
@@ -606,24 +614,39 @@ class _AccountCardState extends State<_AccountCard> {
 
   @override
   Widget build(BuildContext context) {
-    final account = AppScope.of(context).account;
+    final state = AppScope.of(context);
+    final account = state.account;
     if (account == null) {
       return GlassCard(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _LinkRow(
-              icon: PhIcons.user,
-              label: _busy ? 'Signing in…' : 'Continue with Google',
-              onTap: _signIn,
-            ),
+            if (state.accounts.canUseApple) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: AppleButton(
+                  busy: _busy,
+                  onTap: () => _signIn(SignInProvider.apple),
+                ),
+              ),
+            ],
+            if (state.accounts.canUseGoogle)
+              _LinkRow(
+                icon: PhIcons.user,
+                label: _busy ? 'Signing in…' : 'Continue with Google',
+                onTap: () => _signIn(SignInProvider.google),
+              ),
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
-                'Optional. For Squad and syncing your budget (encrypted) to '
-                'other devices. Without sync, your money data stays '
-                'on this phone.',
+                Features.squad
+                    ? 'Optional. For Squad and syncing your budget '
+                          '(encrypted) to other devices. Without sync, your '
+                          'money data stays on this phone.'
+                    : 'Optional. For syncing your budget (encrypted) to '
+                          'other devices. Without sync, your money data '
+                          'stays on this phone.',
                 style: AppText.caption.copyWith(letterSpacing: 0),
               ),
             ),
@@ -646,9 +669,12 @@ class _AccountCardState extends State<_AccountCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Signed in with Google', style: AppText.label),
                       Text(
-                        account.email,
+                        'Signed in with ${account.provider.label}',
+                        style: AppText.label,
+                      ),
+                      Text(
+                        account.email.isEmpty ? 'Hidden email' : account.email,
                         style: AppText.body.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -667,12 +693,14 @@ class _AccountCardState extends State<_AccountCard> {
             subtitle: syncSummary(AppScope.of(context)),
             onTap: () => showSyncSheet(context),
           ),
-          Divider(height: 1, color: AppColors.hairline),
-          _LinkRow(
-            icon: PhIcons.prohibit,
-            label: 'Blocked people',
-            onTap: () => showBlockedPeople(context),
-          ),
+          if (Features.squad) ...[
+            Divider(height: 1, color: AppColors.hairline),
+            _LinkRow(
+              icon: PhIcons.prohibit,
+              label: 'Blocked people',
+              onTap: () => showBlockedPeople(context),
+            ),
+          ],
           Divider(height: 1, color: AppColors.hairline),
           _LinkRow(icon: PhIcons.signOut, label: 'Sign out', onTap: _signOut),
           Divider(height: 1, color: AppColors.hairline),

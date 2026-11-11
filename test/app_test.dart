@@ -2643,8 +2643,8 @@ class _HistoryRepository extends MockBudgetRepository {
   Future<List<PastTerm>> history() async => _past;
 }
 
-/// Google sign-in without Google: returns [result] (null = backed out) or
-/// throws [error].
+/// Sign-in without Apple or Google: returns [result] / [appleResult] (null
+/// = backed out) or throws [error].
 class _FakeAccounts implements AccountService {
   Account? result = const Account(
     id: 'u1',
@@ -2660,10 +2660,30 @@ class _FakeAccounts implements AccountService {
   @override
   bool get canUseGoogle => true;
 
+  /// Off by default, so older tests see only Google.
+  bool apple = false;
+
+  @override
+  bool get canUseApple => apple;
+
+  /// What Sign in with Apple returns (null = backed out).
+  Account? appleResult = const Account(
+    id: 'a1',
+    email: 'x7k2@privaterelay.appleid.com',
+    firstName: 'Sam',
+    provider: SignInProvider.apple,
+  );
+
   @override
   Future<Account?> signInWithGoogle() async {
     if (error case final e?) throw e;
     return current = result;
+  }
+
+  @override
+  Future<Account?> signInWithApple() async {
+    if (error case final e?) throw e;
+    return current = appleResult;
   }
 
   @override

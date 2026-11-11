@@ -10,6 +10,7 @@ import '../app/models.dart';
 import '../app/squad.dart';
 import '../app/theme.dart';
 import '../widgets/action_sheet.dart';
+import '../widgets/apple_button.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/glass.dart';
 import '../widgets/google_button.dart';
@@ -169,7 +170,7 @@ class _SquadSignInState extends State<_SquadSignIn> {
   bool _busy = false;
   String? _error;
 
-  Future<void> _signIn() async {
+  Future<void> _signIn(SignInProvider provider) async {
     if (_busy) return;
     final state = AppScope.read(context);
     setState(() {
@@ -177,7 +178,11 @@ class _SquadSignInState extends State<_SquadSignIn> {
       _error = null;
     });
     try {
-      if (await state.signInWithGoogle()) HapticFeedback.mediumImpact();
+      final signedIn = switch (provider) {
+        SignInProvider.apple => await state.signInWithApple(),
+        SignInProvider.google => await state.signInWithGoogle(),
+      };
+      if (signedIn) HapticFeedback.mediumImpact();
     } on AccountException catch (e) {
       _error = e.message;
     }
@@ -198,7 +203,17 @@ class _SquadSignInState extends State<_SquadSignIn> {
             style: AppText.label,
           ),
           const SizedBox(height: 16),
-          GoogleButton(busy: _busy, onTap: _busy ? null : _signIn),
+          if (AppScope.read(context).accounts.canUseApple) ...[
+            AppleButton(
+              busy: _busy,
+              onTap: _busy ? null : () => _signIn(SignInProvider.apple),
+            ),
+            const SizedBox(height: 12),
+          ],
+          GoogleButton(
+            busy: _busy,
+            onTap: _busy ? null : () => _signIn(SignInProvider.google),
+          ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
