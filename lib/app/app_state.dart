@@ -13,10 +13,12 @@ import 'features.dart';
 import 'format.dart';
 import 'models.dart';
 import 'purchase_link.dart';
+import 'quick_log.dart';
 import 'reminders.dart';
 import 'repository.dart';
 import 'spending_lookup.dart';
 import 'spoken_expense.dart';
+import 'spoken_understanding.dart';
 import 'split_math.dart';
 import 'squad.dart';
 import 'voice_inbox.dart';
@@ -29,10 +31,12 @@ class AppState extends ChangeNotifier {
     required BudgetRepository repository,
     required BudgetData data,
     this.coach = const LocalCoach(),
+    this.spokenUnderstanding,
     this.deviceAuth = const LocalDeviceAuth(),
     this.accounts = const NoAccounts(),
     this.squadService = const NoSquad(),
     this.reminderScheduler = const NoReminders(),
+    this.quickLog = const NoQuickLog(),
     BudgetBackupStore budgetBackups = const NoBudgetBackups(),
     LocalSyncStore? syncStore,
     BudgetCipher budgetCipher = const BudgetCipher(),
@@ -86,6 +90,10 @@ class AppState extends ChangeNotifier {
   final DateTime Function() _clock;
   final AffordabilityCoach coach;
 
+  /// Gemini Nano reading what was said into the Quick Add mic (Android
+  /// phones that have it). Null where there's no model: the rules alone.
+  final SpokenUnderstanding? spokenUnderstanding;
+
   /// Face ID / Touch ID / passcode prompt for the app lock.
   final DeviceAuth deviceAuth;
 
@@ -115,8 +123,8 @@ class AppState extends ChangeNotifier {
   /// `runway://log` link arrives; Home picks it up once it's on screen.
   final pendingPurchase = ValueNotifier<ApplePayPurchase?>(null);
 
-  /// Set by the "Log by voice" home-screen shortcut; the shell opens Quick
-  /// Add listening and clears it.
+  /// Set by the "Log by voice" home-screen shortcut, and on Android the
+  /// Quick Settings tile; the shell opens Quick Add listening and clears it.
   final voiceAddRequested = ValueNotifier<bool>(false);
 
   /// Set by tapping the evening check-in; the shell opens Quick Add and
@@ -856,7 +864,8 @@ class AppState extends ChangeNotifier {
     return [for (final i in items) i.$2];
   }
 
-  /// The fewest payments that would settle [squad] (when it simplifies).
+  /// The fewest payments that would settle [squad] (every squad
+  /// settles this way).
   List<SettlementItem> simplifiedPayments(Squad squad) {
     final social = _social;
     if (social == null) return const [];
@@ -884,10 +893,12 @@ class AppState extends ChangeNotifier {
   /// Why the last squad refresh failed, if it did.
   String? get squadError => _squadError;
 
+  /// What friends can see about you. Streaks and challenge days are only
+  /// shared when squads are on; Friends alone shows just your first name.
   SquadStats get _squadStats => SquadStats(
     name: _user?.name ?? 'Friend',
-    streak: _streak,
-    noDeliveryDays: myNoDeliveryDays,
+    streak: Features.squad ? _streak : 0,
+    noDeliveryDays: Features.squad ? myNoDeliveryDays : const [],
   );
 
   /// Shares your streak and challenge dots, then loads squads, friends,
@@ -913,9 +924,11 @@ class AppState extends ChangeNotifier {
             me: social.me,
             expenses: social.expenses,
             settlements: social.settlements,
+            // Squads settle in the fewest payments; with squads off,
+            // every debt stays between the two people who split.
             simplified: {
-              for (final s in social.squads)
-                if (s.simplifyDebts) s.id,
+              if (Features.squad)
+                for (final s in social.squads) s.id,
             },
           );
     if (social != null) unawaited(_bringInSplits(social));
@@ -1000,16 +1013,6 @@ class AppState extends ChangeNotifier {
     await _squadCall(() async {
       await squadService.leave(squad.id);
       _selectedSquadId = null;
-      await _reload();
-    }, rethrowErrors: true);
-  }
-
-  /// Turns "simplify debts" on or off for the squad on screen.
-  Future<void> setSimplifyDebts(bool on) async {
-    final squad = this.squad;
-    if (squad == null) return;
-    await _squadCall(() async {
-      await squadService.setSimplifyDebts(squad.id, on);
       await _reload();
     }, rethrowErrors: true);
   }
@@ -1252,7 +1255,7 @@ class AppState extends ChangeNotifier {
     _user = UserProfile(name: name, email: account.email);
     notifyListeners();
     _persist(() => _repo.setCurrentUser(_user), budget: false);
-    if (Features.squad) unawaited(refreshSquad());
+    if (Features.socialTab) unawaited(refreshSquad());
     await sync.check();
     return true;
   }
@@ -1787,6 +1790,9 @@ class AppState extends ChangeNotifier {
   // ------------------------------------------------------------ reminders
 
   final ReminderScheduler reminderScheduler;
+
+  /// The Quick Settings tile and pinned icon, for Settings (Android).
+  final QuickLogShortcuts quickLog;
   ReminderSettings _reminders;
   ReminderSettings get reminders => _reminders;
   bool _billRemindersOffered = false;

@@ -1,5 +1,5 @@
 /// Last week in numbers, for the card on Home. The rules work out every
-/// figure; on iPhones with Apple Intelligence the coach writes them up
+/// figure; on phones with an on-device model the coach writes them up
 /// (OnDeviceCoach.describeWeek), otherwise [WeekRecap.summary] is shown.
 library;
 

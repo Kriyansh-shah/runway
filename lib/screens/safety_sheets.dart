@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../app/app_state.dart';
+import '../app/features.dart';
 import '../app/squad.dart';
 import '../app/theme.dart';
 import '../widgets/action_sheet.dart';
@@ -108,7 +109,8 @@ Future<bool> blockPerson(
     context,
     title: 'Block $name?',
     message:
-        'You won\'t see each other in squads or friends, and you can\'t '
+        'You won\'t see each other in ${Features.squad ? 'squads or ' : ''}'
+        'friends, and you can\'t '
         'split bills or add each other. They aren\'t told. You can unblock '
         'them in Settings.',
     actions: [

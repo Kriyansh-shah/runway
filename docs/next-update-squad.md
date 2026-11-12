@@ -1,7 +1,10 @@
 # Next update: bringing Squad back
 
-Squad is fully built but held back from the first App Store release (1.0) so
-the launch is simpler to review. This is everything needed to ship it in the
+Squads are fully built but held back from the first App Store release
+(1.0). **Friends ships in 1.0** (friends, Split a bill, settle up, block and
+report, as the Friends tab); what's held back is the squad part: shared
+squads with invite codes, the streak leaderboard and the no-delivery
+challenge. This is everything needed to ship it in the
 next update.
 
 ---
@@ -23,10 +26,22 @@ off unless the app is built with `--dart-define=SQUAD=true`.
   suite `test/launch_without_squad_test.dart` checks the build with Squad
   off; delete or flip it when Squad ships.
 
-What the switch hides when it's off:
+What `Features.squad = false` changes (Friends stays on, `Features.friends`):
 
 | Where | What |
 | --- | --- |
+| `lib/screens/shell.dart` | Tab 3 is labelled **Friends** instead of Squad |
+| `lib/screens/squad_screen.dart` | No pet card, squad switcher, squad header, start/join, challenge, leaderboard or "To settle" card; the title is Friends |
+| `lib/screens/home_screen.dart` | Mochi's pet card shows at the bottom of Home instead |
+| `lib/app/app_state.dart` | Squad debts aren't simplified (each debt stays between the two people), and no streak or challenge days are published to your profile |
+| `lib/screens/split_bill_sheet.dart` | No "In a squad?" picker |
+| `lib/screens/friends_sheets.dart`, `safety_sheets.dart` | No squad names or squad wording |
+| `lib/screens/settings_screen.dart` | "For splitting bills with friends…" wording |
+
+To ship squads: build with `--dart-define=SQUAD=true` (or flip the
+default). `--dart-define=FRIENDS=false` hides the Friends tab as well.
+
+--- | --- |
 | `lib/screens/shell.dart` | The Squad tab (tab 3) and its nav button |
 | `lib/main.dart` | `SupabaseSquad` and loading squads at launch |
 | `lib/app/app_state.dart` | Loading squads after signing in |
@@ -47,8 +62,9 @@ tab, so hiding the tab hides them too.
 - **Mochi's pet card:** Mochi's mood and level, from your logging streak.
 - **Friends:** add with a friend code; people in your squads are friends too.
 - **Split bills** (Splitwise-style): equal, exact amounts, percentages or
-  shares; who paid; synced IOUs; settle up; "fewest payments" debt
-  simplifying; anyone in a split can delete it. Someone not on Runway can be
+  shares; who paid; synced IOUs; settle up; anyone in a split can delete
+  it. Every squad settles in the fewest payments automatically (no switch
+  since 2026-11-12; the server's `simplify_debts` column is ignored). Someone not on Runway can be
   added by name, and that IOU stays on the phone.
 - **Safety:** remove, block and report; blocked people in Settings.
 

@@ -20,10 +20,12 @@ import 'app/local_reminders.dart';
 import 'app/format.dart';
 import 'app/models.dart';
 import 'app/on_device_coach.dart';
+import 'app/quick_log.dart';
 import 'app/reminders.dart';
 import 'app/squad.dart';
 import 'app/supabase_accounts.dart';
 import 'app/supabase_budget_backups.dart';
+import 'app/spoken_understanding.dart';
 import 'app/supabase_squad.dart';
 // import 'app/purchase_link.dart';
 import 'app/theme.dart';
@@ -63,7 +65,7 @@ Future<void> main() async {
       accounts = await SupabaseAccounts.start().timeout(
         const Duration(seconds: 8),
       );
-      if (Features.squad) squad = const SupabaseSquad();
+      if (Features.socialTab) squad = const SupabaseSquad();
       backups = const SupabaseBudgetBackups();
       syncStore = const SecureSyncStore();
     } on Object catch (error) {
@@ -84,20 +86,36 @@ Future<void> main() async {
       debugPrint('Reminders unavailable: $error');
     }
   }
+  // The Quick Settings tile and pinned "Log by voice" icon (Android); a
+  // tap that launched the app waits for the state too.
+  var voiceAddAtLaunch = false;
+  QuickLogShortcuts quickLog = const NoQuickLog();
+  if (AndroidQuickLog.available) {
+    quickLog = await AndroidQuickLog.start(
+      () => ready == null
+          ? voiceAddAtLaunch = true
+          : ready.voiceAddRequested.value = true,
+    );
+  }
   final state = AppState(
     repository: repository,
     reminderScheduler: reminders,
+    quickLog: quickLog,
     data: data,
     user: user,
     accounts: accounts,
     squadService: squad,
     budgetBackups: backups,
     syncStore: syncStore,
-    // Apple Intelligence words the coach's answers on iPhone; everywhere
-    // else (and whenever it's off) the rule-based coach answers alone.
-    coach: AppleCoachModel.supported
-        ? const OnDeviceCoach(AppleCoachModel())
+    // Apple Intelligence (iPhone) or Gemini Nano (Android phones that have
+    // it) words the coach's answers; on the web, and whenever the model is
+    // off or missing, the rule-based coach answers alone.
+    coach: OnDeviceCoachModel.supported
+        ? const OnDeviceCoach(OnDeviceCoachModel())
         : const LocalCoach(),
+    spokenUnderstanding: SpokenUnderstanding.supported
+        ? const SpokenUnderstanding(OnDeviceCoachModel())
+        : null,
   );
   state.adoptSignedInAccount();
   // A fresh device that's signed in (the web after Google's redirect) asks
@@ -112,7 +130,7 @@ Future<void> main() async {
     unawaited(state.sync.check());
   }
   // Loaded early so Split a bill can offer your squad from any tab.
-  if (Features.squad && state.account != null) {
+  if (Features.socialTab && state.account != null) {
     unawaited(state.refreshSquad());
   }
   // A monthly budget moves on once its month is over, also when the app
@@ -123,6 +141,7 @@ Future<void> main() async {
   unawaited(state.checkForWeekRecap());
   ready = state;
   if (launchTap case final tap?) state.reminderTapped(tap);
+  if (voiceAddAtLaunch) state.voiceAddRequested.value = true;
   state.refreshReminders();
   // Expenses said to Siri while the app was closed (iPhone only).
   Future<void> takeSiriLogs() async {

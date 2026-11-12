@@ -9,6 +9,8 @@ import 'package:runway/app/budget_sync.dart';
 import 'package:runway/app/device_auth.dart';
 import 'package:runway/app/format.dart';
 import 'package:runway/app/models.dart';
+import 'package:runway/app/features.dart';
+import 'package:runway/app/quick_log.dart';
 import 'package:runway/app/reminders.dart';
 import 'package:runway/app/voice_inbox.dart';
 // import 'package:runway/app/purchase_link.dart';
@@ -21,6 +23,8 @@ import 'package:runway/screens/edit_cost_sheet.dart';
 import 'package:runway/screens/friends_sheets.dart';
 import 'package:runway/screens/history_screen.dart';
 import 'package:runway/screens/quick_add_sheet.dart';
+import 'package:runway/screens/squad_screen.dart';
+import 'package:runway/widgets/pet_card.dart';
 import 'package:runway/screens/settings_screen.dart';
 import 'package:runway/widgets/celebrations.dart';
 import 'package:runway/widgets/expense_inputs.dart';
@@ -2097,6 +2101,153 @@ void main() {
     });
   });
 
+  group('Friends tab (squads off, as in 1.0)', () {
+    late _FakeAccounts accounts;
+    late _FakeSquad squads;
+    setUp(() {
+      Features.squad = false;
+      accounts = _FakeAccounts();
+      squads = _FakeSquad();
+    });
+    tearDown(() => Features.squad = true);
+
+    AppState stateWith({bool signedIn = true}) {
+      if (signedIn) accounts.current = accounts.result;
+      return AppState(
+        repository: MockBudgetRepository(now: now),
+        data: MockBudgetRepository.seed(now),
+        accounts: accounts,
+        squadService: squads,
+        user: const UserProfile(name: 'Alex'),
+        clock: () => now,
+      );
+    }
+
+    Future<void> openFriends(WidgetTester tester, AppState state) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+      await tester.tap(find.text('Friends'));
+      await settle(tester, const Duration(seconds: 2));
+    }
+
+    final squadWords = RegExp(
+      r'squad|leaderboard|no-delivery|fewest payments',
+      caseSensitive: false,
+    );
+    List<String> squadMentions(WidgetTester tester) => [
+      for (final w in tester.widgetList<Text>(find.byType(Text)))
+        if (squadWords.hasMatch(w.data ?? w.textSpan?.toPlainText() ?? ''))
+          w.data ?? w.textSpan!.toPlainText(),
+    ];
+
+    testWidgets('signed out: the Friends tab asks to sign in', (tester) async {
+      final state = stateWith(signedIn: false);
+      await openFriends(tester, state);
+      expect(find.text('Squad'), findsNothing);
+      expect(find.text('Split bills with friends'), findsOneWidget);
+      expect(find.text('Start a squad'), findsNothing);
+      expect(squadMentions(tester), isEmpty);
+
+      await tester.tap(find.text('Continue with Google'));
+      await settle(tester, const Duration(seconds: 2));
+      expect(find.text('Friends & balances'), findsOneWidget);
+      expect(find.text('Add friend'), findsOneWidget);
+      // Friends see a first name only: no streak or challenge days.
+      expect(squads.published?.name, 'Alex');
+      expect(squads.published?.streak, 0);
+      expect(squads.published?.noDeliveryDays, isEmpty);
+    });
+
+    testWidgets('signed in: friends and balances, no squad parts', (
+      tester,
+    ) async {
+      // Left over from testing squads: you owe Priya $10 and Priya owes
+      // Jordan $10, all in Roomies.
+      squads.joined.addAll([_FakeSquad.roomies, _FakeSquad.trip]);
+      squads.expenses.addAll([
+        SharedExpense(
+          id: 'a',
+          squadId: 's1',
+          paidBy: 'u2',
+          description: 'Groceries',
+          totalCents: 2000,
+          shares: const {'u1': 1000, 'u2': 1000},
+          createdAt: DateTime(2026, 10, 1),
+        ),
+        SharedExpense(
+          id: 'b',
+          squadId: 's1',
+          paidBy: 'u3',
+          description: 'Gas',
+          totalCents: 2000,
+          shares: const {'u2': 1000, 'u3': 1000},
+          createdAt: DateTime(2026, 10, 1),
+        ),
+      ]);
+      final state = stateWith();
+      await openFriends(tester, state);
+
+      expect(find.text('Friends & balances'), findsOneWidget);
+      expect(find.text('Roomies'), findsNothing);
+      expect(find.text('Invite friends'), findsNothing);
+      expect(squadMentions(tester), isEmpty);
+      // Not simplified: you owe the person you split with.
+      expect(state.friendBalances, {'u2': -1000});
+      expect(find.text('you owe \$10.00'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Split a bill'));
+      await settle(tester, const Duration(milliseconds: 300));
+      await tester.tap(find.text('Split a bill'));
+      await settle(tester);
+      expect(find.text('In a squad?'), findsNothing);
+      expect(find.text('🐼 Priya'), findsOneWidget);
+      expect(squadMentions(tester), isEmpty);
+    });
+
+    testWidgets('the friend sheet doesn\'t list squads', (tester) async {
+      squads.joined.add(_FakeSquad.roomies);
+      final state = stateWith();
+      await openFriends(tester, state);
+      await tester.ensureVisible(find.text('Priya'));
+      await tester.tap(find.text('Priya'));
+      await settle(tester);
+      expect(find.text('In Roomies'), findsNothing);
+      expect(squadMentions(tester), isEmpty);
+    });
+
+    testWidgets('Mochi moves to Home', (tester) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: stateWith(), intro: false));
+      await settle(tester);
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -6000));
+      await settle(tester);
+      expect(find.byType(PetCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('with Friends switched off too, there\'s no fourth tab', (
+      tester,
+    ) async {
+      Features.friends = false;
+      addTearDown(() => Features.friends = true);
+      final state = stateWith();
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+      expect(find.text('Friends'), findsNothing);
+      state.requestedTab.value = 3;
+      await settle(tester);
+      expect(find.byType(SquadScreen), findsNothing);
+    });
+  });
+
   group('budget sync', () {
     late _FakeAccounts accounts;
     late FakeServer server;
@@ -2521,6 +2672,73 @@ void main() {
     });
   });
 
+  group('log from anywhere (Android)', () {
+    Future<_FakeQuickLog> openSettings(
+      WidgetTester tester, {
+      bool canAddTile = true,
+      TileRequest result = TileRequest.added,
+      bool canPin = true,
+    }) async {
+      tester.view.physicalSize = const Size(1290, 2796);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final q = _FakeQuickLog(
+        canAdd: canAddTile,
+        result: result,
+        canPin: canPin,
+      );
+      final state = AppState(
+        repository: MockBudgetRepository(now: now),
+        data: MockBudgetRepository.seed(now),
+        user: const UserProfile(name: 'Alex', email: 'alex@uni.edu'),
+        clock: () => now,
+        quickLog: q,
+      );
+      await tester.pumpWidget(RunwayApp(state: state, intro: false));
+      await settle(tester);
+      await tester.ensureVisible(find.text('A'));
+      await settle(tester);
+      await tester.tap(find.text('A'));
+      await settle(tester);
+      await centerOn(tester, find.text('Add to Quick Settings'));
+      return q;
+    }
+
+    testWidgets('adds the tile with one tap', (tester) async {
+      final q = await openSettings(tester);
+      await tester.tap(find.text('Add to Quick Settings'));
+      await settle(tester);
+      expect(q.tileAsks, 1);
+      expect(find.textContaining('Added.'), findsOneWidget);
+    });
+
+    testWidgets('says how to add it by hand on older phones', (tester) async {
+      final q = await openSettings(tester, canAddTile: false);
+      await tester.tap(find.text('Add to Quick Settings'));
+      await settle(tester);
+      expect(q.tileAsks, 0);
+      expect(find.textContaining('tap the pencil'), findsOneWidget);
+    });
+
+    testWidgets('pins the home-screen icon, or says it can\'t', (tester) async {
+      final q = await openSettings(tester, canPin: false);
+      await tester.tap(find.text('Add a home-screen icon'));
+      await settle(tester);
+      expect(q.pins, 0);
+      expect(find.textContaining('Long-press the Runway'), findsOneWidget);
+    });
+
+    testWidgets('no section where it isn\'t supported', (tester) async {
+      await tester.pumpWidget(RunwayApp(state: buildState(), intro: false));
+      await settle(tester);
+      await tester.ensureVisible(find.text('A'));
+      await settle(tester);
+      await tester.tap(find.text('A'));
+      await settle(tester);
+      expect(find.text('Add to Quick Settings'), findsNothing);
+    });
+  });
+
   group('motion', () {
     Future<void> bootHome(WidgetTester tester) async {
       tester.view.physicalSize = const Size(1290, 2796);
@@ -2899,9 +3117,6 @@ class _FakeSquad implements SquadService {
   @override
   Future<void> deleteSettlement(String id) async => removedSettlements.add(id);
 
-  @override
-  Future<void> setSimplifyDebts(String squadId, bool on) async {}
-
   final blocked = <String, Person>{};
   final reports = <(String?, String?, ReportReason, String?)>[];
 
@@ -2964,6 +3179,40 @@ class _FakeSquad implements SquadService {
     required ReportReason reason,
     String? details,
   }) async => reports.add((personId, squadId, reason, details));
+}
+
+class _FakeQuickLog implements QuickLogShortcuts {
+  _FakeQuickLog({
+    required this.canAdd,
+    required this.result,
+    required this.canPin,
+  });
+  final bool canAdd;
+  final TileRequest result;
+  final bool canPin;
+  int tileAsks = 0;
+  int pins = 0;
+
+  @override
+  bool get supported => true;
+
+  @override
+  Future<bool> canAddTile() async => canAdd;
+
+  @override
+  Future<TileRequest> addTile() async {
+    tileAsks++;
+    return result;
+  }
+
+  @override
+  Future<bool> canPinShortcut() async => canPin;
+
+  @override
+  Future<bool> pinShortcut() async {
+    pins++;
+    return true;
+  }
 }
 
 class _FakeReminders implements ReminderScheduler {

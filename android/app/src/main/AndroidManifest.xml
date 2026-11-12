@@ -1,4 +1,8 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- ML Kit's Gemini Nano libraries ask for Android 8; Runway supports
+         Android 7 too and only loads them on Android 14+ (NanoModel.kt). -->
+    <uses-sdk tools:overrideLibrary="com.google.mlkit.genai.prompt,com.google.mlkit.genai.common,com.google.mlkit.genai.schema"/>
     <!-- Google sign-in, Squad and budget sync talk to Supabase. Flutter adds
          this only to debug builds, so release builds need it here. -->
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -38,6 +42,21 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- "Log expense" in the swipe-down Quick Settings panel: opens
+             Quick Add listening (LogTileService.kt). -->
+        <service
+            android:name=".LogTileService"
+            android:exported="true"
+            android:label="Log expense"
+            android:icon="@drawable/ic_tile_mic"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="false"/>
+        </service>
         <receiver
             android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />

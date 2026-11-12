@@ -8,8 +8,12 @@ import 'package:runway/app/spending_lookup.dart';
 import 'package:runway/app/week_recap.dart';
 
 class _FakeModel implements CoachModel {
-  _FakeModel(this.reply, {this.lookUpWith});
+  _FakeModel(this.reply, {this.lookUpWith, this.canLookUp = true});
   final FutureOr<String?> Function() reply;
+
+  /// False for Gemini Nano, which is handed lookups up front.
+  @override
+  final bool canLookUp;
 
   /// Arguments to call the lookup with before replying, like the real
   /// model calling lookUpSpending.
@@ -24,6 +28,7 @@ class _FakeModel implements CoachModel {
     required String instructions,
     required String prompt,
     SpendingLookUp? lookUp,
+    double? temperature,
   }) async {
     lastPrompt = prompt;
     lastInstructions = instructions;
@@ -207,6 +212,48 @@ void main() {
           .ask('How much did I spend on coffee last week?', withHistory);
       expect(reply.fromModel, isFalse);
       expect(reply.text, startsWith('You spent \$11.35 on coffee last week'));
+    });
+
+    group('a model that can\'t look things up (Gemini Nano)', () {
+      test('is handed the spending the question is about', () async {
+        final model = _FakeModel(
+          () => 'You spent \$11.35 on coffee last week, mostly a cold brew.',
+          canLookUp: false,
+        );
+        final reply = await OnDeviceCoach(model)
+            .ask('How much coffee did I buy last week?', withHistory);
+        expect(model.offeredLookUp, isFalse);
+        expect(model.lastInstructions, isNot(contains('lookUpSpending')));
+        expect(model.lastInstructions, contains('"lookedUp"'));
+        expect(model.lastPrompt, contains('"spent":11.35'));
+        expect(model.lastPrompt, contains('Tuesday, Oct 27, 2026'));
+        expect(reply.text, startsWith('You spent \$11.35'));
+        expect(reply.fromModel, isTrue);
+      });
+
+      test('still can\'t make up an amount', () async {
+        final model = _FakeModel(
+          () => 'You spent \$73 on coffee last week.',
+          canLookUp: false,
+        );
+        final reply = await OnDeviceCoach(model)
+            .ask('How much did I spend on coffee last week?', withHistory);
+        expect(reply.fromModel, isFalse);
+        expect(reply.text, startsWith('You spent \$11.35 on coffee'));
+      });
+
+      test(
+        'gets nothing extra for a question that isn\'t about spending',
+        () async {
+          final model = _FakeModel(
+            () => 'You have \$1000 to work with.',
+            canLookUp: false,
+          );
+          await OnDeviceCoach(model).ask('Am I doing okay?', withHistory);
+          expect(model.lastPrompt, isNot(contains('lookedUp')));
+          expect(model.lastInstructions, isNot(contains('"lookedUp"')));
+        },
+      );
     });
 
     test('a purchase decision doesn\'t offer lookups', () async {

@@ -1,12 +1,13 @@
 # Runway Privacy Policy
 
-_Last updated: November 11, 2026_
+_Last updated: November 12, 2026_
 
 **The short version: we can't see your money data. It stays on your device,
 unless you turn on budget sync, and then it's encrypted on your device with a
 passphrase only you know before it's uploaded. Signing in with Apple or
 Google is optional. If you do, your name, email and an account ID are stored
-on our server, plus your streak if you join a squad in the web app.**
+on our server, plus any bills you split with friends, which only the people
+in each split can see.**
 
 ## What Runway stores, and where
 
@@ -84,9 +85,11 @@ keep any recording.
 ## Coach
 
 On iPhones with Apple Intelligence, Coach answers using Apple's on-device
-model, so your question and budget don't leave your phone. Elsewhere, Coach
-uses built-in rules on your device. Either way, nothing you ask Coach is
-sent to Runway.
+model, and on Android phones with Gemini Nano, using Google's on-device
+model, so your question and budget don't leave your phone. The same model
+can tidy up what you say into the mic on Android, also on the phone.
+Elsewhere, Coach uses built-in rules on your device. Either way, nothing you
+ask Coach is sent to Runway.
 
 ## Face ID, Touch ID and passcode
 
@@ -107,37 +110,12 @@ Reminders you turn on (a bill due tomorrow, an evening check-in, the weekly
 recap) are scheduled by your phone itself. Nothing is sent to a server to
 send them. If the app lock is on, they don't show amounts.
 
-## Squad (web app only, for now)
+## Friends and split bills
 
-Squad is in the web app today and comes to the iPhone app in a later
-update; the iPhone app doesn't have it yet. Squad needs you to sign in. When you start or join a squad, Runway stores on
-our server and shows **only to people in your squads**:
-
-- your first name and a squad emoji
-- your logging streak (days in a row you logged)
-- which days of the current no-delivery week you skipped delivery
-- the squads you're in, their names, and their invite codes
-
-Leaving a squad stops sharing with it right away, and a squad is deleted
-when its last member leaves. A squad's owner can remove someone, and that
-person can't rejoin it with an invite code.
-
-### Blocking and reporting
-
-- **Blocking:** when you block someone, Runway stores on our server that you
-  blocked them, so it can keep you apart: you won't see each other in
-  squads or friends, and you can't add each other or split new bills. They
-  aren't told. You can unblock them in Settings → Account → Blocked people (web app).
-- **Reporting:** when you report someone, or a squad's name, Runway stores
-  who you reported, which squad (if any), the reason you picked, and when.
-  The person isn't told who reported them. Reports are only used to review
-  behaviour on Runway and keep it safe.
-
-### Friends and split bills
-
-You can add friends with a friend code (people in your squads are your
-friends too) and split bills with them. When you split a bill with friends,
-Runway stores on our server, and shows **only to the people in that split**:
+Friends needs you to sign in. You can add friends with a friend code and
+split bills with them. Friends see **only your first name and an emoji**.
+When you split a bill with friends, Runway stores on our server, and shows
+**only to the people in that split**:
 
 - what it was ("Groceries"), its category, the total and who paid
 - each person's part
@@ -146,17 +124,43 @@ Runway stores on our server, and shows **only to the people in that split**:
 That's the only money information Runway's server can read, and it's what
 you chose to share with the people in that split. Nobody else sees it, and
 friends **never** see your budget, balance, other expenses or savings.
-Anyone in a split can delete it for everyone in it. Splits with
-someone who isn't on Runway stay on your device only.
+Anyone in a split can delete it for everyone in it. Splits with someone who
+isn't on Runway stay on your device only.
+
+### Blocking and reporting
+
+- **Blocking:** when you block someone, Runway stores on our server that you
+  blocked them, so it can keep you apart: you won't see each other in
+  friends, and you can't add each other or split new bills. They aren't
+  told. You can unblock them in Settings → Account → Blocked people.
+- **Reporting:** when you report someone (or, in the web app, a squad's
+  name), Runway stores who you reported, the reason you picked, and when.
+  The person isn't told who reported them. Reports are only used to review
+  behaviour on Runway and keep it safe.
+
+## Squads (web app only, for now)
+
+Squads are in the web app today and come to the phone apps in a later
+update. When you start or join a squad, Runway also stores on our server and
+shows **only to people in your squads**:
+
+- your logging streak (days in a row you logged)
+- which days of the current no-delivery week you skipped delivery
+- the squads you're in, their names, and their invite codes
+
+People in your squads are your friends too. Leaving a squad stops sharing
+with it right away, and a squad is deleted when its last member leaves. A
+squad's owner can remove someone, and that person can't rejoin it with an
+invite code.
 
 ## Deleting your data
 
 - **Your account:** Settings → Account → **Delete account** deletes your
   account and everything stored with it on our server (including any synced
-  budget, and, from the web app, anyone you blocked), right away. If you
-  signed in with Apple, Apple asks you to confirm first, and Runway's access
-  to your Apple ID is revoked too. A report you made from the web app is kept
-  for safety review, without your name on it.
+  budget, your friends, the bills you split and settle-ups, and anyone you
+  blocked), right away. If you signed in with Apple, Apple asks you to
+  confirm first, and Runway's access to your Apple ID is revoked too. A
+  report you made is kept for safety review, without your name on it.
 - **Just the synced budget:** Settings → Account → Budget sync → **Delete
   the synced copy**.
 - **Data on your device:** Settings → **Erase everything on this phone**

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
+import '../app/features.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/split_math.dart';
@@ -316,7 +317,7 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
           style: AppText.number,
           onChanged: (_) => setState(() {}),
         ),
-        if (real && state.squads.isNotEmpty) ...[
+        if (Features.squad && real && state.squads.isNotEmpty) ...[
           const SizedBox(height: 16),
           const FieldLabel('In a squad?'),
           Wrap(
@@ -396,8 +397,9 @@ class _SplitBillSheetState extends State<SplitBillSheet> {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               real
-                  ? 'Add friends or start a squad to split with them. Someone '
-                        'not on Runway? Add them by name.'
+                  ? '${Features.squad ? 'Add friends or start a squad' : 'Add friends'}'
+                        ' to split with them. Someone not on Runway? Add them '
+                        'by name.'
                   : 'Add someone by name; they don\'t need the app.',
               style: AppText.label,
             ),

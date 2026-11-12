@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../app/app_state.dart';
 import '../app/auth.dart';
 import '../app/budget_math.dart';
+import '../app/features.dart';
 import '../app/coach.dart';
 import '../app/format.dart';
 import '../app/models.dart';
@@ -16,6 +17,7 @@ import '../widgets/category_icon.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/celebrations.dart';
 import '../widgets/glass.dart';
+import '../widgets/pet_card.dart';
 import '../widgets/list_row.dart';
 import '../widgets/motion.dart';
 import '../widgets/ph_icons.dart';
@@ -79,6 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
         deposits: state.recentJarDeposits(),
         today: s.today,
       ),
+      // Mochi lives on the Squad tab when squads are on.
+      if (!Features.squad)
+        PetCard(mood: state.mood, level: state.petLevel, streak: state.streak),
     ];
     return Stack(
       children: [

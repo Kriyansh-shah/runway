@@ -8,6 +8,7 @@ import '../app/auth.dart';
 import '../app/device_auth.dart';
 import '../app/format.dart';
 import '../app/models.dart';
+import '../app/quick_log.dart';
 import '../app/theme.dart';
 import '../widgets/action_sheet.dart';
 import '../widgets/apple_button.dart';
@@ -171,6 +172,10 @@ class SettingsScreen extends StatelessWidget {
                   if (state.reminderScheduler.supported) ...[
                     const SectionHeader('Reminders'),
                     const _RemindersCard(),
+                  ],
+                  if (state.quickLog.supported) ...[
+                    const SectionHeader('Log from anywhere'),
+                    const _QuickLogCard(),
                   ],
                   SectionHeader(
                     state.term.period == BudgetPeriod.monthly
@@ -682,16 +687,20 @@ class _AccountCardState extends State<_AccountCard> {
               ),
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                Features.squad
-                    ? 'Optional. For Squad and syncing your budget '
-                          '(encrypted) to other devices. Without sync, your '
-                          'money data stays on this phone.'
-                    : 'Optional. For syncing your budget (encrypted) to '
-                          'other devices. Without sync, your money data '
-                          'stays on this phone.',
-                style: AppText.caption.copyWith(letterSpacing: 0),
-              ),
+              child: Text(switch ((Features.squad, Features.friends)) {
+                (true, _) =>
+                  'Optional. For Squad and syncing your budget '
+                      '(encrypted) to other devices. Without sync, your '
+                      'money data stays on this phone.',
+                (_, true) =>
+                  'Optional. For splitting bills with friends and syncing '
+                      'your budget (encrypted) to other devices. Without '
+                      'sync, your money data stays on this phone.',
+                _ =>
+                  'Optional. For syncing your budget (encrypted) to '
+                      'other devices. Without sync, your money data '
+                      'stays on this phone.',
+              }, style: AppText.caption.copyWith(letterSpacing: 0)),
             ),
           ],
         ),
@@ -736,7 +745,7 @@ class _AccountCardState extends State<_AccountCard> {
             subtitle: syncSummary(AppScope.of(context)),
             onTap: () => showSyncSheet(context),
           ),
-          if (Features.squad) ...[
+          if (Features.socialTab) ...[
             Divider(height: 1, color: AppColors.hairline),
             _LinkRow(
               icon: PhIcons.prohibit,
@@ -900,6 +909,74 @@ class _RemindersCardState extends State<_RemindersCard> {
       ),
     );
   }
+}
+
+/// Android's stand-ins for "Hey Siri, log in Runway": the Quick Settings
+/// tile and a home-screen icon, both opening Quick Add listening.
+class _QuickLogCard extends StatelessWidget {
+  const _QuickLogCard();
+
+  static void _tell(ScaffoldMessengerState messenger, String text) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _addTile(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final quickLog = AppScope.read(context).quickLog;
+    const byHand =
+        'Swipe down twice from the top, tap the pencil, and drag "Log '
+        'expense" into your tiles.';
+    if (!await quickLog.canAddTile()) {
+      _tell(messenger, byHand);
+      return;
+    }
+    switch (await quickLog.addTile()) {
+      case TileRequest.added:
+        _tell(messenger, 'Added. Swipe down and tap Log expense.');
+      case TileRequest.alreadyAdded:
+        _tell(messenger, 'It\'s already in your Quick Settings.');
+      case TileRequest.notAdded:
+        break;
+      case TileRequest.unsupported:
+        _tell(messenger, byHand);
+    }
+  }
+
+  Future<void> _pin(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final quickLog = AppScope.read(context).quickLog;
+    if (!await quickLog.canPinShortcut() || !await quickLog.pinShortcut()) {
+      _tell(
+        messenger,
+        'Your home screen doesn\'t take shortcuts. Long-press the Runway '
+        'icon for Log by voice instead.',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    child: Column(
+      children: [
+        _LinkRow(
+          icon: PhIcons.microphone,
+          label: 'Add to Quick Settings',
+          subtitle: 'Swipe down, tap Log expense, say what you spent.',
+          onTap: () => _addTile(context),
+        ),
+        Divider(height: 1, color: AppColors.hairline),
+        _LinkRow(
+          icon: PhIcons.plusBold,
+          label: 'Add a home-screen icon',
+          subtitle: 'One tap to log by voice.',
+          onTap: () => _pin(context),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ReminderRow extends StatelessWidget {

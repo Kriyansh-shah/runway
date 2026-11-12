@@ -230,9 +230,11 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   }
 
   /// Fills the sheet from "12 dollars at Chipotle". A category you already
-  /// picked stays; otherwise one is guessed from what it was.
+  /// picked stays; otherwise one is guessed from what it was. Where Gemini
+  /// Nano is available it then has a closer read (see [_understand]).
   void _useSpoken(String said) {
     final spoken = SpokenExpense.parse(said);
+    unawaited(_understand(said));
     if (spoken.amount == null && spoken.note == null) return;
     HapticFeedback.mediumImpact();
     setState(() {
@@ -247,6 +249,42 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
           _category = guess;
           _isNeed = SpokenExpense.isNeed(guess.category);
         }
+      }
+    });
+  }
+
+  /// The model's read of [said], filled in only where the person hasn't
+  /// changed anything since the rules filled the sheet.
+  Future<void> _understand(String said) async {
+    final state = AppScope.read(context);
+    final understanding = state.spokenUnderstanding;
+    if (understanding == null) return;
+    final customs = state.customCategories;
+    // What the rules are about to put in; compared once the model answers.
+    // Runs before the rules fill the sheet (see [_useSpoken]).
+    final ruled = SpokenExpense.parse(said);
+    final ruledInput = ruled.amount == null
+        ? _input
+        : amountText(ruled.amount!);
+    final ruledNote = ruled.note ?? _note.text;
+    // A category picked before speaking stays, as with the rules.
+    final pickedOwn = !_inPlainOther;
+    final ruledCategory = pickedOwn
+        ? _category
+        : SpokenExpense.guessCategory(ruled.note, customs) ?? _category;
+    final read = await understanding.read(said, customs: customs);
+    if (read == null || !mounted || _listening) return;
+    setState(() {
+      if (read.amount case final amount? when _input == ruledInput) {
+        _input = amountText(amount);
+      }
+      if (read.note case final note? when _note.text == ruledNote) {
+        _note.text = note;
+      }
+      if (read.category case final category?
+          when !pickedOwn && _category == ruledCategory) {
+        _category = category;
+        _isNeed = SpokenExpense.isNeed(category.category);
       }
     });
   }

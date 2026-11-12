@@ -33,20 +33,25 @@ Say "Log an expense in Runway", then tell Siri what you spent, like "8 bucks
 on coffee". It's added the next time you open Runway. Your iPhone needs to be
 unlocked.
 
-Squad is in the web app for now and comes to the iPhone app in a later
-update.
+**How do I add a friend?**
+Sign in, open **Friends** → **Add friend**, and share your code or type
+theirs. Friends see your first name and an emoji, never your budget, balance
+or other expenses.
 
-**What do my squad friends see? (web app)**
-Your first name, a squad emoji, your logging streak and your no-delivery
-week. Never your budget, balance or other expenses.
-
-**How do split bills work? (web app)**
-Squad → Split a bill. Pick who paid (you or a friend), who's in, and how to
-split it: equally, by exact amounts, percentages or shares. Your part counts
-as spending in your budget; each friend sees the split and what they owe in
-their app. Tap a friend to settle up. Only the people in a split see its
-amounts. Someone not on Runway? Add them by name; that IOU stays on your
+**How do split bills work?**
+Friends → **Split a bill**. Pick who paid (you or a friend), who's in, and
+how to split it: equally, by exact amounts, percentages or shares. Your part
+counts as spending in your budget; each friend sees the split and what they
+owe in their app. Tap a friend to settle up. Only the people in a split see
+its amounts. Someone not on Runway? Add them by name; that IOU stays on your
 phone.
+
+**Someone is bothering me. What can I do?**
+Tap them in Friends to remove, block or report them. Unblock people in
+Settings → Account → Blocked people.
+
+Squads (streaks and challenges with a group) are in the web app for now and
+come to the phone apps in a later update.
 
 **How do I delete my account?**
 Settings → Account → **Delete account**. It's deleted right away (if you

@@ -3,10 +3,10 @@
 /// Pure Dart, all in whole cents.
 ///
 /// Every split and settle-up belongs to a *scope*: a squad, or no squad
-/// (null). In a squad with "simplify debts" on, the squad's debts are
-/// redrawn as the fewest payments that settle everyone (Ann owes Ben $10
-/// and Ben owes Cat $10 becomes Ann pays Cat $10). Elsewhere, debts stay
-/// between the people who split.
+/// (null). The app always passes every squad as [simplified], so a squad's
+/// debts are redrawn as the fewest payments that settle everyone (Ann owes
+/// Ben $10 and Ben owes Cat $10 becomes Ann pays Cat $10). Outside a squad,
+/// debts stay between the people who split.
 library;
 
 import 'dart:math' as math;

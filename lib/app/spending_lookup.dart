@@ -192,22 +192,55 @@ const _periodWords = [
   ('this month', LookupPeriod.thisMonth),
 ];
 
+final _howMuch = RegExp(
+  r'\bhow much\b|\b(went|go|going) (to|on)\b',
+  caseSensitive: false,
+);
+
+/// The period and category a question about past spending is asking
+/// about, or null when it isn't one. Without a period it means the whole
+/// budget so far. [loose] also counts "How much on coffee this week?",
+/// which never says "spend".
+({String phrase, LookupPeriod period, String? category})? _spendingAsked(
+  String question,
+  SpendingHistory history, {
+  bool loose = false,
+}) {
+  final q = question.toLowerCase();
+  final period = _periodWords.where((p) => q.contains(p.$1)).firstOrNull;
+  final asked =
+      _spendWords.hasMatch(question) ||
+      (loose && (period != null || _howMuch.hasMatch(question)));
+  if (!asked) return null;
+  final names = {
+    for (final e in history.expenses) e.filedUnder.label.toLowerCase(),
+  }.where(q.contains).toList()..sort((a, b) => b.length.compareTo(a.length));
+  return (
+    phrase: period?.$1 ?? 'so far',
+    period: period?.$2 ?? LookupPeriod.wholeTerm,
+    category: names.firstOrNull,
+  );
+}
+
+/// The spending a question is about, looked up for a model that can't
+/// look it up itself (Gemini Nano), or null when it isn't about past
+/// spending.
+Map<String, Object>? spendingLookupFor(
+  String question,
+  SpendingHistory history,
+) {
+  final asked = _spendingAsked(question, history, loose: true);
+  if (asked == null) return null;
+  return history.lookUp(period: asked.period.name, category: asked.category);
+}
+
 /// "How much did I spend on coffee last week?" answered by the rules, or
 /// null when the question isn't about past spending. Without a period it
 /// means the whole budget so far.
 String? answerSpendingQuestion(String question, SpendingHistory history) {
-  if (!_spendWords.hasMatch(question)) return null;
-  final q = question.toLowerCase();
-  final (phrase, period) =
-      _periodWords
-          .where((p) => q.contains(p.$1))
-          .map((p) => (p.$1, p.$2))
-          .firstOrNull ??
-      ('so far', LookupPeriod.wholeTerm);
-  final names = {
-    for (final e in history.expenses) e.filedUnder.label.toLowerCase(),
-  }.where(q.contains).toList()..sort((a, b) => b.length.compareTo(a.length));
-  final category = names.firstOrNull;
+  final asked = _spendingAsked(question, history);
+  if (asked == null) return null;
+  final (:phrase, :period, :category) = asked;
   final found = history.lookUp(period: period.name, category: category);
   final on = category == null ? '' : ' on $category';
   if (found['note'] case final String note) {

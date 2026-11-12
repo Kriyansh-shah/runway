@@ -1,5 +1,6 @@
-// The App Store 1.0 build: Squad is held back for the next update, and Sign
-// in with Apple sits next to Google.
+// The App Store 1.0 build: squads are held back for the next update but
+// Friends (friends, bill splits, settle up) ships as the fourth tab, and
+// Sign in with Apple sits next to Google.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runway/app/app_state.dart';
@@ -89,33 +90,36 @@ void main() {
     await settle(tester);
   }
 
-  group('without Squad', () {
-    testWidgets('the tab bar has no Squad tab', (tester) async {
+  group('without squads', () {
+    testWidgets('the fourth tab is Friends, not Squad', (tester) async {
       await boot(tester, stateWith());
 
-      for (final tab in ['Home', 'Savings', 'Coach']) {
+      for (final tab in ['Home', 'Savings', 'Coach', 'Friends']) {
         expect(find.text(tab), findsWidgets);
       }
       expect(find.bySemanticsLabel('Add expense'), findsOneWidget);
       expect(find.text('Squad'), findsNothing);
-      expect(find.byType(SquadScreen), findsNothing);
     });
 
-    testWidgets('nothing can open the Squad tab', (tester) async {
+    testWidgets('the Friends tab has no squad parts', (tester) async {
       final state = stateWith();
       await boot(tester, state);
 
       state.requestedTab.value = 3;
       await settle(tester);
 
-      expect(find.byType(SquadScreen), findsNothing);
-      expect(find.text('Safe to spend today'), findsOneWidget);
+      expect(find.byType(SquadScreen), findsOneWidget);
+      expect(find.text('Friends'), findsWidgets);
+      expect(find.text('Split bills with friends'), findsOneWidget);
+      expect(find.text('No-delivery week'), findsNothing);
+      expect(find.text('Start a squad'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('no screen mentions Squad, friends or splits', (tester) async {
+    testWidgets('no screen mentions squads', (tester) async {
       await boot(tester, stateWith());
       final words = RegExp(
-        r'squad|split a bill|settle up|leaderboard|friend code|no-delivery',
+        r'squad|leaderboard|no-delivery|fewest payments',
         caseSensitive: false,
       );
 
@@ -140,9 +144,16 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Add expense'));
       await settle(tester);
       check('Quick Add');
+      Navigator.of(tester.element(find.text('Quick add'))).pop();
+      await settle(tester);
+      await tester.tap(find.text('Friends').last);
+      await settle(tester);
+      check('Friends');
     });
 
-    testWidgets('Settings has no Squad rows or wording', (tester) async {
+    testWidgets('Settings has Blocked people but no Squad wording', (
+      tester,
+    ) async {
       accounts.current = accounts.apple;
       await boot(
         tester,
@@ -156,7 +167,7 @@ void main() {
       await tester.tap(find.text('A')); // avatar initial
       await settle(tester);
 
-      expect(find.text('Blocked people'), findsNothing);
+      expect(find.text('Blocked people'), findsOneWidget);
       expect(find.textContaining('Squad'), findsNothing);
       expect(find.text('Signed in with Apple'), findsOneWidget);
       expect(find.text('Budget sync'), findsOneWidget);

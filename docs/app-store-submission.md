@@ -5,12 +5,15 @@ be followed in order. Everything you have to type into Apple's websites is
 here, ready to copy.
 
 **What 1.0 is:** the budgeting app with Home, Savings, Quick Add, Coach,
-Siri, reminders, the app lock, and optional Sign in with Apple or Google with
-encrypted budget sync. **Squad is not in 1.0.** It's hidden behind a switch
-and comes in the next update; see [next-update-squad.md](next-update-squad.md).
+Siri, reminders, the app lock, optional Sign in with Apple or Google with
+encrypted budget sync, and **Friends**: add friends with a code, split bills,
+settle up, block and report. **Squads are not in 1.0** (shared squads, the
+streak leaderboard, the no-delivery challenge). They're behind a switch and
+come in a later update; see [next-update-squad.md](next-update-squad.md).
 
-The code for 1.0 is on the git branch **`app-store-1.0`**. It isn't on
-`main` yet, so the live website hasn't changed.
+The code is on the git branch **`play-store-1.0`**, which has everything
+from `app-store-1.0` plus Friends and the Android work. It isn't on `main`
+yet, so the live website hasn't changed.
 
 > This file replaces the old `docs/app-store.md` checklist; everything that
 > was in it is here, updated for 1.0.
@@ -146,8 +149,8 @@ free plan for now, so a scheduled GitHub Action,
 every Monday and Thursday. It reads nothing (row-level security returns an
 empty list); it only counts as activity.
 
-- It starts working once this branch is merged into `main` and pushed (step
-  4): GitHub only runs schedules from the default branch.
+- **It's live:** the workflow was pushed to `main` on November 12, 2026 and
+  its first run passed. (GitHub only runs schedules from the default branch.)
 - To check it: GitHub → the repo → **Actions → Keep Supabase awake → Run
   workflow**. A green tick means Supabase answered.
 - If a run fails, GitHub emails you. Open the
@@ -158,25 +161,26 @@ empty list); it only counts as activity.
 - **During App Review**, still glance at the dashboard every couple of days.
   A paused project would make Sign in with Apple fail for the reviewer.
 
-**Supabase Pro ($25/month)** is optional for 1.0. It never pauses and adds
-daily backups. Upgrade once real people depend on sign-in and sync, and
-before the Squad update, which relies on the server much more.
+**Supabase Pro ($25/month)** is optional, but Friends puts real people's
+splits on the server in 1.0, so it's worth it soon after launch: it never
+pauses and adds daily backups.
 
 ---
 
 ## 4. Publish the 1.0 privacy policy and support page
 
 The App Store links to the privacy policy and support pages on your website,
-and the website is built from the **`main`** branch. On `app-store-1.0`,
+and the website is built from the **`main`** branch. On `play-store-1.0`,
 `docs/privacy.md` and `docs/support.md` are updated for 1.0 (Sign in with
-Apple, reminders, Squad marked as "web app only, for now"). They must be live
+Apple, reminders, Friends and split bills, squads marked as "web app only,
+for now"). They must be live
 **before you submit**, because the reviewer reads them.
 
 The simplest way is to merge the branch once you've tested it:
 
 ```sh
 git checkout main
-git merge app-store-1.0
+git merge play-store-1.0
 git push
 ```
 
@@ -184,7 +188,7 @@ That's safe for the website: the web app is built with Squad switched on
 (`scripts/build_site.sh` passes `--dart-define=SQUAD=true`), and the Apple
 button only appears in the iPhone and iPad app. After the push, check
 <https://kriyansh-shah.github.io/runway/privacy.html> shows "Last updated:
-November 11, 2026".
+November 12, 2026".
 
 **Contact email:** the policy and support page point to GitHub issues. Apple
 accepts that, but an email address is friendlier for people who aren't on
@@ -270,6 +274,11 @@ PRIVATE BY DESIGN
 • Optional Sign in with Apple or Google, to sync your budget to your other devices. It's end-to-end encrypted with a passphrase only you know, so nobody else can read it, not even us.
 • No ads, no tracking, no analytics.
 
+SPLIT BILLS WITH FRIENDS
+• Add friends with a code and split a bill: equally, by exact amounts, percentages or shares.
+• Your part counts as spending in your budget automatically; friends see what they owe in their app.
+• Settle up with a tap. Friends only ever see your first name and the bills you split, never your budget.
+
 GENTLE REMINDERS
 Optional reminders the day before a bill is due, an evening check-in if you haven't logged anything, and a weekly recap.
 
@@ -299,13 +308,17 @@ page also describes the web app's Squad; see
 App Information → **Age Rating → Edit**. Answer **None / No** to everything:
 no violence, sexual content, profanity, horror, drugs, alcohol or tobacco,
 gambling, contests, medical information or mature themes; no unrestricted web
-access (the privacy policy opens Runway's own page); no user-generated
-content, chat or messaging in 1.0 (Squad isn't in it); no advertising; no
-parental controls or age checks.
+access (the privacy policy opens Runway's own page); no chat or messaging;
+no advertising; no parental controls or age checks.
 
-Expected result: **4+**. If Apple's questionnaire asks about features not
-listed here, answer what's true for 1.0: Coach only answers questions about
-your own budget, and nothing is shared between people.
+**User-generated content: Yes.** With Friends, the description of a split
+bill ("Groceries") is shown to the friends in that split. It's only seen by
+people who added each other with a code, and there's remove, block and
+report on every friend. If Apple's questionnaire raises the rating because
+of this, accept it: Runway is for college students. See
+[judgement call 8](#16-judgement-calls-to-confirm).
+
+Coach only answers questions about your own budget.
 
 ---
 
@@ -317,31 +330,32 @@ code, `ios/Runner/PrivacyInfo.xcprivacy` and the privacy policy.
 **Do you or your third-party partners collect data from this app?** → **Yes**
 (only from people who choose to sign in).
 
-Select exactly these three data types:
+Select exactly these five data types:
 
 | Category → Data type | Linked to the user? | Used for tracking? | Purposes |
 | --- | --- | --- | --- |
 | Contact Info → **Name** | Yes | No | App Functionality |
 | Contact Info → **Email Address** | Yes | No | App Functionality |
 | Identifiers → **User ID** | Yes | No | App Functionality |
+| Financial Info → **Other Financial Info** | Yes | No | App Functionality |
+| User Content → **Other User Content** | Yes | No | App Functionality |
+
+The last two are Friends: bills split with friends (what it was, the total,
+who paid, each person's part) and settle-ups are stored on the server so
+both friends see them.
 
 Everything else: **not collected**. In particular:
 
-- **Financial Info:** not collected. Budgets, expenses and balances stay on
-  the phone. With Budget sync on, they're encrypted on the phone with the
-  person's passphrase before upload, so Runway can't read them. Apple counts
-  data as "collected" when the developer can access it; end-to-end encrypted
-  data you can't open isn't. This is
-  [judgement call 2](#16-judgement-calls-to-confirm): if you'd rather be extra
-  cautious, also tick Financial Info → Other Financial Info (Linked: Yes,
-  Tracking: No, App Functionality).
+- **The budget itself** (expenses, balances, bills) isn't collected. It stays
+  on the phone; with Budget sync on, it's encrypted on the phone with the
+  person's passphrase before upload, so Runway can't read it.
 - **Audio Data:** not collected. Voice logging uses Apple's speech
   recognition; Runway only gets the text, on the phone, and never stores
   audio. (Data handled by Apple's own services isn't the developer's to
   declare.)
 - **Usage Data, Diagnostics, Location, Contacts:** not collected. No
-  analytics or crash reporting is built in. (Squad's streak sharing would be
-  Usage Data; it's not in 1.0.)
+  analytics or crash reporting is built in. (Squads' streak sharing would be
+  Usage Data; squads aren't in 1.0, and Friends doesn't share streaks.)
 
 ---
 
@@ -392,10 +406,11 @@ screenshot to your Desktop.
 4. **Runway card:** "Money lasts until…" and the timeline.
 5. **Savings:** a goal and a "Saving for" jar.
 6. **Calendar:** a month with daily amounts.
-7. Optional: **Settings** showing Face ID lock and Budget sync (privacy).
+7. **Friends:** a couple of friends with balances, or the Split a bill sheet.
+8. Optional: **Settings** showing Face ID lock and Budget sync (privacy).
 
-Don't show Squad, friends or split bills anywhere. Screenshots must match
-1.0. You may add short captions on top (like "Know what you can spend
+Don't show squads, the leaderboard or the no-delivery challenge anywhere.
+Screenshots must match 1.0. You may add short captions on top (like "Know what you can spend
 today"), but don't show iPhone frames with fake content.
 
 ---
@@ -407,14 +422,14 @@ Do this after steps 2 to 4.
 1. Make sure the **build number** is new. It's the number after `+` in
    `pubspec.yaml` (`version: 1.0.0+1`). Every upload needs a higher one:
    `1.0.0+2`, `1.0.0+3`…
-2. In Terminal, from the `runway` folder on the `app-store-1.0` branch:
+2. In Terminal, from the `runway` folder on the `play-store-1.0` branch:
 
    ```sh
    flutter clean
    flutter build ipa --release
    ```
 
-   Squad stays off: it's only on when built with `--dart-define=SQUAD=true`.
+   Squads stay off (only on with `--dart-define=SQUAD=true`); Friends is on.
    The upload file ends up in `build/ios/ipa/`.
 3. Upload it with Apple's free **Transporter** app (Mac App Store): sign in,
    drag the `.ipa` in, click **Deliver**.
@@ -440,7 +455,15 @@ Test the exact build Apple will review, on a real iPhone, before submitting.
          asks you to confirm, the account is deleted, and the Supabase logs
          show no revoke error.
    - [ ] Budget sync on two devices (or delete and reinstall).
-   - [ ] No Squad tab, nothing about friends or split bills.
+   - [ ] The fourth tab says **Friends**; nothing about squads, streak
+         leaderboards or the no-delivery challenge.
+   - [ ] With a second account (a friend's phone, or Google on a second
+         device): add each other with a code, split a bill both ways, check
+         each phone shows the right amount, settle up, delete a split.
+   - [ ] Block and report a friend; unblock in Settings → Account → Blocked
+         people.
+   - [ ] Delete account on the second phone: the friend and their splits
+         disappear from the first phone after a refresh.
    - [ ] Siri: "Log an expense in Runway" → "8 bucks on coffee" → open the
          app, it's there.
    - [ ] Mic in Quick Add; Face ID lock; reminders.
@@ -456,9 +479,12 @@ TestFlight builds expire after 90 days, which is fine.
 
 On the version page, **App Review Information**:
 
-- **Sign-in required:** **untick** it. Runway works without an account, so no
-  demo account is needed. (Apple and Google sign-in can be tested with the
-  reviewer's own accounts.)
+- **Sign-in required:** **untick** it. Runway works without an account.
+  Friends needs one, and Runway only has Apple and Google sign-in, so you
+  can't hand Apple a username and password. Instead, **attach a short screen
+  recording** (App Review Information → Attachment) of two phones adding
+  each other and splitting a bill. Apple accepts a video when a feature
+  needs a second person.
 - **Contact information:** your first name, last name, phone number and
   email. Apple only uses them if they have a question.
 - **Notes** (copy and paste):
@@ -472,6 +498,7 @@ Things to try:
 • Coach tab: ask "Can I afford headphones for $80?". The yes/no answer comes from the app's own rules, so it works on every device; on devices with Apple Intelligence the wording is written on-device by Apple's model.
 • Sign in with Apple or Google is optional (Settings → Account). It's only used to sync the budget, end-to-end encrypted with a passphrase the person chooses. Delete account is in the same place; for Apple accounts it revokes the app's Apple ID access.
 • The Face ID app lock and reminders are optional (Settings).
+• Friends tab (needs sign-in): Add friend shows your friend code to share; Split a bill splits a cost with friends, and each friend sees what they owe in their own app. To try it alone, use Split a bill → Someone else to add a person by name (that IOU stays on the device). The attached video shows two accounts splitting a bill. Every friend has Remove, Block and Report; blocked people are listed in Settings → Account.
 
 No ads, no tracking, no in-app purchases. Privacy policy and support are linked in Settings → About.
 ```
@@ -493,8 +520,9 @@ a question or rejects something, you'll get a message in App Store Connect's
 | 4.8 Login services | Apps with Google sign-in must also offer Sign in with Apple (or similar) | Apple button above Google on the welcome screen and in Settings. **Step 2 must be done**, or the button won't work for the reviewer |
 | 5.1.1(v) Account deletion | People can delete their account in the app | Settings → Account → Delete account; it revokes Apple access (step 3b) |
 | 5.1.1(i) Privacy policy | Linked in App Store Connect and easy to find in the app | Settings → About → Privacy policy |
-| 2.1 App completeness | No crashes, broken buttons or placeholder content; everything shown works | Squad is fully hidden. Supabase must be awake (step 3c, the keep-awake job) or sign-in fails |
-| 2.3 Accurate metadata | Screenshots and text match the app | Text above has no Squad; take new screenshots without it |
+| 2.1 App completeness | No crashes, broken buttons or placeholder content; everything shown works | Squads are fully hidden; Friends is shown in the attached video. Supabase must be awake (step 3c, the keep-awake job) or sign-in and Friends fail |
+| 1.2 User-generated content | Apps where people share content need a way to block and report, and act on reports | Every friend has Remove, Block and Report; blocked people in Settings. Reports land in the `reports` table: check it now and then |
+| 2.3 Accurate metadata | Screenshots and text match the app | Text above describes Friends, not squads; take screenshots without squads |
 | 5.1.2 Data use | The privacy label and policy match what the app does | Section 8 matches the code and the policy |
 | 2.5.1 / 5.1.1 Permissions | Each permission is explained and asked for when needed | Microphone and speech only when you tap the mic; Face ID only when you turn on the lock; notifications only when you turn on reminders |
 | 4 Design (iPad) | iPad apps must work well on iPad and in landscape | Tested on 13" iPad, portrait and landscape |
@@ -507,17 +535,23 @@ a question or rejects something, you'll get a message in App Store Connect's
 
 On the `app-store-1.0` branch:
 
-- **Squad hidden** behind `Features.squad` (`lib/app/features.dart`): no
-  Squad tab, no split bills, no blocked-people row, no squad loading at
-  launch, no Squad wording. The code is all still there for the next update.
+- **Squads hidden** behind `Features.squad` (`lib/app/features.dart`): the
+  fourth tab is **Friends** (friends and balances, Split a bill, settle up,
+  remove, block, report), with no squad switcher, invite codes, leaderboard,
+  challenge or squad wording. Debts stay between the two people who split,
+  and friends get only your first name and emoji (no streak). Mochi's card
+  moves to the bottom of Home. Squads come back with `--dart-define=SQUAD=true`.
 - **Sign in with Apple** (`sign_in_with_apple` + Supabase ID-token sign-in,
   with a hashed nonce), above Google on the welcome screen, in Settings, and
-  on Squad's sign-in prompt for later. It takes the name Apple shares the
+  on the Friends tab's sign-in prompt. It takes the name Apple shares the
   first time and saves it to the account. Cancelling does nothing; errors are
   shown in plain words.
 - **Apple-aware account deletion:** the app gets a fresh code from Apple, and
   `supabase/functions/delete-account` swaps it for a token and revokes it.
-- **Privacy manifest** (`ios/Runner/PrivacyInfo.xcprivacy`) in the app target.
+- **Privacy manifest** (`ios/Runner/PrivacyInfo.xcprivacy`) in the app target,
+  declaring the Friends data and the encrypted database's file-timestamp and
+  disk-space checks (without those two, the upload is rejected with
+  ITMS-91053).
 - **Export compliance** key in `Info.plist`.
 - **Privacy policy and Help & support** links in Settings → About.
 - **Permission messages:** microphone, speech recognition and Face ID each
@@ -530,22 +564,23 @@ On the `app-store-1.0` branch:
 - **Works offline and without an account:** sign-in gives up after 8 seconds
   and the app opens name-only.
 - **Debug-only tools** (the device frame on the Mac) are off in release.
-- **Tests:** 361 tests pass, including a launch suite
-  (`test/launch_without_squad_test.dart`) that checks there's no Squad
-  anywhere, Sign in with Apple, and iPad portrait and landscape layouts.
+- **Tests:** the whole suite passes, including a launch suite
+  (`test/launch_without_squad_test.dart`) that checks the fourth tab is
+  Friends with no squads anywhere, Sign in with Apple, and iPad portrait and
+  landscape layouts, plus "Friends tab" tests in `test/app_test.dart`.
 
 ---
 
 ## 16. Judgement calls to confirm
 
-1. **Squad in the policy.** The website's web app still has Squad, and the
+1. **Squads in the policy.** The website's web app still has squads, and the
    website and app share one privacy policy. So the policy keeps the Squad
    sections, headed "web app only, for now". If you'd rather take Squad out
    of the web app too, remove `--dart-define=SQUAD=true` from
    `scripts/build_site.sh` and those sections from `docs/privacy.md` and
    `docs/support.md`.
-2. **Financial Info in the privacy label:** left off because synced budgets
-   are end-to-end encrypted (section 8). Ticking it is the cautious choice.
+2. **Financial Info in the privacy label:** ticked, because split bills are
+   stored readable on the server so friends can see them (section 8).
 3. **Export compliance:** declared exempt (section 9). It's your legal
    declaration as the publisher.
 4. **Countries:** suggested US only at first, because money is shown in
@@ -561,6 +596,9 @@ On the `app-store-1.0` branch:
 7. **Siri and the coach** use the name "Apple Intelligence" in a small tag on
    AI-written answers. That's a factual description, which Apple allows;
    don't use it in the app name, icon or subtitle.
+8. **Age rating with Friends:** answered "user-generated content: yes"
+   (section 7), which may lift the rating above 4+. Fine for college
+   students; answering "no" would be inaccurate.
 
 ---
 
@@ -572,8 +610,9 @@ Accounts and setup
 - [ ] Xcode: paid team selected, **Sign in with Apple** capability added, change committed
 - [ ] Supabase: Apple provider enabled with client ID `com.kriyanshshah.runway`
 - [ ] Apple key created; four `APPLE_*` secrets set; `delete-account` deployed
-- [ ] Supabase keep-awake job run once by hand after merging (green tick), and the project isn't paused (Pro is optional)
-- [ ] `app-store-1.0` merged into `main` and pushed; privacy page shows November 11, 2026
+- [x] Supabase keep-awake job on `main`, first run passed (November 12, 2026)
+- [ ] The project isn't paused (Pro recommended soon after launch)
+- [ ] `play-store-1.0` merged into `main` and pushed; privacy page shows November 12, 2026
 
 App Store Connect
 
@@ -582,8 +621,8 @@ App Store Connect
 - [ ] Subtitle, promotional text, description, keywords, support URL, copyright
 - [ ] Age rating answered (4+)
 - [ ] App Privacy answered as in section 8; privacy policy URL set
-- [ ] iPhone 6.9" and iPad 13" screenshots, no Squad
-- [ ] App Review notes and contact details; "Sign-in required" unticked
+- [ ] iPhone 6.9" and iPad 13" screenshots, Friends allowed, no squads
+- [ ] App Review notes and contact details; "Sign-in required" unticked; Friends video attached
 - [ ] Manual release selected
 
 Build

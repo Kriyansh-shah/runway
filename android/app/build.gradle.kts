@@ -59,4 +59,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Gemini Nano on the phone for the coach and the Quick Add mic. Only
+    // touched on Android 14+, where it can exist (see NanoModel.kt).
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta5")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 }

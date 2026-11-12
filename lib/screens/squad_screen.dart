@@ -4,7 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../app/app_state.dart';
 import '../app/auth.dart';
-import '../app/budget_math.dart';
+import '../app/features.dart';
 import '../app/format.dart';
 import '../app/models.dart';
 import '../app/squad.dart';
@@ -15,7 +15,7 @@ import '../widgets/expense_inputs.dart';
 import '../widgets/glass.dart';
 import '../widgets/google_button.dart';
 import '../widgets/gradient_button.dart';
-import '../widgets/mochi.dart';
+import '../widgets/pet_card.dart';
 import '../widgets/motion.dart';
 import '../widgets/pressable.dart';
 import 'shell.dart';
@@ -34,9 +34,10 @@ typedef _Person = ({
   bool isMe,
 });
 
-/// Your pet, your squad's challenge and streaks, and roommate splits.
-/// Where sign-in is set up, the squad is real friends (names, streaks and
-/// challenge dots only, never money); elsewhere it shows sample friends.
+/// The fourth tab. With squads on ([Features.squad]): your pet, your
+/// squad's challenge and streaks, and splits. With squads off it's
+/// Friends: friends and balances, Split a bill and settle up. Where sign-in
+/// is set up these are real friends; elsewhere it shows sample friends.
 class SquadScreen extends StatefulWidget {
   const SquadScreen({super.key});
 
@@ -97,16 +98,17 @@ class _SquadScreenState extends State<SquadScreen> {
                       isMe: false,
                     ),
           ];
+    final real = state.realSquad && state.account != null;
     final sections = <Widget>[
       Padding(
         padding: const EdgeInsets.only(top: 8),
-        child: Text('Squad', style: AppText.title),
+        child: Text(Features.squad ? 'Squad' : 'Friends', style: AppText.title),
       ),
-      _PetCard(mood: state.mood, level: state.petLevel, streak: state.streak),
-      if (state.realSquad)
-        if (state.account == null)
-          const _SquadSignIn()
-        else ...[
+      if (Features.squad)
+        PetCard(mood: state.mood, level: state.petLevel, streak: state.streak),
+      if (state.realSquad && state.account == null) const _SquadSignIn(),
+      if (Features.squad) ...[
+        if (real) ...[
           if (state.squads.isNotEmpty) const _SquadSwitcher(),
           if (squad != null)
             _SquadHeader(key: ValueKey(squad.id), squad: squad)
@@ -115,18 +117,15 @@ class _SquadScreenState extends State<SquadScreen> {
           else
             _StartOrJoin(error: state.squadError),
         ],
-      if (people != null) ...[
-        _ChallengeCard(state: state, people: people),
-        _Leaderboard(people: people),
-      ],
-      if (state.realSquad && state.account != null) ...[
-        if (squad != null && squad.simplifyDebts) _FewestPayments(squad: squad),
-        const _FriendsCard(),
-      ],
-      _Splits(
-        splits: state.splits,
-        real: state.realSquad && state.account != null,
-      ),
+        if (people != null) ...[
+          _ChallengeCard(state: state, people: people),
+          _Leaderboard(people: people),
+        ],
+        if (real && squad != null) _FewestPayments(squad: squad),
+      ] else if (real && state.squadError != null)
+        _LoadProblem(error: state.squadError!),
+      if (real) const _FriendsCard(),
+      _Splits(splits: state.splits, real: real),
     ];
     final scroll = SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(
@@ -156,6 +155,17 @@ class _SquadScreenState extends State<SquadScreen> {
             ),
     );
   }
+}
+
+/// Friends couldn't load (offline, or the server didn't answer).
+class _LoadProblem extends StatelessWidget {
+  const _LoadProblem({required this.error});
+  final String error;
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+    child: Text(error, style: AppText.label.copyWith(color: AppColors.red)),
+  );
 }
 
 /// Signed out: Squad needs an account so friends can find each other.
@@ -195,11 +205,20 @@ class _SquadSignInState extends State<_SquadSignIn> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Budget with your friends', style: AppText.heading),
+          Text(
+            Features.squad
+                ? 'Budget with your friends'
+                : 'Split bills with friends',
+            style: AppText.heading,
+          ),
           const SizedBox(height: 6),
           Text(
-            'Start a squad with roommates or friends: streaks and challenges '
-            'together. They see your first name and streak, never your money.',
+            Features.squad
+                ? 'Start a squad with roommates or friends: streaks and '
+                      'challenges together. They see your first name and '
+                      'streak, never your money.'
+                : 'Sign in to add friends and split bills that show up for '
+                      'both of you. Your own budget stays private.',
             style: AppText.label,
           ),
           const SizedBox(height: 16),
@@ -544,37 +563,6 @@ class _SquadHeaderState extends State<_SquadHeader> {
                 Text(m.emoji, style: const TextStyle(fontSize: 24)),
             ],
           ),
-          if (count > 1)
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Simplify debts', style: AppText.body),
-                      Text(
-                        'Settle the squad in the fewest payments.',
-                        style: AppText.caption.copyWith(letterSpacing: 0),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch.adaptive(
-                  value: squad.simplifyDebts,
-                  activeTrackColor: AppColors.lime,
-                  onChanged: (on) async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      await AppScope.read(context).setSimplifyDebts(on);
-                    } on SquadException catch (e) {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text(e.message)),
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
           if (count < maxSquadSize) ...[
             const SizedBox(height: 14),
             GradientButton(
@@ -586,118 +574,6 @@ class _SquadHeaderState extends State<_SquadHeader> {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _PetCard extends StatelessWidget {
-  const _PetCard({
-    required this.mood,
-    required this.level,
-    required this.streak,
-  });
-  final PetMood mood;
-  final PetLevel level;
-  final int streak;
-
-  Color get _moodColor => switch (mood) {
-    PetMood.thriving => AppColors.lime,
-    PetMood.chill => AppColors.lilac,
-    PetMood.worried => AppColors.butter,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      child: Row(
-        children: [
-          Mochi(mood: mood, size: 120),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      'Mochi',
-                      style: AppText.heading.copyWith(fontSize: 22),
-                    ),
-                    Pill(
-                      label: '${mood.emoji} ${mood.label}',
-                      color: _moodColor,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    GradientText('Lv ${level.level}', style: AppText.number),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${level.xp}/${level.xpForNext} XP',
-                        style: AppText.caption,
-                        textAlign: TextAlign.right,
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                _XpBar(progress: level.progress),
-                const SizedBox(height: 10),
-                Text(
-                  '🔥 $streak-day streak · log daily to level up',
-                  style: AppText.label.copyWith(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _XpBar extends StatelessWidget {
-  const _XpBar({required this.progress});
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 10,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: progress),
-        duration: Motion.slow,
-        curve: Motion.out,
-        builder: (context, v, _) => FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: v.clamp(0.02, 1.0),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: AppGradients.brand,
-              borderRadius: BorderRadius.circular(5),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.lime.withValues(alpha: 0.5),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1045,8 +921,11 @@ class _FriendsCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Text(
-                    'Add a friend with their code, or start a squad, to split '
-                    'bills that show up for both of you.',
+                    Features.squad
+                        ? 'Add a friend with their code, or start a squad, to '
+                              'split bills that show up for both of you.'
+                        : 'Add a friend with their code to split bills that '
+                              'show up for both of you.',
                     style: AppText.label,
                   ),
                 ),
@@ -1105,7 +984,8 @@ class _FriendsCard extends StatelessWidget {
   }
 }
 
-/// With "simplify debts" on: who pays whom so the squad is square.
+/// Who pays whom so the squad is square, in the fewest payments. Always
+/// on: there's no switch to find or explain.
 class _FewestPayments extends StatelessWidget {
   const _FewestPayments({required this.squad});
   final Squad squad;

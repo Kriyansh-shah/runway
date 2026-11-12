@@ -33,7 +33,6 @@ class Squad {
     required this.id,
     required this.name,
     required this.members,
-    this.simplifyDebts = true,
     this.ownerId,
   });
   final String id;
@@ -45,9 +44,6 @@ class Squad {
 
   /// Everyone in the squad, you included.
   final List<SquadMember> members;
-
-  /// Splits in this squad are settled with the fewest payments.
-  final bool simplifyDebts;
 }
 
 /// Someone you can split with: a squadmate or a friend you added.
@@ -192,8 +188,6 @@ abstract interface class SquadService {
   /// Either person in a settle-up can remove it.
   Future<void> deleteSettlement(String id);
 
-  Future<void> setSimplifyDebts(String squadId, bool on);
-
   /// Removes [personId] from a squad you own; they can't rejoin it.
   Future<void> removeMember(String squadId, String personId);
 
@@ -264,9 +258,6 @@ class NoSquad implements SquadService {
 
   @override
   Future<void> deleteSettlement(String id) => throw _offline;
-
-  @override
-  Future<void> setSimplifyDebts(String squadId, bool on) => throw _offline;
 
   @override
   Future<void> removeMember(String squadId, String personId) => throw _offline;

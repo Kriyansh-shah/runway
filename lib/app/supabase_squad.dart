@@ -146,14 +146,6 @@ class SupabaseSquad implements SquadService {
   );
 
   @override
-  Future<void> setSimplifyDebts(String squadId, bool on) => guard(
-    () => _client.rpc(
-      'set_simplify_debts',
-      params: {'squad': squadId, 'simplify': on},
-    ),
-  );
-
-  @override
   Future<void> removeMember(String squadId, String personId) => guard(
     () => _client.rpc(
       'remove_squad_member',
@@ -216,7 +208,7 @@ class SupabaseSquad implements SquadService {
   Future<SocialData> _load(String me) async {
     final mine = await _client
         .from('squad_members')
-        .select('squad_id, joined_at, squads(name, simplify_debts, created_by)')
+        .select('squad_id, joined_at, squads(name, created_by)')
         .eq('user_id', me)
         .order('joined_at');
     final squadIds = [for (final r in mine) r['squad_id'] as String];
@@ -258,8 +250,6 @@ class SupabaseSquad implements SquadService {
         Squad(
           id: r['squad_id'] as String,
           name: (r['squads'] as Map?)?['name'] as String? ?? 'Squad',
-          simplifyDebts:
-              (r['squads'] as Map?)?['simplify_debts'] as bool? ?? true,
           members: members,
           // Members come oldest first, as the server picks the owner.
           ownerId: members.any((m) => m.userId == createdBy)
