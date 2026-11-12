@@ -57,6 +57,7 @@ come to the phone apps in a later update.
 Settings → Account → **Delete account**. It's deleted right away (if you
 signed in with Apple, Apple asks you to confirm first). Your budget
 on the device stays until you use **Erase everything on this phone**.
+No longer have the app? See [Delete your account](delete-account.html).
 
 **How do I start over?**
 Settings → **Erase everything on this phone** deletes all your data on that

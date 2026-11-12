@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds the website into _site/: the landing page, the privacy policy and
-# support page (from docs/*.md), and the web app under app/. Used by
+# Builds the website into _site/: the landing page, the privacy policy,
+# support and delete-account pages (from docs/*.md), and the web app under app/. Used by
 # .github/workflows/website.yml. To preview locally, build for the root:
 #   BASE_HREF=/app/ scripts/build_site.sh && python3 -m http.server -d _site
 set -euo pipefail
@@ -26,6 +26,8 @@ PY
 }
 page docs/privacy.md _site/privacy.html "Privacy policy"
 page docs/support.md _site/support.html "Support"
+# Google Play asks for a page to delete an account without the app.
+page docs/delete-account.md _site/delete-account.html "Delete your account"
 
 # The rendering engine is served from this site, not Google's CDN, so the
 # Content-Security-Policy in web/index.html can stay "this site only".
