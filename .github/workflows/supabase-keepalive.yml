@@ -1,0 +1,36 @@
+# Keeps the free Supabase project from pausing. Supabase pauses free
+# projects after about a week with no activity, and then sign-in and budget
+# sync stop working. This makes one small database request twice a week.
+#
+# The request uses the publishable key that already ships inside the app,
+# and row-level security means it reads nothing ([] comes back). It only
+# counts as activity.
+#
+# Scheduled workflows only run from the default branch (main). GitHub also
+# turns schedules off in a repository with no commits for 60 days; it
+# emails a warning first, and one click re-enables it.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # Mondays and Thursdays at 14:00 UTC.
+    - cron: "0 14 * * 1,4"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the database
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 20 \
+            "https://slvwntpzgjpqzmojzdus.supabase.co/rest/v1/budget_backups?select=user_id&limit=1" \
+            -H "apikey: sb_publishable_0tPZA1of46JijBkugDNQsA_FBJnMkW1")
+          echo "Supabase answered HTTP $status"
+          if [ "$status" != "200" ]; then
+            echo "::error::Supabase didn't answer normally (HTTP $status). It may be paused: restore it at https://supabase.com/dashboard/project/slvwntpzgjpqzmojzdus"
+            exit 1
+          fi
