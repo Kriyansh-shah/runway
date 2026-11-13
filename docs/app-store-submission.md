@@ -607,6 +607,7 @@ On the `app-store-1.0` branch:
 Accounts and setup
 
 - [ ] Joined the Apple Developer Program; Team ID written down
+- [ ] Two-factor login turned on for Supabase, GitHub, Google (Cloud and Play Console) and the Apple developer account
 - [ ] Xcode: paid team selected, **Sign in with Apple** capability added, change committed
 - [ ] Supabase: Apple provider enabled with client ID `com.kriyanshshah.runway`
 - [ ] Apple key created; four `APPLE_*` secrets set; `delete-account` deployed

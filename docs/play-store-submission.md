@@ -430,6 +430,7 @@ passphrase. Or set the budget up again.
 Accounts and setup
 
 - [ ] Play developer account created, identity verified
+- [ ] Two-factor login turned on for Supabase, GitHub, Google (Cloud and Play Console) and the Apple developer account
 - [ ] Upload key created, `android/key.properties` written, key and password backed up
 - [ ] Upload-key SHA-1 added to Google Cloud as an Android OAuth client
 - [ ] `release-1.0` merged into `main` and pushed (privacy policy and delete-account page live)
