@@ -1092,7 +1092,7 @@ class AppState extends ChangeNotifier {
     CustomCategory? custom,
   }) async {
     if (totalCents <= 0 ||
-        totalCents >= 100000000 ||
+        totalCents > maxSplitCents ||
         shares.isEmpty ||
         shares.values.any((c) => c < 0) ||
         shares.values.fold(0, (a, b) => a + b) != totalCents) {
@@ -1152,12 +1152,23 @@ class AppState extends ChangeNotifier {
   Future<void> settleUpWith(String friendId, {int? amountCents}) async {
     final me = this.me;
     if (me == null) return;
-    final items = settleUp(
-      me: me,
-      friend: friendId,
-      byScope: _byScope[friendId] ?? const {},
-      amountCents: amountCents,
-    );
+    final items = [
+      // The server takes up to $100,000 per settle-up, so a bigger one
+      // goes as several.
+      for (final item in settleUp(
+        me: me,
+        friend: friendId,
+        byScope: _byScope[friendId] ?? const {},
+        amountCents: amountCents,
+      ))
+        for (var left = item.amountCents; left > 0; left -= maxSplitCents)
+          SettlementItem(
+            squadId: item.squadId,
+            from: item.from,
+            to: item.to,
+            amountCents: math.min(left, maxSplitCents),
+          ),
+    ];
     if (items.isEmpty) return;
     await _squadCall(() async {
       await squadService.recordSettlements(items);

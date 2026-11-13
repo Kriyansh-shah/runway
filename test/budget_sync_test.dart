@@ -161,8 +161,13 @@ void main() {
     expect(phone.sync.status, SyncStatus.off);
   });
 
-  test('passphrases need 8 characters', () {
+  test('new passphrases need 12 characters and some variety', () {
     expect(validatePassphrase('short'), isNotNull);
-    expect(validatePassphrase('long enough'), isNull);
+    expect(validatePassphrase('elevenchars'), isNotNull); // 11
+    expect(validatePassphrase('aaaaaaaaaaaaaaaa'), isNotNull);
+    expect(validatePassphrase('121212121212'), isNotNull);
+    expect(validatePassphrase('correct horse'), isNull);
+    expect(validatePassphrase('purple taco river lamp'), isNull);
+    expect(validatePassphrase('x' * 201), isNotNull);
   });
 }

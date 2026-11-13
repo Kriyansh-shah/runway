@@ -22,8 +22,7 @@ class LogTileService : TileService() {
 
   @SuppressLint("StartActivityAndCollapseDeprecated")
   override fun onClick() {
-    val open = Intent(this, MainActivity::class.java)
-      .setAction(MainActivity.ACTION_VOICE_ADD)
+    val open = QuickLog.voiceAddIntent(this)
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     // On a locked phone, unlock first: the app lock and the budget are
     // behind it.

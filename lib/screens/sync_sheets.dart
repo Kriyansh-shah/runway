@@ -208,7 +208,7 @@ class _PassphraseSheetState extends State<_PassphraseSheet> {
         const SizedBox(height: 16),
         GlassTextField(
           controller: _first,
-          hint: 'New passphrase (8+ characters)',
+          hint: 'New passphrase (12+ characters)',
           icon: PhIcons.lock,
           obscureText: true,
           maxLength: 200,

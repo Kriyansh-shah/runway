@@ -191,7 +191,9 @@ Future<void> main() async {
   // }
 
   // Long-press the app icon → "Log by voice" opens Quick Add listening.
-  if (!kIsWeb) {
+  // On Android the shortcut comes from QuickLog.kt instead, carrying
+  // Runway's own secret so other apps can't trigger the mic.
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
     const actions = QuickActions();
     unawaited(
       actions.initialize((type) {

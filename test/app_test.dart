@@ -1927,6 +1927,32 @@ void main() {
       );
     });
 
+    test('a settle-up over \$100,000 goes as several', () async {
+      squads.squad = _FakeSquad.roomies;
+      for (final id in ['big1', 'big2']) {
+        squads.expenses.add(
+          SharedExpense(
+            id: id,
+            paidBy: 'u2',
+            description: 'Tuition',
+            totalCents: maxSplitCents,
+            shares: const {'u1': maxSplitCents, 'u2': 0},
+            createdAt: DateTime(2026, 10, 2, 9),
+          ),
+        );
+      }
+      final state = stateWith();
+      await state.refreshSquad();
+      expect(state.friendBalances, {'u2': -2 * maxSplitCents});
+      await state.settleUpWith('u2');
+      expect(squads.settlements.length, 2);
+      expect(
+        squads.settlements.every((s) => s.amountCents <= maxSplitCents),
+        isTrue,
+      );
+      expect(state.friendBalances, isEmpty);
+    });
+
     testWidgets('settle up with a friend', (tester) async {
       squads.squad = _FakeSquad.roomies;
       squads.expenses.add(

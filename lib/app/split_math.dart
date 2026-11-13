@@ -11,6 +11,10 @@ library;
 
 import 'dart:math' as math;
 
+/// The most one split, share or settle-up can be: $100,000. The server
+/// enforces the same limit (supabase/migrations/…_friends_and_splits.sql).
+const maxSplitCents = 10000000;
+
 enum SplitKind {
   equal,
   exact,

@@ -259,10 +259,22 @@ enum SyncStatus {
   on,
 }
 
-/// Error message for a new passphrase, or null when it's fine.
+/// Error message for a new passphrase, or null when it's fine. Only new
+/// passphrases are checked; one chosen under the old 8-character rule
+/// still opens its synced copy.
+///
+/// The synced copy can only be attacked by guessing the passphrase
+/// offline (if the server's database ever leaked), so length is what
+/// matters: 12+ characters, and not one or two characters repeated.
 String? validatePassphrase(String passphrase) {
-  if (passphrase.length < 8) return 'Use at least 8 characters.';
+  if (passphrase.length < 12) {
+    return 'Use at least 12 characters. A few random words work well, like '
+        '"purple taco river lamp".';
+  }
   if (passphrase.length > 200) return 'That\'s too long.';
+  if (passphrase.toLowerCase().split('').toSet().length < 5) {
+    return 'That\'s too easy to guess. Try a few random words.';
+  }
   return null;
 }
 

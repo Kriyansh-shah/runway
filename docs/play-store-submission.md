@@ -14,7 +14,7 @@ Apple with encrypted budget sync, and **Friends**), plus two Android extras:
 - **Log from anywhere:** a "Log expense" Quick Settings tile and a "Log by
   voice" home-screen icon, both opening Quick Add listening.
 
-Squads are hidden, as on iPhone. The code is on the **`play-store-1.0`**
+Squads are hidden, as on iPhone. The code is on the **`release-1.0`**
 branch.
 
 **How long it takes:** a new personal Play account must run a **closed test
@@ -124,7 +124,7 @@ Play takes an **app bundle** (`.aab`), not an APK.
 
 1. Raise the build number in `pubspec.yaml` for every upload: `version:
    1.0.0+1` → `1.0.0+2` → … (Play refuses a number it has seen.)
-2. From the `runway` folder, on `play-store-1.0`, with `android/key.properties`
+2. From the `runway` folder, on `release-1.0`, with `android/key.properties`
    in place:
 
    ```sh
@@ -162,7 +162,7 @@ Play Console → **Create app**:
 Play Console → your app → **Policy and programs → App content**. Answer each:
 
 - **Privacy policy:** `https://kriyansh-shah.github.io/runway/privacy.html`
-  (it must be live first: merge `play-store-1.0` into `main` and push, as in
+  (it must be live first: merge `release-1.0` into `main` and push, as in
   step 4 of the App Store guide).
 - **App access:** *All or some functionality is restricted.* Add
   instructions:
@@ -432,7 +432,7 @@ Accounts and setup
 - [ ] Play developer account created, identity verified
 - [ ] Upload key created, `android/key.properties` written, key and password backed up
 - [ ] Upload-key SHA-1 added to Google Cloud as an Android OAuth client
-- [ ] `play-store-1.0` merged into `main` and pushed (privacy policy and delete-account page live)
+- [ ] `release-1.0` merged into `main` and pushed (privacy policy and delete-account page live)
 - [ ] Reviewer test Google account created, with a friend and a split
 
 Play Console

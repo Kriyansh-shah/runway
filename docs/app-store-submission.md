@@ -11,7 +11,7 @@ settle up, block and report. **Squads are not in 1.0** (shared squads, the
 streak leaderboard, the no-delivery challenge). They're behind a switch and
 come in a later update; see [next-update-squad.md](next-update-squad.md).
 
-The code is on the git branch **`play-store-1.0`**, which has everything
+The code is on the git branch **`release-1.0`**, which has everything
 from `app-store-1.0` plus Friends and the Android work. It isn't on `main`
 yet, so the live website hasn't changed.
 
@@ -170,7 +170,7 @@ pauses and adds daily backups.
 ## 4. Publish the 1.0 privacy policy and support page
 
 The App Store links to the privacy policy and support pages on your website,
-and the website is built from the **`main`** branch. On `play-store-1.0`,
+and the website is built from the **`main`** branch. On `release-1.0`,
 `docs/privacy.md` and `docs/support.md` are updated for 1.0 (Sign in with
 Apple, reminders, Friends and split bills, squads marked as "web app only,
 for now"). They must be live
@@ -180,7 +180,7 @@ The simplest way is to merge the branch once you've tested it:
 
 ```sh
 git checkout main
-git merge play-store-1.0
+git merge release-1.0
 git push
 ```
 
@@ -422,7 +422,7 @@ Do this after steps 2 to 4.
 1. Make sure the **build number** is new. It's the number after `+` in
    `pubspec.yaml` (`version: 1.0.0+1`). Every upload needs a higher one:
    `1.0.0+2`, `1.0.0+3`…
-2. In Terminal, from the `runway` folder on the `play-store-1.0` branch:
+2. In Terminal, from the `runway` folder on the `release-1.0` branch:
 
    ```sh
    flutter clean
@@ -612,7 +612,7 @@ Accounts and setup
 - [ ] Apple key created; four `APPLE_*` secrets set; `delete-account` deployed
 - [x] Supabase keep-awake job on `main`, first run passed (November 12, 2026)
 - [ ] The project isn't paused (Pro recommended soon after launch)
-- [ ] `play-store-1.0` merged into `main` and pushed; privacy page shows November 12, 2026
+- [ ] `release-1.0` merged into `main` and pushed; privacy page shows November 12, 2026
 
 App Store Connect
 
