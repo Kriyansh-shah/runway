@@ -2244,13 +2244,18 @@ void main() {
       expect(squadMentions(tester), isEmpty);
     });
 
-    testWidgets('Mochi moves to Home', (tester) async {
+    testWidgets('Mochi moves to Settings, off Home', (tester) async {
       tester.view.physicalSize = const Size(1290, 2796);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(RunwayApp(state: stateWith(), intro: false));
       await settle(tester);
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -6000));
+      await settle(tester);
+      expect(find.byType(PetCard), findsNothing);
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, 6000));
+      await settle(tester);
+      await tester.tap(find.text('A')); // avatar initial
       await settle(tester);
       expect(find.byType(PetCard), findsOneWidget);
       expect(tester.takeException(), isNull);

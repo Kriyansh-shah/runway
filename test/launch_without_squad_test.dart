@@ -8,6 +8,7 @@ import 'package:runway/app/auth.dart';
 import 'package:runway/app/features.dart';
 import 'package:runway/app/repository.dart';
 import 'package:runway/main.dart';
+import 'package:runway/screens/settings_screen.dart';
 import 'package:runway/screens/squad_screen.dart';
 import 'package:runway/widgets/apple_button.dart';
 
@@ -194,7 +195,15 @@ void main() {
         }
         await tester.tap(find.text('A')); // Settings
         await settle(tester);
-        await tester.drag(find.byType(Scrollable).last, const Offset(0, -6000));
+        await tester.drag(
+          find
+              .descendant(
+                of: find.byType(SettingsScreen),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+          const Offset(0, -6000),
+        );
         await settle(tester);
         expect(find.text('Privacy policy'), findsOneWidget);
         expect(tester.takeException(), isNull, reason: 'Settings');

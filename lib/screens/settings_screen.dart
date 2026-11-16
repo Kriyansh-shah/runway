@@ -17,6 +17,7 @@ import '../widgets/expense_inputs.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_button.dart';
+import '../widgets/pet_card.dart';
 import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
@@ -161,6 +162,15 @@ class SettingsScreen extends StatelessWidget {
                       name: user.name,
                       signedIn: state.account != null,
                     ),
+                  // Mochi lives on the Squad tab when squads are on.
+                  if (!Features.squad) ...[
+                    const SectionHeader('Mochi'),
+                    PetCard(
+                      mood: state.mood,
+                      level: state.petLevel,
+                      streak: state.streak,
+                    ),
+                  ],
                   if (state.account != null ||
                       state.accounts.canUseGoogle ||
                       state.accounts.canUseApple) ...[

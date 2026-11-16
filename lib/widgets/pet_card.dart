@@ -6,7 +6,7 @@ import 'glass.dart';
 import 'mochi.dart';
 
 /// Mochi, your money pet: its mood and level, from your logging streak.
-/// On the Squad tab when squads are on, otherwise on Home.
+/// On the Squad tab when squads are on, otherwise in Settings.
 class PetCard extends StatelessWidget {
   const PetCard({
     super.key,
