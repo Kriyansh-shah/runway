@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../app/app_state.dart';
 import '../app/features.dart';
+import '../app/models.dart';
 import '../app/purchase_link.dart';
 import '../app/theme.dart';
 import '../widgets/aurora_background.dart';
@@ -10,6 +11,7 @@ import '../widgets/celebrations.dart';
 import '../widgets/glass.dart';
 import '../widgets/pressable.dart';
 import 'coach_screen.dart';
+import 'first_run_tour.dart';
 import 'home_screen.dart';
 import 'quick_add_sheet.dart';
 import 'recap_sheet.dart';
@@ -48,6 +50,10 @@ class _ShellState extends State<Shell> {
   late final ValueNotifier<bool> _voiceAdds;
   late final ValueNotifier<bool> _quickAdds;
   late final ValueNotifier<bool> _billOffers;
+  late final ValueNotifier<bool> _tourRequests;
+
+  /// The tour is on screen; true when it's the first time it's offered.
+  bool? _tourFirstTime;
 
   @override
   void initState() {
@@ -62,11 +68,13 @@ class _ShellState extends State<Shell> {
     _voiceAdds = state.voiceAddRequested..addListener(_openVoiceAdd);
     _quickAdds = state.quickAddRequested..addListener(_openPlainQuickAdd);
     _billOffers = state.offerBillReminders..addListener(_offerBillReminders);
+    _tourRequests = state.tourRequested..addListener(_replayTour);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _openPurchase();
       _openVoiceAdd();
       _openPlainQuickAdd();
       _openRecap();
+      _offerTour();
     });
   }
 
@@ -78,7 +86,37 @@ class _ShellState extends State<Shell> {
     _voiceAdds.removeListener(_openVoiceAdd);
     _quickAdds.removeListener(_openPlainQuickAdd);
     _billOffers.removeListener(_offerBillReminders);
+    _tourRequests.removeListener(_replayTour);
     super.dispose();
+  }
+
+  /// First time on Home (or the launch after "Maybe later"): the tour.
+  Future<void> _offerTour() async {
+    final progress = await AppScope.read(context).tourProgress();
+    if (progress == TourProgress.seen || !mounted) return;
+    // Let Home's entrance play first.
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted || _tourFirstTime != null) return;
+    // Something opened over Home (a recap, Quick Add): next launch then.
+    if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    _startTour(firstTime: progress == TourProgress.notSeen);
+  }
+
+  /// "Show the tour again" in Settings.
+  void _replayTour() {
+    if (!_tourRequests.value || !mounted) return;
+    _tourRequests.value = false;
+    _startTour(firstTime: false);
+  }
+
+  void _startTour({required bool firstTime}) {
+    _select(0, haptic: false);
+    setState(() => _tourFirstTime = firstTime);
+  }
+
+  void _endTour(TourProgress progress) {
+    AppScope.read(context).tourEnded(progress);
+    setState(() => _tourFirstTime = null);
   }
 
   void _openTab() {
@@ -209,6 +247,10 @@ class _ShellState extends State<Shell> {
                 onAdd: _openQuickAdd,
               ),
             ),
+            if (_tourFirstTime case final firstTime?)
+              Positioned.fill(
+                child: FirstRunTour(firstTime: firstTime, onDone: _endTour),
+              ),
           ],
         ),
       ),
@@ -319,6 +361,7 @@ class _NavBar extends StatelessWidget {
                   onTap: () => onSelect(0),
                 ),
                 _NavItem(
+                  key: tourSavingsKey,
                   icon: PhIcons.piggyBank,
                   activeIcon: PhIcons.piggyBankFill,
                   label: 'Savings',
@@ -326,9 +369,12 @@ class _NavBar extends StatelessWidget {
                   onTap: () => onSelect(1),
                 ),
                 Expanded(
-                  child: Center(child: _AddButton(onTap: onAdd)),
+                  child: Center(
+                    child: _AddButton(key: tourAddKey, onTap: onAdd),
+                  ),
                 ),
                 _NavItem(
+                  key: tourCoachKey,
                   icon: PhIcons.sparkle,
                   activeIcon: PhIcons.sparkleFill,
                   label: 'Coach',
@@ -337,6 +383,7 @@ class _NavBar extends StatelessWidget {
                 ),
                 if (Features.socialTab)
                   _NavItem(
+                    key: tourSocialKey,
                     icon: PhIcons.usersThree,
                     activeIcon: PhIcons.usersThreeFill,
                     label: Features.squad ? 'Squad' : 'Friends',
@@ -354,6 +401,7 @@ class _NavBar extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
+    super.key,
     required this.icon,
     required this.activeIcon,
     required this.label,
@@ -411,7 +459,7 @@ class _NavItem extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onTap});
+  const _AddButton({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override

@@ -285,6 +285,15 @@ class SettingsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         _LinkRow(
+                          icon: PhIcons.sparkle,
+                          label: 'Show the tour again',
+                          onTap: () {
+                            state.tourRequested.value = true;
+                            Navigator.of(context).popUntil((r) => r.isFirst);
+                          },
+                        ),
+                        Divider(height: 1, color: AppColors.hairline),
+                        _LinkRow(
                           icon: PhIcons.lock,
                           label: 'Privacy policy',
                           onTap: () => _open(context, privacyPolicyUrl),

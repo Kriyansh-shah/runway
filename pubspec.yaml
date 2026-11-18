@@ -116,6 +116,11 @@ flutter:
     - family: Bricolage
       fonts:
         - asset: assets/fonts/BricolageGrotesque.ttf
+    # Handwriting for the first-run tour's welcome (SIL OFL, see
+    # assets/fonts/caveat/OFL.txt).
+    - family: Caveat
+      fonts:
+        - asset: assets/fonts/caveat/Caveat.ttf
     # Phosphor icon fonts (MIT, see assets/fonts/phosphor/LICENSE).
     - family: PhosphorRegular
       fonts:

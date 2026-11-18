@@ -26,6 +26,7 @@ class DriftBudgetRepository implements BudgetRepository {
   static const _recapSeenKey = 'recap_seen_until';
   static const _weekRecapSeenKey = 'week_recap_seen';
   static const _savingsAskedKey = 'savings_asked';
+  static const _tourKey = 'tour';
   static const _sessionId = 1;
 
   Future<void> close() => _db.close();
@@ -212,6 +213,16 @@ class DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> setWeekRecapSeen(DateTime weekStart) =>
       _setMeta(_weekRecapSeenKey, dateOnly(weekStart).toIso8601String());
+
+  @override
+  Future<TourProgress> tourProgress() async {
+    final value = await _getMeta(_tourKey);
+    return TourProgress.values.asNameMap()[value] ?? TourProgress.notSeen;
+  }
+
+  @override
+  Future<void> setTourProgress(TourProgress progress) =>
+      _setMeta(_tourKey, progress.name);
 
   @override
   Future<void> setSavingsAsked() =>
@@ -680,7 +691,7 @@ class DriftBudgetRepository implements BudgetRepository {
   }
 
   /// Meta keys that stay on this device instead of syncing.
-  static const _deviceOnlyMeta = {_appLockKey, _remindersKey};
+  static const _deviceOnlyMeta = {_appLockKey, _remindersKey, _tourKey};
 
   /// Synced tables, parents before the children that reference them.
   List<TableInfo<Table, Object?>> get _syncedTables => [

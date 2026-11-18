@@ -24,6 +24,7 @@ import '../widgets/transitions.dart';
 import 'add_income_sheet.dart';
 import 'all_expenses_screen.dart';
 import 'calendar_screen.dart';
+import 'first_run_tour.dart';
 import 'jar_sheets.dart';
 import 'money_actions.dart';
 import 'savings_goal_sheet.dart';
@@ -65,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _HeroRing(s: s),
       if (state.weekRecap case final recap?) _WeekRecapCard(recap),
       if (state.offerSavingsGoal) const _SavingsPrompt(),
-      _RunwayCard(s: s, costs: state.comingUp),
+      _RunwayCard(key: tourRunwayKey, s: s, costs: state.comingUp),
       _ComingUp(costs: state.comingUp, today: s.today),
       _MoneyIn(
         incomes: state.incomes,
@@ -479,7 +480,7 @@ class _RingPainter extends CustomPainter {
 }
 
 class _RunwayCard extends StatelessWidget {
-  const _RunwayCard({required this.s, required this.costs});
+  const _RunwayCard({super.key, required this.s, required this.costs});
   final RunwaySnapshot s;
   final List<UpcomingCost> costs;
 

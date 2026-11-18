@@ -147,6 +147,10 @@ class AppState extends ChangeNotifier {
   /// 3 Squad); the shell switches to it and clears this.
   final requestedTab = ValueNotifier<int?>(null);
 
+  /// Set by "Show the tour again" in Settings; the shell plays the tour on
+  /// Home and clears it.
+  final tourRequested = ValueNotifier<bool>(false);
+
   /// When the last offered recap's term ended, so it's offered only once.
   DateTime? _recapOffered;
 
@@ -1646,6 +1650,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     _persist(() => _repo.setWeekRecapSeen(recap.week.start));
   }
+
+  /// How far this phone got with the first-run tour.
+  Future<TourProgress> tourProgress() async {
+    await _lastWrite;
+    return _repo.tourProgress();
+  }
+
+  /// The tour was finished, skipped or put off. Stays on this phone.
+  void tourEnded(TourProgress progress) =>
+      _persist(() => _repo.setTourProgress(progress), budget: false);
 
   /// The recap for [past] was shown; it won't be offered again.
   void recapShown(PastTerm past) =>

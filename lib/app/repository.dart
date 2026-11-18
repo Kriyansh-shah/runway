@@ -129,6 +129,10 @@ abstract interface class BudgetRepository {
   Future<DateTime?> weekRecapSeen();
   Future<void> setWeekRecapSeen(DateTime weekStart);
 
+  /// How far this phone got with the first-run tour.
+  Future<TourProgress> tourProgress();
+  Future<void> setTourProgress(TourProgress progress);
+
   /// Permanently deletes everything on the device, including the session.
   /// The next [load] starts over as a brand-new install.
   Future<void> eraseEverything();
@@ -156,7 +160,10 @@ class SnapshotTooNewException implements Exception {
 
 /// Nothing is saved: every launch starts from the same demo data.
 class MockBudgetRepository implements BudgetRepository {
-  MockBudgetRepository({DateTime? now}) : _now = now ?? DateTime.now();
+  /// [tour] starts as seen so the tour stays out of tests that don't
+  /// test it.
+  MockBudgetRepository({DateTime? now, this._tour = TourProgress.seen})
+    : _now = now ?? DateTime.now();
 
   final DateTime _now;
   UserProfile? _user;
@@ -301,6 +308,14 @@ class MockBudgetRepository implements BudgetRepository {
   @override
   Future<void> setWeekRecapSeen(DateTime weekStart) async =>
       _weekRecapSeen = weekStart;
+
+  TourProgress _tour;
+
+  @override
+  Future<TourProgress> tourProgress() async => _tour;
+
+  @override
+  Future<void> setTourProgress(TourProgress progress) async => _tour = progress;
 
   @override
   Future<void> eraseEverything() async => _user = null;
