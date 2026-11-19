@@ -448,6 +448,11 @@ Test the exact build Apple will review, on a real iPhone, before submitting.
    add yourself. Internal testing doesn't need Apple's review.
 2. Install the **TestFlight** app on your iPhone and accept the invite.
 3. Check, on that build:
+   - [ ] Fresh install → set up a budget → the tour plays on Home: the
+         handwritten welcome, then each lit spot lines up with the ring,
+         Runway, +, Savings, Coach and Friends. Tapping elsewhere does
+         nothing; **Skip tour** works; Settings → About → **Show the tour
+         again** replays it.
    - [ ] Fresh install → welcome → **Continue with Apple** works (try "Hide My
          Email" too) and greets you by name.
    - [ ] **Continue with Google** works.
@@ -469,7 +474,7 @@ Test the exact build Apple will review, on a real iPhone, before submitting.
    - [ ] Mic in Quick Add; Face ID lock; reminders.
    - [ ] Settings → **Privacy policy** and **Help & support** open.
    - [ ] Airplane mode: the app opens and works; signing in fails politely.
-   - [ ] On an iPad, in portrait and landscape.
+   - [ ] On an iPad, in portrait and landscape, including the tour.
 
 TestFlight builds expire after 90 days, which is fine.
 
@@ -490,7 +495,7 @@ On the version page, **App Review Information**:
 - **Notes** (copy and paste):
 
 ```
-Runway needs no account. On the first screen, type any first name and tap Get started, then set up a budget: pick any end date and enter an amount (for example $3,000). Home then shows what's safe to spend today.
+Runway needs no account. On the first screen, type any first name and tap Get started, then set up a budget: pick any end date and enter an amount (for example $3,000). Home then shows what's safe to spend today. A 30-second tour plays the first time Home opens: tap the highlighted part to move on, or tap Skip tour (top right). It can be replayed from Settings → About.
 
 Things to try:
 • Tap + to log an expense (Quick Add). The mic lets you say it, e.g. "12 dollars at Chipotle".
@@ -533,14 +538,14 @@ a question or rejects something, you'll get a message in App Store Connect's
 
 ## 15. What's already done in the code
 
-On the `app-store-1.0` branch:
+On the `release-1.0` branch (merged into `main` on November 18, 2026):
 
 - **Squads hidden** behind `Features.squad` (`lib/app/features.dart`): the
   fourth tab is **Friends** (friends and balances, Split a bill, settle up,
   remove, block, report), with no squad switcher, invite codes, leaderboard,
   challenge or squad wording. Debts stay between the two people who split,
   and friends get only your first name and emoji (no streak). Mochi's card
-  moves to the bottom of Home. Squads come back with `--dart-define=SQUAD=true`.
+  lives in Settings. Squads come back with `--dart-define=SQUAD=true`.
 - **Sign in with Apple** (`sign_in_with_apple` + Supabase ID-token sign-in,
   with a hashed nonce), above Google on the welcome screen, in Settings, and
   on the Friends tab's sign-in prompt. It takes the name Apple shares the
@@ -554,6 +559,9 @@ On the `app-store-1.0` branch:
   ITMS-91053).
 - **Export compliance** key in `Info.plist`.
 - **Privacy policy and Help & support** links in Settings → About.
+- **First-run tour** (`lib/screens/first_run_tour.dart`): plays once per
+  phone the first time Home opens, can be skipped, and replays from
+  Settings → About. Whether it's been seen stays on the phone (not synced).
 - **Permission messages:** microphone, speech recognition and Face ID each
   say exactly why.
 - **App icon** 1024×1024 with no transparency; dark launch screen (no white
@@ -613,14 +621,15 @@ Accounts and setup
 - [ ] Apple key created; four `APPLE_*` secrets set; `delete-account` deployed
 - [x] Supabase keep-awake job on `main`, first run passed (November 12, 2026)
 - [ ] The project isn't paused (Pro recommended soon after launch)
-- [ ] `release-1.0` merged into `main` and pushed; privacy page shows November 12, 2026
+- [x] `release-1.0` merged into `main` and pushed; privacy page shows November 12, 2026 (checked November 19, 2026)
 
 App Store Connect
 
 - [ ] App created (name, bundle ID, SKU)
 - [ ] Category Finance; price Free; countries chosen
 - [ ] Subtitle, promotional text, description, keywords, support URL, copyright
-- [ ] Age rating answered (4+)
+- [ ] Age rating answered as in section 7 (4+, or higher if Apple's
+      questionnaire raises it for user-generated content)
 - [ ] App Privacy answered as in section 8; privacy policy URL set
 - [ ] iPhone 6.9" and iPad 13" screenshots, Friends allowed, no squads
 - [ ] App Review notes and contact details; "Sign-in required" unticked; Friends video attached
