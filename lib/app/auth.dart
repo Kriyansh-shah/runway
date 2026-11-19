@@ -1,5 +1,6 @@
 /// Who is using the app. Runway asks only for a name; signing in with
-/// Google is optional and links an account for Squad and budget sync.
+/// Apple or Google is optional and links an account for budget sync (and
+/// Squad, once it ships).
 /// Money data only leaves the device if sync is on, and then encrypted with
 /// a passphrase only the person knows; see budget_sync.dart.
 library;
@@ -23,13 +24,31 @@ String? validateName(String name) {
   return null;
 }
 
-/// A Google account linked through Supabase. Only the email and first name
-/// come from Google; money data never goes to the server.
+/// Who vouched for an [Account].
+enum SignInProvider {
+  apple('Apple'),
+  google('Google');
+
+  const SignInProvider(this.label);
+  final String label;
+}
+
+/// An Apple or Google account linked through Supabase. Only the email and
+/// first name come from the provider; money data never goes to the server.
 class Account {
-  const Account({required this.id, required this.email, this.firstName = ''});
+  const Account({
+    required this.id,
+    required this.email,
+    this.firstName = '',
+    this.provider = SignInProvider.google,
+  });
   final String id;
+
+  /// Can be an Apple private relay address, or empty if Apple didn't share
+  /// one.
   final String email;
   final String firstName;
+  final SignInProvider provider;
 }
 
 /// Why signing in, out or deleting didn't work, in words for the person.
@@ -42,10 +61,13 @@ class AccountException implements Exception {
 }
 
 /// Optional sign-in, behind an interface so tests and platforms without
-/// Google sign-in (macOS preview, web) use [NoAccounts].
+/// sign-in (macOS preview) use [NoAccounts].
 abstract interface class AccountService {
   /// Whether "Continue with Google" can be offered on this device.
   bool get canUseGoogle;
+
+  /// Whether "Sign in with Apple" can be offered (iPhone and iPad).
+  bool get canUseApple;
 
   /// The signed-in account, or null.
   Account? get current;
@@ -54,11 +76,17 @@ abstract interface class AccountService {
   /// throws [AccountException] when it fails.
   Future<Account?> signInWithGoogle();
 
+  /// Shows Apple's sign-in sheet. Null when the person backs out; throws
+  /// [AccountException] when it fails.
+  Future<Account?> signInWithApple();
+
   /// Signs out on this phone. Nothing on the phone is erased.
   Future<void> signOut();
 
   /// Deletes the account and everything stored with it on the server, then
-  /// signs out.
+  /// signs out. For an Apple account this first asks the person to confirm
+  /// with Apple, so Runway's access to their Apple ID can be revoked;
+  /// backing out of that throws [AccountException] and nothing is deleted.
   Future<void> deleteAccount();
 }
 
@@ -70,10 +98,16 @@ class NoAccounts implements AccountService {
   bool get canUseGoogle => false;
 
   @override
+  bool get canUseApple => false;
+
+  @override
   Account? get current => null;
 
   @override
   Future<Account?> signInWithGoogle() async => null;
+
+  @override
+  Future<Account?> signInWithApple() async => null;
 
   @override
   Future<void> signOut() async {}

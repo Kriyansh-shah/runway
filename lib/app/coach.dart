@@ -1,6 +1,7 @@
 /// "Can I afford it?" coach. The UI only talks to [AffordabilityCoach]: the
-/// local rules below run everywhere, and on iPhones with Apple Intelligence
-/// [OnDeviceCoach] (on_device_coach.dart) puts them into words.
+/// local rules below run everywhere, and on phones with an on-device model
+/// (Apple Intelligence, Gemini Nano) [OnDeviceCoach] (on_device_coach.dart)
+/// puts them into words.
 library;
 
 import 'dart:math' as math;
@@ -164,7 +165,7 @@ class CoachReply {
   final String? text;
   final Assessment? assessment;
 
-  /// Worded by Apple Intelligence rather than the rules, so the app can
+  /// Worded by the on-device model rather than the rules, so the app can
   /// say so.
   final bool fromModel;
 }

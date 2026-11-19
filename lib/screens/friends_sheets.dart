@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../app/app_state.dart';
+import '../app/features.dart';
 import '../app/format.dart';
 import '../app/split_math.dart';
 import '../app/squad.dart';
@@ -85,8 +86,9 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
     await SharePlus.instance.share(
       ShareParams(
         text:
-            'Add me on Runway to split bills: open Squad → Add friend and '
-            'enter $code',
+            'Add me on Runway to split bills: open '
+            '${Features.squad ? 'Squad' : 'Friends'} → Add friend and enter '
+            '$code',
         subject: 'Add me on Runway',
         sharePositionOrigin: box == null
             ? null
@@ -368,7 +370,7 @@ class _FriendSheetState extends State<_FriendSheet> {
       children: [
         Text(person.emoji, style: const TextStyle(fontSize: 40)),
         Text(person.name, style: AppText.title, textAlign: TextAlign.center),
-        if (squads.isNotEmpty)
+        if (Features.squad && squads.isNotEmpty)
           Text(
             'In ${squads.join(', ')}',
             style: AppText.label,

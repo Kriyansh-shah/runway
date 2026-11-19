@@ -523,3 +523,14 @@ class ReminderSettings {
     );
   }
 }
+
+/// How far this phone got with the first-run tour of Home.
+enum TourProgress {
+  notSeen,
+
+  /// "Maybe later" on the welcome: offered once more on the next launch.
+  later,
+
+  /// Finished or skipped; only Settings shows it again.
+  seen,
+}

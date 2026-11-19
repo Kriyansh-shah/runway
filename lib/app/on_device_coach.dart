@@ -1,10 +1,11 @@
-/// The coach with Apple's on-device model (iOS 26, Apple Intelligence).
-/// The rules in coach.dart still make every decision and every number; the
-/// model only puts them into words and answers questions about the person's
-/// own figures, looking up past spending through [SpendingHistory] when it
-/// needs to. It also writes the weekly recap. Nothing leaves the phone. Whenever the model is unavailable,
-/// slow, or says a dollar amount it wasn't given, the rule-based reply is
-/// shown instead.
+/// The coach with the phone's own model: Apple Intelligence on iPhone
+/// (iOS 26), Gemini Nano on Android phones that have it. The rules in
+/// coach.dart still make every decision and every number; the model only
+/// puts them into words and answers questions about the person's own
+/// figures, with past spending from [SpendingHistory]. It also writes the
+/// weekly recap. Nothing leaves the phone. Whenever the model is
+/// unavailable, slow, or says a dollar amount it wasn't given, the
+/// rule-based reply is shown instead.
 library;
 
 import 'dart:async';
@@ -26,26 +27,44 @@ typedef SpendingLookUp = Map<String, Object> Function(
 
 /// A language model that turns facts into a short reply. Null when it's
 /// unavailable or fails. With [lookUp], the model can ask for past
-/// spending while it answers.
+/// spending while it answers, when [canLookUp]; otherwise the coach looks
+/// it up first and hands it over with the facts.
 abstract interface class CoachModel {
+  /// Whether the model can call [SpendingLookUp] itself (tool calling).
+  bool get canLookUp;
+
   Future<String?> respond({
     required String instructions,
     required String prompt,
     SpendingLookUp? lookUp,
+    double? temperature,
   });
 }
 
-/// Apple's on-device model through ios/Runner/CoachModel.swift.
-class AppleCoachModel implements CoachModel {
-  const AppleCoachModel();
+/// The phone's on-device model: Apple Intelligence through
+/// ios/Runner/CoachModel.swift, Gemini Nano through
+/// android/.../OnDeviceModel.kt. Same channel on both.
+class OnDeviceCoachModel implements CoachModel {
+  const OnDeviceCoachModel();
 
   static const _channel = MethodChannel('runway/coach');
 
-  /// Only the iPhone app has it; the web and Android don't.
+  /// The iPhone and Android apps; not the web.
   static bool get supported =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android);
 
-  /// "available", or why not; see CoachModel.swift.
+  /// What the model is called, for the tag under its replies.
+  static String get name => defaultTargetPlatform == TargetPlatform.android
+      ? 'Gemini Nano'
+      : 'Apple Intelligence';
+
+  /// Apple's model looks things up itself; Gemini Nano is handed them.
+  @override
+  bool get canLookUp => defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// "available", or why not; see CoachModel.swift and NanoModel.kt.
   static Future<String> status() async {
     try {
       return await _channel.invokeMethod<String>('status') ?? 'unsupported';
@@ -72,8 +91,9 @@ class AppleCoachModel implements CoachModel {
     required String instructions,
     required String prompt,
     SpendingLookUp? lookUp,
+    double? temperature,
   }) async {
-    // Checked every time: Apple Intelligence can be switched on, or finish
+    // Checked every time: the model can be switched on, or finish
     // downloading, while the app is open.
     if (await status() != 'available') return null;
     if (!_listening) {
@@ -85,7 +105,8 @@ class AppleCoachModel implements CoachModel {
       return await _channel.invokeMethod<String>('respond', {
         'instructions': instructions,
         'prompt': prompt,
-        'tools': lookUp != null,
+        'tools': lookUp != null && canLookUp,
+        'temperature': ?temperature,
       });
     } on PlatformException catch (e) {
       debugPrint('On-device coach failed: ${e.message}');
@@ -133,6 +154,12 @@ class OnDeviceCoach implements AffordabilityCoach {
       'returns, using its amounts exactly. "Today" in the facts tells you '
       'the date.';
 
+  /// Added when the spending the question is about was looked up first.
+  static const handedOverInstructions =
+      ' "lookedUp" in the facts is the spending the question is about; '
+      'answer from it, using its amounts exactly. "Today" in the facts '
+      'tells you the date.';
+
   static const weekInstructions =
       'You are the money coach in Runway, a budgeting app for college '
       'students. Write a short recap of the student\'s last week in two or '
@@ -153,12 +180,18 @@ class OnDeviceCoach implements AffordabilityCoach {
     if (smallTalk(question, grounding) != null) return local;
     final assessment = local.assessment;
     final history = assessment == null ? grounding.history : null;
+    // A model that can't look things up gets the spending the question is
+    // about up front, worked out by the rules.
+    final handedOver = history == null || model.canLookUp
+        ? null
+        : spendingLookupFor(question, history);
     final facts = {
       ..._facts(grounding, assessment),
       if (history != null)
         'today':
             '${weekdayName(history.today)}, ${shortDate(history.today)}, '
             '${history.today.year}',
+      'lookedUp': ?handedOver,
     };
     // What the model looked up counts as given, for the amounts check.
     final lookedUp = <Map<String, Object>>[];
@@ -185,18 +218,22 @@ class OnDeviceCoach implements AffordabilityCoach {
     try {
       reply = await model
           .respond(
-            instructions: history == null
-                ? instructions
-                : instructions + lookUpInstructions,
+            instructions: switch ((history, handedOver)) {
+              (null, _) => instructions,
+              (_, null) when model.canLookUp =>
+                instructions + lookUpInstructions,
+              (_, null) => instructions,
+              _ => instructions + handedOverInstructions,
+            },
             prompt: prompt,
-            lookUp: history == null ? null : lookUp,
+            lookUp: history == null || !model.canLookUp ? null : lookUp,
           )
           .timeout(history == null ? timeout : lookUpTimeout);
     } on TimeoutException {
       return local;
     }
     final text = reply?.trim() ?? '';
-    final known = {...facts, 'lookedUp': lookedUp};
+    final known = {...facts, 'lookedUpByModel': lookedUp};
     if (text.isEmpty || !onlyKnownAmounts(text, known, question: question)) {
       return local;
     }

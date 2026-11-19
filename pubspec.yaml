@@ -52,6 +52,8 @@ dependencies:
   quick_actions: ^1.1.1
   flutter_local_notifications: ^22.3.3
   timezone: ^0.11.2
+  sign_in_with_apple: ^8.2.0
+  url_launcher: ^6.3.3
   # app_links: ^7.2.2 # Apple Pay logging, switched off for now
 dev_dependencies:
   flutter_test:
@@ -114,6 +116,11 @@ flutter:
     - family: Bricolage
       fonts:
         - asset: assets/fonts/BricolageGrotesque.ttf
+    # Handwriting for the first-run tour's welcome (SIL OFL, see
+    # assets/fonts/caveat/OFL.txt).
+    - family: Caveat
+      fonts:
+        - asset: assets/fonts/caveat/Caveat.ttf
     # Phosphor icon fonts (MIT, see assets/fonts/phosphor/LICENSE).
     - family: PhosphorRegular
       fonts:

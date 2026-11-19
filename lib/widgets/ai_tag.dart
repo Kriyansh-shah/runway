@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../app/on_device_coach.dart';
 import '../app/theme.dart';
 import 'ph_icons.dart';
 
-/// "Apple Intelligence" under words the on-device model wrote, so it's
-/// clear when it answered and when the rules did.
+/// "Apple Intelligence" (or "Gemini Nano" on Android) under words the
+/// on-device model wrote, so it's clear when it answered and when the
+/// rules did.
 class AiTag extends StatelessWidget {
   const AiTag({super.key});
 
@@ -15,7 +17,7 @@ class AiTag extends StatelessWidget {
       const Icon(PhIcons.sparkle, size: 12, color: AppColors.lilac),
       const SizedBox(width: 4),
       Text(
-        'Apple Intelligence',
+        OnDeviceCoachModel.name,
         style: AppText.caption.copyWith(color: AppColors.lilac),
       ),
     ],

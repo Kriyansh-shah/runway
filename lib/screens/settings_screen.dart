@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app/app_state.dart';
+import '../app/features.dart';
 import '../app/auth.dart';
 import '../app/device_auth.dart';
 import '../app/format.dart';
 import '../app/models.dart';
+import '../app/quick_log.dart';
 import '../app/theme.dart';
 import '../widgets/action_sheet.dart';
+import '../widgets/apple_button.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/expense_inputs.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_button.dart';
+import '../widgets/pet_card.dart';
 import '../widgets/ph_icons.dart';
 import '../widgets/pressable.dart';
 import '../widgets/transitions.dart';
@@ -24,6 +29,26 @@ import 'safety_sheets.dart';
 import 'sync_sheets.dart';
 
 /// Account, the current semester, big costs, and your data.
+/// Shown in Settings → About, and given to the App Store.
+const privacyPolicyUrl = 'https://kriyansh-shah.github.io/runway/privacy.html';
+const supportUrl = 'https://kriyansh-shah.github.io/runway/support.html';
+
+/// Opens [url] in a browser sheet over the app.
+Future<void> _open(BuildContext context, String url) async {
+  final messenger = ScaffoldMessenger.of(context);
+  var opened = false;
+  try {
+    opened = await launchUrl(Uri.parse(url), mode: LaunchMode.inAppBrowserView);
+  } on Exception {
+    opened = false;
+  }
+  if (!opened) {
+    messenger.showSnackBar(
+      SnackBar(content: Text('Couldn\'t open the page. It\'s at $url')),
+    );
+  }
+}
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -67,7 +92,7 @@ class SettingsScreen extends StatelessWidget {
       context,
       title: 'Erase everything?',
       message:
-          'Every semester, expense, payment and split on this phone is '
+          'Every semester, expense and payment on this phone is '
           'deleted for good, and you\'re signed out. This can\'t be undone.',
       actions: const [
         SheetAction(
@@ -137,7 +162,18 @@ class SettingsScreen extends StatelessWidget {
                       name: user.name,
                       signedIn: state.account != null,
                     ),
-                  if (state.account != null || state.accounts.canUseGoogle) ...[
+                  // Mochi lives on the Squad tab when squads are on.
+                  if (!Features.squad) ...[
+                    const SectionHeader('Mochi'),
+                    PetCard(
+                      mood: state.mood,
+                      level: state.petLevel,
+                      streak: state.streak,
+                    ),
+                  ],
+                  if (state.account != null ||
+                      state.accounts.canUseGoogle ||
+                      state.accounts.canUseApple) ...[
                     const SectionHeader('Account'),
                     const _AccountCard(),
                   ],
@@ -146,6 +182,10 @@ class SettingsScreen extends StatelessWidget {
                   if (state.reminderScheduler.supported) ...[
                     const SectionHeader('Reminders'),
                     const _RemindersCard(),
+                  ],
+                  if (state.quickLog.supported) ...[
+                    const SectionHeader('Log from anywhere'),
+                    const _QuickLogCard(),
                   ],
                   SectionHeader(
                     state.term.period == BudgetPeriod.monthly
@@ -232,6 +272,37 @@ class SettingsScreen extends StatelessWidget {
                           label: 'Erase everything on this phone',
                           color: AppColors.red,
                           onTap: () => _erase(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SectionHeader('About'),
+                  GlassCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    child: Column(
+                      children: [
+                        _LinkRow(
+                          icon: PhIcons.sparkle,
+                          label: 'Show the tour again',
+                          onTap: () {
+                            state.tourRequested.value = true;
+                            Navigator.of(context).popUntil((r) => r.isFirst);
+                          },
+                        ),
+                        Divider(height: 1, color: AppColors.hairline),
+                        _LinkRow(
+                          icon: PhIcons.lock,
+                          label: 'Privacy policy',
+                          onTap: () => _open(context, privacyPolicyUrl),
+                        ),
+                        Divider(height: 1, color: AppColors.hairline),
+                        _LinkRow(
+                          icon: PhIcons.at,
+                          label: 'Help & support',
+                          onTap: () => _open(context, supportUrl),
                         ),
                       ],
                     ),
@@ -559,8 +630,12 @@ class _AccountCardState extends State<_AccountCard> {
     }
   }
 
-  Future<void> _signIn() => _run((state) async {
-    if (await state.signInWithGoogle()) HapticFeedback.mediumImpact();
+  Future<void> _signIn(SignInProvider provider) => _run((state) async {
+    final signedIn = switch (provider) {
+      SignInProvider.apple => await state.signInWithApple(),
+      SignInProvider.google => await state.signInWithGoogle(),
+    };
+    if (signedIn) HapticFeedback.mediumImpact();
   });
 
   Future<void> _signOut() async {
@@ -606,26 +681,45 @@ class _AccountCardState extends State<_AccountCard> {
 
   @override
   Widget build(BuildContext context) {
-    final account = AppScope.of(context).account;
+    final state = AppScope.of(context);
+    final account = state.account;
     if (account == null) {
       return GlassCard(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _LinkRow(
-              icon: PhIcons.user,
-              label: _busy ? 'Signing in…' : 'Continue with Google',
-              onTap: _signIn,
-            ),
+            if (state.accounts.canUseApple) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: AppleButton(
+                  busy: _busy,
+                  onTap: () => _signIn(SignInProvider.apple),
+                ),
+              ),
+            ],
+            if (state.accounts.canUseGoogle)
+              _LinkRow(
+                icon: PhIcons.user,
+                label: _busy ? 'Signing in…' : 'Continue with Google',
+                onTap: () => _signIn(SignInProvider.google),
+              ),
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                'Optional. For Squad and syncing your budget (encrypted) to '
-                'other devices. Without sync, your money data stays '
-                'on this phone.',
-                style: AppText.caption.copyWith(letterSpacing: 0),
-              ),
+              child: Text(switch ((Features.squad, Features.friends)) {
+                (true, _) =>
+                  'Optional. For Squad and syncing your budget '
+                      '(encrypted) to other devices. Without sync, your '
+                      'money data stays on this phone.',
+                (_, true) =>
+                  'Optional. For splitting bills with friends and syncing '
+                      'your budget (encrypted) to other devices. Without '
+                      'sync, your money data stays on this phone.',
+                _ =>
+                  'Optional. For syncing your budget (encrypted) to '
+                      'other devices. Without sync, your money data '
+                      'stays on this phone.',
+              }, style: AppText.caption.copyWith(letterSpacing: 0)),
             ),
           ],
         ),
@@ -646,9 +740,12 @@ class _AccountCardState extends State<_AccountCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Signed in with Google', style: AppText.label),
                       Text(
-                        account.email,
+                        'Signed in with ${account.provider.label}',
+                        style: AppText.label,
+                      ),
+                      Text(
+                        account.email.isEmpty ? 'Hidden email' : account.email,
                         style: AppText.body.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -667,12 +764,14 @@ class _AccountCardState extends State<_AccountCard> {
             subtitle: syncSummary(AppScope.of(context)),
             onTap: () => showSyncSheet(context),
           ),
-          Divider(height: 1, color: AppColors.hairline),
-          _LinkRow(
-            icon: PhIcons.prohibit,
-            label: 'Blocked people',
-            onTap: () => showBlockedPeople(context),
-          ),
+          if (Features.socialTab) ...[
+            Divider(height: 1, color: AppColors.hairline),
+            _LinkRow(
+              icon: PhIcons.prohibit,
+              label: 'Blocked people',
+              onTap: () => showBlockedPeople(context),
+            ),
+          ],
           Divider(height: 1, color: AppColors.hairline),
           _LinkRow(icon: PhIcons.signOut, label: 'Sign out', onTap: _signOut),
           Divider(height: 1, color: AppColors.hairline),
@@ -829,6 +928,74 @@ class _RemindersCardState extends State<_RemindersCard> {
       ),
     );
   }
+}
+
+/// Android's stand-ins for "Hey Siri, log in Runway": the Quick Settings
+/// tile and a home-screen icon, both opening Quick Add listening.
+class _QuickLogCard extends StatelessWidget {
+  const _QuickLogCard();
+
+  static void _tell(ScaffoldMessengerState messenger, String text) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _addTile(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final quickLog = AppScope.read(context).quickLog;
+    const byHand =
+        'Swipe down twice from the top, tap the pencil, and drag "Log '
+        'expense" into your tiles.';
+    if (!await quickLog.canAddTile()) {
+      _tell(messenger, byHand);
+      return;
+    }
+    switch (await quickLog.addTile()) {
+      case TileRequest.added:
+        _tell(messenger, 'Added. Swipe down and tap Log expense.');
+      case TileRequest.alreadyAdded:
+        _tell(messenger, 'It\'s already in your Quick Settings.');
+      case TileRequest.notAdded:
+        break;
+      case TileRequest.unsupported:
+        _tell(messenger, byHand);
+    }
+  }
+
+  Future<void> _pin(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final quickLog = AppScope.read(context).quickLog;
+    if (!await quickLog.canPinShortcut() || !await quickLog.pinShortcut()) {
+      _tell(
+        messenger,
+        'Your home screen doesn\'t take shortcuts. Long-press the Runway '
+        'icon for Log by voice instead.',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    child: Column(
+      children: [
+        _LinkRow(
+          icon: PhIcons.microphone,
+          label: 'Add to Quick Settings',
+          subtitle: 'Swipe down, tap Log expense, say what you spent.',
+          onTap: () => _addTile(context),
+        ),
+        Divider(height: 1, color: AppColors.hairline),
+        _LinkRow(
+          icon: PhIcons.plusBold,
+          label: 'Add a home-screen icon',
+          subtitle: 'One tap to log by voice.',
+          onTap: () => _pin(context),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ReminderRow extends StatelessWidget {
